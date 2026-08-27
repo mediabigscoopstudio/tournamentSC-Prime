@@ -74,18 +74,43 @@
                 <input type="hidden" name="participant_id" value="{{ team_a.id }}">
                 <button class="bball-score-adjust" type="submit" aria-label="Reduce {{ team_a.name }} score by 1">−</button>
               </form>
+              <div class="bball-score-quick">
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="adjust_score">
+                  <input type="hidden" name="participant_id" value="{{ team_a.id }}">
+                  <button class="bball-score-quick-btn" type="submit" aria-label="Subtract 1 from {{ team_a.name }} score">−</button>
+                </form>
+                <button type="button" class="bball-score-quick-btn bball-score-quick-btn--plus"
+                        data-bball-open="{{ team_a.id }}" data-bball-points="1"
+                        aria-label="Add 1 to {{ team_a.name }} score">+</button>
+              </div>
             {% endif %}
           </div>
 
           {% if fixture.status == 'LIVE' %}
             <div class="bball-clock-stack">
-              <div class="bball-digital-clock" data-quarter-clock
-                   data-clock-status="{{ fixture.status }}"
-                   data-started-at="{{ fixture.live_started_at|date:'c' }}"
-                   data-extra-seconds="{{ fixture.extra_time_seconds }}"
-                   data-quarter-length-seconds="{{ fixture.quarter_length_seconds }}"
-                   data-paused="{% if fixture.clock_paused_at %}1{% else %}0{% endif %}"
-                   data-paused-remaining-seconds="{{ fixture.paused_quarter_remaining_seconds|default_if_none:'' }}">10:00</div>
+              <div class="bball-clock-row">
+                <div class="bball-clock-adjust">
+                  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="adjust_clock_seconds">
+                    <button class="bball-clock-adjust-btn" type="submit" name="seconds" value="-10"
+                            aria-label="Subtract 10 seconds from match clock">−</button>
+                  </form>
+                  <span class="bball-clock-adjust-label">-10s</span>
+                </div>
+                <div class="bball-digital-clock" data-quarter-clock
+                     data-clock-status="{{ fixture.status }}"
+                     data-started-at="{{ fixture.live_started_at|date:'c' }}"
+                     data-extra-seconds="{{ fixture.extra_time_seconds }}"
+                     data-quarter-length-seconds="{{ fixture.quarter_length_seconds }}"
+                     data-paused="{% if fixture.clock_paused_at %}1{% else %}0{% endif %}"
+                     data-paused-remaining-seconds="{{ fixture.paused_quarter_remaining_seconds|default_if_none:'' }}">10:00</div>
+                <div class="bball-clock-adjust">
+                  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="adjust_clock_seconds">
+                    <button class="bball-clock-adjust-btn" type="submit" name="seconds" value="10"
+                            aria-label="Add 10 seconds to match clock">+</button>
+                  </form>
+                  <span class="bball-clock-adjust-label">+10s</span>
+                </div>
+              </div>
               <div class="bball-clock-controls">
                 <form method="post"
                       data-bball-confirm="Reset the quarter timer? This also clears any extra time added.">
@@ -127,6 +152,15 @@
                 <input type="hidden" name="participant_id" value="{{ team_b.id }}">
                 <button class="bball-score-adjust" type="submit" aria-label="Reduce {{ team_b.name }} score by 1">−</button>
               </form>
+              <div class="bball-score-quick">
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="adjust_score">
+                  <input type="hidden" name="participant_id" value="{{ team_b.id }}">
+                  <button class="bball-score-quick-btn" type="submit" aria-label="Subtract 1 from {{ team_b.name }} score">−</button>
+                </form>
+                <button type="button" class="bball-score-quick-btn bball-score-quick-btn--plus"
+                        data-bball-open="{{ team_b.id }}" data-bball-points="1"
+                        aria-label="Add 1 to {{ team_b.name }} score">+</button>
+              </div>
             {% endif %}
           </div>
         </div>

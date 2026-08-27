@@ -73,6 +73,46 @@ def validate_pool_config(num_pools, teams_per_pool, qualifiers_per_pool, total_t
     return True, ''
 
 
+def validate_manual_pools(assignments, num_pools, qualifiers_per_pool, entrants):
+    """Return (is_valid, message) for a manual team->pool assignment.
+
+    `assignments` is {team_id: pool_label}. Every approved team must be
+    assigned to one of the `num_pools` valid labels, and every pool must end
+    up with enough teams to both play a round-robin (>= 2) and produce the
+    requested number of qualifiers.
+    """
+    if num_pools < 2:
+        return False, 'Enter at least 2 pools.'
+    if qualifiers_per_pool < 1:
+        return False, 'At least 1 team per pool must qualify for the knockout.'
+    valid_labels = {pool_label(i) for i in range(num_pools)}
+    counts = {label: 0 for label in valid_labels}
+    unassigned = 0
+    for e in entrants:
+        team = e.get('team')
+        label = assignments.get(team.id) if team else None
+        if label not in valid_labels:
+            unassigned += 1
+            continue
+        counts[label] += 1
+    if unassigned:
+        return False, (f'{unassigned} team{"" if unassigned == 1 else "s"} '
+                       f'{"is" if unassigned == 1 else "are"} not assigned to a pool.')
+    empty_or_small = [label for label in sorted(valid_labels, key=_label_sort_key)
+                      if counts[label] < 2]
+    if empty_or_small:
+        return False, (f'Pool {", ".join(empty_or_small)} '
+                       f'{"needs" if len(empty_or_small) == 1 else "need"} at least 2 teams '
+                       f'so they can play each other.')
+    too_few_qualifiers = [label for label in sorted(valid_labels, key=_label_sort_key)
+                          if counts[label] < qualifiers_per_pool]
+    if too_few_qualifiers:
+        return False, (f'Pool {", ".join(too_few_qualifiers)} '
+                       f'{"has" if len(too_few_qualifiers) == 1 else "have"} fewer teams than '
+                       f'the {qualifiers_per_pool} qualifiers requested.')
+    return True, ''
+
+
 def config_summary(num_pools, teams_per_pool, qualifiers_per_pool):
     """One-line description of a valid setup, for the confirmation UI."""
     total = num_pools * teams_per_pool
@@ -213,7 +253,12 @@ class PoolKnockoutEngine(BracketEngine):
         t = self.tournament
         num_pools, per_pool, qualifiers = self._settings()
         entrants = entrants if entrants is not None else _entrants_for(t)
-        ok, message = validate_pool_config(num_pools, per_pool, qualifiers, len(entrants))
+        manual = t.pool_assignment_mode == 'manual'
+        if manual:
+            assignments = t.pool_assignments
+            ok, message = validate_manual_pools(assignments, num_pools, qualifiers, entrants)
+        else:
+            ok, message = validate_pool_config(num_pools, per_pool, qualifiers, len(entrants))
         if not ok:
             raise PoolConfigError(message)
 
@@ -222,7 +267,10 @@ class PoolKnockoutEngine(BracketEngine):
         seq = 0
         for p in range(num_pools):
             label = pool_label(p)
-            members = entrants[p * per_pool:(p + 1) * per_pool]
+            if manual:
+                members = [e for e in entrants if e.get('team') and assignments.get(e['team'].id) == label]
+            else:
+                members = entrants[p * per_pool:(p + 1) * per_pool]
             # Circle method: every pair meets once, nobody plays twice in the
             # same round — the same scheduling the basketball league already
             # uses, just scoped to one pool.
@@ -499,7 +547,8 @@ def pool_view_context(tournament):
         elif fx.stage == C.STAGE_KNOCKOUT:
             knockout.append(fx)
 
-    labels = sorted(set(by_pool) | set(fixtures_by_pool), key=_label_sort_key)
+    labels = sorted(set(by_pool) | set(fixtures_by_pool) | set(tournament.pool_extra_labels),
+                    key=_label_sort_key)
     pools = [{
         'label': label,
         'standings': by_pool.get(label, []),

@@ -86,6 +86,7 @@
       <form method="post" action="{% url 'pool_setup' tournament.slug %}" style="margin-top:14px"
             id="pool-setup-form" data-team-total="{{ team_total }}">
         {% csrf_token %}
+        <input type="hidden" name="assignment_mode" value="auto">
         <div class="poolcfg">
           <label class="poolcfg__f">
             <span>Number of Pools</span>
@@ -112,9 +113,112 @@
                   data-confirm="Generate pool fixtures? Any existing fixtures and their scores for this tournament will be replaced.">
             {% if pools %}Regenerate{% else %}Generate{% endif %} pool fixtures
           </button>
+          {% if pool_teams %}
+            <button type="button" class="btn btn-secondary btn-sm" data-open-dialog="pool-assign-dialog">
+              Assign teams to pools manually
+            </button>
+          {% endif %}
         </div>
       </form>
     </div>
+
+    {% if pool_teams %}
+      <dialog id="pool-assign-dialog" class="poolassign-dialog">
+        <form method="post" action="{% url 'pool_setup' tournament.slug %}" id="pool-assign-form">
+          {% csrf_token %}
+          <input type="hidden" name="assignment_mode" value="manual">
+          <h3 class="fxpanel__h" style="margin-top:0">Assign teams to pools</h3>
+          <p class="muted fxpanel__p">Pick which pool each team plays in. Pools do not need to be
+            the same size — every team just needs at least one other team in its pool.</p>
+          <div class="poolcfg" style="margin-top:12px">
+            <label class="poolcfg__f">
+              <span>Number of Pools</span>
+              <input class="input" type="number" name="num_pools" min="2" step="1" required
+                     value="{{ pool_form.num_pools|default:2 }}" id="pool-assign-num-pools">
+            </label>
+            <label class="poolcfg__f">
+              <span>Teams Qualifying Per Pool</span>
+              <input class="input" type="number" name="qualifiers_per_pool" min="1" step="1" required
+                     value="{{ pool_form.qualifiers_per_pool|default:1 }}">
+            </label>
+          </div>
+          <p class="poolcfg__hint" id="pool-assign-counts" role="status" aria-live="polite"></p>
+          <div style="max-height:340px; overflow-y:auto; margin-top:10px; border:1px solid var(--line); border-radius:var(--r-lg)">
+            <table class="dtable">
+              <thead>
+                <tr><th>Team</th><th>Seed</th><th>Pool</th></tr>
+              </thead>
+              <tbody>
+                {% for team in pool_teams %}
+                  <tr>
+                    <td>{{ team.name }}</td>
+                    <td>{{ team.seed|default:'—' }}</td>
+                    <td>
+                      <select class="input" name="team_pool_{{ team.id }}" data-pool-select>
+                        <option value="">Unassigned</option>
+                        {% for label in pool_labels %}
+                          <option value="{{ label }}" {% if team.pool == label %}selected{% endif %}>Pool {{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="row-flex" style="margin-top:14px">
+            <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+            <button class="btn btn-secondary btn-sm" name="action" value="save">Save assignment</button>
+            <button class="btn btn-primary btn-sm" name="action" value="generate"
+                    data-confirm="Generate pool fixtures from this manual assignment? Any existing fixtures and their scores for this tournament will be replaced.">
+              {% if pools %}Regenerate{% else %}Generate{% endif %} pool fixtures
+            </button>
+          </div>
+        </form>
+      </dialog>
+    {% endif %}
+
+    {# --- Add a fixture to one pool (opened from that pool's "+" button) - #}
+    <dialog id="pool-add-fixture-dialog" class="poolassign-dialog" style="max-width:420px">
+      <form method="post" action="{% url 'pool_fixture_add' tournament.slug %}" id="pool-add-fixture-form">
+        {% csrf_token %}
+        <input type="hidden" name="pool_name" id="pool-add-fixture-pool-name" value="">
+        <h3 class="fxpanel__h" style="margin-top:0">
+          Add a fixture — <span id="pool-add-fixture-title">Pool</span>
+        </h3>
+        <div class="row-flex" style="margin-top:12px; flex-wrap:wrap">
+          <select class="input" name="entrant_a" required style="max-width:200px">
+            <option value="">Team A…</option>
+            {% for key, label, payload in entrant_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+          <select class="input" name="entrant_b" required style="max-width:200px">
+            <option value="">Team B…</option>
+            {% for key, label, payload in entrant_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <p class="poolcfg__hint is-bad" id="pool-add-fixture-error" role="alert" hidden></p>
+        <div class="row-flex" style="margin-top:14px">
+          <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary btn-sm">Add fixture</button>
+        </div>
+      </form>
+    </dialog>
+
+    {# --- Create a new, initially empty pool ------------------------------ #}
+    <dialog id="create-pool-dialog" class="poolassign-dialog" style="max-width:380px">
+      <form method="post" action="{% url 'pool_create' tournament.slug %}" id="create-pool-form">
+        {% csrf_token %}
+        <h3 class="fxpanel__h" style="margin-top:0">Create a pool</h3>
+        <label class="poolcfg__f" style="margin-top:12px">
+          <span>Pool name</span>
+          <input class="input" type="text" name="pool_name" required maxlength="40">
+        </label>
+        <div class="row-flex" style="margin-top:14px">
+          <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary btn-sm">Create pool</button>
+        </div>
+      </form>
+    </dialog>
 
     {% if pools %}
       {# --- Pool progress + knockout trigger --------------------------- #}
@@ -175,14 +279,63 @@
         Works for any number of teams — byes up to the next power of two are added
         automatically, and winners advance into the next round as each match is finalized.
       </p>
-      <form method="post" action="{% url 'fixtures_generate_bracket' tournament.slug %}" style="margin-top:12px"
-            onsubmit="return confirm('Generate a knockout bracket automatically? This replaces any existing fixtures and scores for this tournament.')">
-        {% csrf_token %}
-        <button class="btn btn-primary btn-sm">
-          {% if tournament.fixtures_generated %}Regenerate{% else %}Generate{% endif %} knockout bracket
-        </button>
-      </form>
+      <div class="row-flex" style="margin-top:12px; flex-wrap:wrap">
+        <form method="post" action="{% url 'fixtures_generate_bracket' tournament.slug %}"
+              onsubmit="return confirm('Generate a knockout bracket automatically? This replaces any existing fixtures and scores for this tournament.')">
+          {% csrf_token %}
+          <button class="btn btn-primary btn-sm">
+            {% if tournament.fixtures_generated %}Regenerate{% else %}Generate{% endif %} knockout bracket
+          </button>
+        </form>
+        {% if bracket_entrants %}
+          <button type="button" class="btn btn-secondary btn-sm" data-open-dialog="bracket-seed-dialog">
+            Set seeds / pairing
+          </button>
+        {% endif %}
+      </div>
     </div>
+
+    {% if bracket_entrants %}
+      <dialog id="bracket-seed-dialog" class="poolassign-dialog">
+        <form method="post" action="{% url 'bracket_seed_set' tournament.slug %}" id="bracket-seed-form">
+          {% csrf_token %}
+          <h3 class="fxpanel__h" style="margin-top:0">Set seeds &amp; pairing</h3>
+          <p class="muted fxpanel__p">
+            Rank each entrant — the bracket pairs 1 v 2, 3 v 4, 5 v 6...
+          </p>
+          <div style="max-height:340px; overflow-y:auto; margin-top:10px; border:1px solid var(--line); border-radius:var(--r-lg)">
+            <table class="dtable">
+              <thead><tr><th>Entrant</th><th>Seed</th></tr></thead>
+              <tbody>
+                {% for e in bracket_entrants %}
+                  <tr>
+                    <td>{{ e.name }}</td>
+                    <td>
+                      <input class="input" type="number" min="1" name="seed_{{ e.key }}"
+                             value="{{ e.seed|default:'' }}" data-seed-input data-seed-name="{{ e.name }}">
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if bracket_entrants|length|divisibleby:2 == False %}
+            <label class="poolcfg__f" style="margin-top:12px">
+              <span>Give a bye to (optional)</span>
+              <select class="input" name="bye_entrant">
+                <option value="">— none, use lowest seed —</option>
+                {% for e in bracket_entrants %}<option value="{{ e.key }}">{{ e.name }}</option>{% endfor %}
+              </select>
+            </label>
+          {% endif %}
+          <p class="poolcfg__hint" id="bracket-seed-preview" role="status" aria-live="polite"></p>
+          <div class="row-flex" style="margin-top:14px">
+            <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+            <button class="btn btn-primary btn-sm">Save seeds</button>
+          </div>
+        </form>
+      </dialog>
+    {% endif %}
   {% endif %}
 
   {% if bracket_rounds %}
@@ -220,7 +373,8 @@
   {% endif %}
 
   {# ================= MATCH CENTRE ===================================== #}
-  {% if fixtures %}
+  <div id="match-centre">
+  {% if fixtures or pools %}
     <div class="fxblock">
       <div class="fxblock__top">
         <h3 class="fxblock__h"><span class="fxpanel__ico">🎮</span>Match centre</h3>
@@ -248,10 +402,11 @@
         {% if pool_mode %}
           {# Pool tournaments read pool by pool, then round by round. #}
           {% for pool in pools %}
-            {% if pool.fixtures %}
-              {% include 'organizer/_fixture_group.html' with sec_key="pool-"|add:pool.label|slugify sec_title="Pool "|add:pool.label sec_fixtures=pool.fixtures sec_icon="🏀" sec_pool=1 sec_played=pool.played sec_total=pool.total %}
-            {% endif %}
+            {% include 'organizer/_fixture_group.html' with sec_key="pool-"|add:pool.label|slugify sec_title="Pool "|add:pool.label sec_fixtures=pool.fixtures sec_icon="🏀" sec_pool=1 sec_played=pool.played sec_total=pool.total sec_pool_label=pool.label %}
           {% endfor %}
+          <button type="button" class="poolcreate-bar" data-open-dialog="create-pool-dialog">
+            <span class="poolcreate-bar__ico">+</span> Create another pool
+          </button>
           {% for rnd in knockout_rounds %}
             {% include 'organizer/_fixture_group.html' with sec_key=rnd.title|slugify sec_title=rnd.title sec_fixtures=rnd.fixtures sec_knockout=1 %}
           {% endfor %}
@@ -282,6 +437,7 @@
       </p>
     </div>
   {% endif %}
+  </div>
 </section>
 {% endblock %}
 
@@ -290,8 +446,13 @@
 /* Fixtures & scoring — presentation only.
    Reads the cards the server already rendered: it counts them for the header
    tiles and shows/hides them for the filter chips. Nothing here creates,
-   changes or submits a fixture. */
-(function () {
+   changes or submits a fixture.
+
+   Wrapped as a re-invokable function (not just an IIFE) because the pool
+   "+"/"Create another pool" popups patch [data-fx-list]'s markup in place
+   without a page reload — every listener bound to the old DOM is gone the
+   moment that happens, so the dashboard needs to be rebuildable on demand. */
+window.fxInitDashboard = function () {
   var list = document.querySelector('[data-fx-list]');
   if (!list) return;
 
@@ -326,6 +487,7 @@
   }
 
   /* ---- round chips, built from the sections actually on the page ---- */
+  if (rounds) rounds.innerHTML = '';
   if (rounds && sections.length > 1) {
     sections.forEach(function (sec) {
       var b = document.createElement('button');
@@ -393,7 +555,34 @@
     var sec = document.getElementById('fxsec-' + round);
     if (sec) sec.scrollIntoView({ block: 'start' });
   });
-})();
+};
+window.fxInitDashboard();
+</script>
+<script>
+/* Generic <dialog> open/close, shared by every popup on this page (pool
+   team-assignment, pool add-fixture/create-pool, knockout seed dialog).
+   Re-invokable: openers that live inside [data-fx-list] (the pool "+"
+   buttons, the "Create another pool" bar) get replaced whenever that region
+   is patched in place, so their listeners need rebinding — the dialogs
+   themselves live outside that region and are bound once. Not gated behind
+   pool_mode since the knockout seed dialog needs it on every knockout sport. */
+window.fxInitDialogs = function () {
+  document.querySelectorAll('[data-open-dialog]').forEach(function (btn) {
+    if (btn.dataset.fxDialogBound) return;
+    btn.dataset.fxDialogBound = '1';
+    btn.addEventListener('click', function () {
+      var dialog = document.getElementById(btn.getAttribute('data-open-dialog'));
+      if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
+    });
+  });
+};
+window.fxInitDialogs();
+document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var dialog = btn.closest('dialog');
+    if (dialog) dialog.close();
+  });
+});
 </script>
 {% if pool_mode %}
 <script>
@@ -456,6 +645,179 @@
     }
   });
   check();
+})();
+</script>
+<script>
+/* Manual pool-assignment dialog: keep each team's <select> pool options in
+   sync with "Number of pools", and show a live per-pool count. Purely
+   cosmetic — tournaments/pools.py::validate_manual_pools is the authority
+   and re-checks everything on submit. */
+(function () {
+  var dialog = document.getElementById('pool-assign-dialog');
+  if (!dialog) return;
+
+  var form = document.getElementById('pool-assign-form');
+  var numPoolsInput = document.getElementById('pool-assign-num-pools');
+  var selects = Array.prototype.slice.call(form.querySelectorAll('[data-pool-select]'));
+  var counts = document.getElementById('pool-assign-counts');
+  var generate = form.querySelector('button[value="generate"]');
+
+  function poolLabel(index) {
+    var n = index + 1, label = '';
+    while (n > 0) { var rem = (n - 1) % 26; label = String.fromCharCode(65 + rem) + label; n = Math.floor((n - 1) / 26); }
+    return label;
+  }
+
+  function syncOptions() {
+    var n = Math.max(parseInt(numPoolsInput.value, 10) || 0, 0);
+    selects.forEach(function (sel) {
+      var current = sel.value;
+      while (sel.options.length > 1) sel.remove(1);
+      for (var i = 0; i < n; i++) {
+        var label = poolLabel(i);
+        var opt = document.createElement('option');
+        opt.value = label;
+        opt.textContent = 'Pool ' + label;
+        sel.appendChild(opt);
+      }
+      sel.value = Array.prototype.some.call(sel.options, function (o) { return o.value === current; }) ? current : '';
+    });
+    updateCounts();
+  }
+
+  function updateCounts() {
+    var tally = {}, unassigned = 0;
+    selects.forEach(function (sel) {
+      if (!sel.value) { unassigned++; return; }
+      tally[sel.value] = (tally[sel.value] || 0) + 1;
+    });
+    var parts = Object.keys(tally).sort().map(function (label) { return 'Pool ' + label + ': ' + tally[label]; });
+    if (unassigned) parts.push(unassigned + ' unassigned');
+    counts.textContent = parts.join(' · ') || 'No teams assigned yet.';
+  }
+
+  numPoolsInput.addEventListener('input', syncOptions);
+  selects.forEach(function (sel) { sel.addEventListener('change', updateCounts); });
+  form.addEventListener('submit', function (e) {
+    if (e.submitter === generate && !window.confirm(generate.dataset.confirm)) {
+      e.preventDefault();
+    }
+  });
+  syncOptions();
+})();
+</script>
+<script>
+/* Add-a-fixture-to-a-pool and create-a-pool popups: submit through fetch()
+   instead of a normal form post so the match centre updates in place — same
+   technique as static/js/basketball-score.js (the only no-reload precedent
+   in this app): POST is unchanged server-side, fetch just follows the
+   redirect itself and we patch the resulting HTML into the live page instead
+   of letting the browser navigate to it. */
+(function () {
+  var addDialog = document.getElementById('pool-add-fixture-dialog');
+  var addForm = document.getElementById('pool-add-fixture-form');
+  var poolNameInput = document.getElementById('pool-add-fixture-pool-name');
+  var poolTitle = document.getElementById('pool-add-fixture-title');
+  var addError = document.getElementById('pool-add-fixture-error');
+  var createForm = document.getElementById('create-pool-form');
+
+  /* Wire up whichever "+" buttons exist right now — re-run after every patch
+     since the pool "+" buttons live inside the patched [data-fx-list]. */
+  window.fxInitPoolAddButtons = function () {
+    document.querySelectorAll('[data-pool-add]').forEach(function (btn) {
+      if (btn.dataset.fxPoolAddBound) return;
+      btn.dataset.fxPoolAddBound = '1';
+      btn.addEventListener('click', function () {
+        var label = btn.getAttribute('data-pool-add');
+        addForm.reset();
+        if (poolNameInput) poolNameInput.value = label;
+        if (poolTitle) poolTitle.textContent = 'Pool ' + label;
+        if (addError) addError.hidden = true;
+      });
+    });
+  };
+  window.fxInitPoolAddButtons();
+
+  function reinitFxUI() {
+    if (window.fxInitDashboard) window.fxInitDashboard();
+    if (window.fxInitDialogs) window.fxInitDialogs();
+    if (window.fxInitPoolAddButtons) window.fxInitPoolAddButtons();
+  }
+
+  function submitAjax(form, dialog) {
+    var button = form.querySelector('button[type="submit"], button:not([type])');
+    var fd = new FormData(form);
+    if (button) button.disabled = true;
+    fetch(form.action, { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (resp) { return resp.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var freshCentre = doc.getElementById('match-centre');
+        if (!freshCentre) { window.location.reload(); return; }
+        ['match-centre', 'messages', 'pool-standings'].forEach(function (id) {
+          var cur = document.getElementById(id);
+          var fresh = doc.getElementById(id);
+          if (cur && fresh) cur.innerHTML = fresh.innerHTML;
+        });
+        if (dialog) dialog.close();
+        form.reset();
+        reinitFxUI();
+      })
+      .catch(function () { form.submit(); })
+      .finally(function () { if (button) button.disabled = false; });
+  }
+
+  if (addForm) {
+    addForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var a = addForm.querySelector('[name="entrant_a"]').value;
+      var b = addForm.querySelector('[name="entrant_b"]').value;
+      if (a && b && a === b) {
+        if (addError) { addError.textContent = 'A team cannot play against itself.'; addError.hidden = false; }
+        return;
+      }
+      if (addError) addError.hidden = true;
+      submitAjax(addForm, addDialog);
+    });
+  }
+  if (createForm) {
+    createForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitAjax(createForm, document.getElementById('create-pool-dialog'));
+    });
+  }
+})();
+</script>
+{% endif %}
+{% if bracket_entrants %}
+<script>
+/* Knockout seed dialog: live "1 v 2, 3 v 4..." preview as the organiser types
+   seed numbers. Purely cosmetic — bracket_seed_set in views.py re-validates
+   and re-sorts everything server-side; this only saves the round trip. */
+(function () {
+  var form = document.getElementById('bracket-seed-form');
+  if (!form) return;
+  var inputs = Array.prototype.slice.call(form.querySelectorAll('[data-seed-input]'));
+  var preview = document.getElementById('bracket-seed-preview');
+
+  function update() {
+    var rows = inputs.map(function (el) {
+      return { name: el.dataset.seedName, seed: parseInt(el.value, 10) };
+    }).filter(function (r) { return !isNaN(r.seed); });
+    rows.sort(function (a, b) { return a.seed - b.seed; });
+    var pairs = [];
+    for (var i = 0; i + 1 < rows.length; i += 2) {
+      pairs.push(rows[i].name + ' v ' + rows[i + 1].name);
+    }
+    var text = pairs.join(', ');
+    if (rows.length % 2) {
+      text += (text ? ', ' : '') + rows[rows.length - 1].name + ' — bye';
+    }
+    preview.textContent = text || 'Enter a seed for each entrant to preview the pairing.';
+  }
+
+  inputs.forEach(function (el) { el.addEventListener('input', update); });
+  update();
 })();
 </script>
 {% endif %}

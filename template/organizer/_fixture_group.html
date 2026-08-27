@@ -29,6 +29,9 @@ Context: tournament
       <div class="fxsec__acts">
         <a class="btn btn-secondary btn-sm" href="#pool-standings">Standings</a>
         <button type="button" class="btn btn-ghost btn-sm" data-fx-only="{{ sec_key }}">Fixtures</button>
+        <button type="button" class="fxsec__add" data-open-dialog="pool-add-fixture-dialog"
+                data-pool-add="{{ sec_pool_label }}" title="Add a fixture to this pool"
+                aria-label="Add a fixture to Pool {{ sec_pool_label }}">+</button>
       </div>
     {% else %}
       <span class="fxsec__n" aria-hidden="true">{{ sec_fixtures|length }}</span>
@@ -38,6 +41,10 @@ Context: tournament
   <div class="fxgrid">
     {% for fx in sec_fixtures %}
       {% include 'organizer/_fixture_row.html' with round_key=sec_key %}
+    {% empty %}
+      {% if sec_pool %}
+        <p class="fxsec__empty">No fixtures yet — use the <strong>+</strong> button above to add the first one.</p>
+      {% endif %}
     {% endfor %}
   </div>
 

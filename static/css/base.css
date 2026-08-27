@@ -875,14 +875,28 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
   font-variant-numeric:tabular-nums; }
 .bball-score--a{ color:var(--orange); }
 .bball-score--b{ color:var(--navy); }
-.bball-score-wrap{ position:relative; display:inline-flex; }
+.bball-score-wrap{ position:relative; display:inline-flex; flex-direction:column; align-items:center; gap:8px; }
 .bball-score-wrap form{ display:contents; }
 .bball-score-adjust{ position:absolute; top:-4px; right:-10px; width:22px; height:22px; border-radius:50%;
   border:none; background:var(--bg-3); color:var(--ink-2); font-weight:800; font-size:13px; cursor:pointer;
   display:inline-flex; align-items:center; justify-content:center; box-shadow:var(--shadow-sm); }
 .bball-score-adjust:hover{ background:var(--line-2); }
+.bball-score-quick{ display:flex; align-items:center; gap:10px; }
+.bball-score-quick-btn{ width:34px; height:34px; border-radius:50%; border:none; background:var(--bg-2);
+  color:var(--navy); font-weight:800; font-size:17px; cursor:pointer; display:inline-flex; align-items:center;
+  justify-content:center; box-shadow:var(--shadow-sm); font-family:var(--font-body); }
+.bball-score-quick-btn:hover{ background:var(--bg-3); }
+.bball-score-quick-btn--plus{ background:var(--navy); color:#fff; }
+.bball-score-wrap:has(.bball-score--a) .bball-score-quick-btn--plus{ background:var(--orange); }
 
 .bball-clock-stack{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+.bball-clock-row{ display:flex; align-items:center; justify-content:center; gap:10px; }
+.bball-clock-adjust{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+.bball-clock-adjust-btn{ width:28px; height:28px; border-radius:50%; border:none; background:var(--bg-2);
+  color:var(--navy); font-weight:800; font-size:15px; cursor:pointer; display:inline-flex; align-items:center;
+  justify-content:center; font-family:var(--font-body); }
+.bball-clock-adjust-btn:hover{ background:var(--bg-3); }
+.bball-clock-adjust-label{ font-size:10.5px; font-weight:700; color:var(--muted); letter-spacing:.02em; }
 .bball-digital-clock{ font-family:var(--font-score); font-variant-numeric:tabular-nums; font-weight:700;
   font-size:22px; color:var(--live); background:var(--navy); border-radius:var(--r-md); padding:6px 14px;
   letter-spacing:.04em; }
@@ -1002,6 +1016,10 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .bball-player-dialog{ border:none; border-radius:var(--r-lg); padding:20px; box-shadow:var(--shadow); max-width:340px;
   width:90vw; }
 .bball-player-dialog::backdrop{ background:rgba(10,14,30,.45); }
+
+.poolassign-dialog{ border:none; border-radius:var(--r-lg); padding:22px; box-shadow:var(--shadow); max-width:640px;
+  width:92vw; }
+.poolassign-dialog::backdrop{ background:rgba(10,14,30,.45); }
 .bball-roster-list{ display:flex; flex-direction:column; gap:6px; margin:14px 0; max-height:280px; overflow-y:auto; }
 .bball-roster-btn{ text-align:left; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:#fff;
   font-weight:600; font-size:14px; color:var(--navy); cursor:pointer; font-family:var(--font-body); }
@@ -1028,6 +1046,10 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
   .bball-clock-icon-btn--sm{ width:20px; height:20px; font-size:10px; }
   .bball-quarter-length-btn{ font-size:10px; padding:3px 8px; }
   .bball-score-adjust{ width:18px; height:18px; font-size:11px; top:-2px; right:-6px; }
+  .bball-score-quick-btn{ width:28px; height:28px; font-size:14px; }
+  .bball-clock-row{ gap:6px; }
+  .bball-clock-adjust-btn{ width:24px; height:24px; font-size:13px; }
+  .bball-clock-adjust-label{ font-size:9.5px; }
   .bball-setup-card{ padding:22px 18px; margin-top:14px; }
   .bball-setup-header{ gap:10px; margin-bottom:20px; }
   .bball-setup-icon{ width:40px; height:40px; font-size:20px; }
@@ -1742,8 +1764,23 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .fxsec__acts .btn-secondary:hover{ background:rgba(255,255,255,.2); border-color:#fff; }
 .fxsec__acts .btn-ghost{ color:#f8a570; }
 .fxsec__acts .btn-ghost:hover{ color:#fff; }
+.fxsec__add{ flex:none; width:32px; height:32px; border-radius:50%; border:none; background:var(--orange);
+  color:#fff; font-size:19px; line-height:1; font-weight:700; cursor:pointer; display:grid; place-items:center;
+  box-shadow:var(--shadow-sm); transition:background .18s var(--ease), transform .18s var(--ease); }
+.fxsec__add:hover{ background:var(--orange-d); transform:translateY(-1px); }
+.fxsec__add:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
 .fxsec__none{ padding:18px; text-align:center; font-size:13.5px; color:var(--muted);
   background:var(--bg-2); border-radius:var(--r-md); }
+.fxsec__empty{ grid-column:1/-1; padding:22px; text-align:center; font-size:13.5px; color:var(--muted);
+  background:var(--bg-2); border-radius:var(--r-md); }
+
+.poolcreate-bar{ display:block; width:100%; margin-top:4px; padding:16px; text-align:center;
+  border:1.5px dashed var(--line-2); border-radius:var(--r-lg); background:transparent; color:var(--ink-2);
+  font-family:var(--font-body); font-weight:600; font-size:14px; cursor:pointer;
+  transition:border-color .18s var(--ease), color .18s var(--ease), background .18s var(--ease); }
+.poolcreate-bar:hover, .poolcreate-bar:focus-visible{ border-color:var(--orange); color:var(--orange);
+  background:var(--bg-2); }
+.poolcreate-bar__ico{ font-weight:700; margin-right:4px; }
 
 /* ---------- match card ---------- */
 .fxgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:14px;

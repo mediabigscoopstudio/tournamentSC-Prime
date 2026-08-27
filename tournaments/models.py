@@ -203,6 +203,32 @@ class Tournament(TimeStamped):
                 return 0
         return as_int('num_pools'), as_int('teams_per_pool'), as_int('qualifiers_per_pool')
 
+    @property
+    def pool_assignment_mode(self):
+        """'auto' (seed-order slice, default) or 'manual' (organizer-picked)."""
+        cfg = self.pool_config or {}
+        return cfg.get('assignment_mode') or 'auto'
+
+    @property
+    def pool_assignments(self):
+        """{team_entry_id: pool_label} from a manual pool setup, {} otherwise."""
+        cfg = self.pool_config or {}
+        raw = cfg.get('assignments') or {}
+        out = {}
+        for k, v in raw.items():
+            try:
+                out[int(k)] = v
+            except (TypeError, ValueError):
+                continue
+        return out
+
+    @property
+    def pool_extra_labels(self):
+        """Organizer-created pool names that don't have any fixtures yet."""
+        cfg = self.pool_config or {}
+        raw = cfg.get('extra_labels') or []
+        return [str(x).strip() for x in raw if str(x).strip()]
+
     def approved_entries(self):
         if self.is_team_based:
             return self.team_entries.filter(status='APPROVED').select_related('team')
