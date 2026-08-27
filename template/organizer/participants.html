@@ -270,15 +270,7 @@
 
                 <form method="post" enctype="multipart/form-data" action="{% url 'participants_bulk_import' tournament.slug %}" data-tmc-busyform>
                   {% csrf_token %}
-                  <div class="tmc-field">
-                    <label class="tmc-label" for="participants-text">
-                      <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg>Paste rows
-                    </label>
-                    <textarea class="tmc-input tmc-textarea" id="participants-text" name="participants_text"
-                              rows="6" placeholder="Team Name&#9;Participant Name&#9;Jersey Number&#9;Phone Number"></textarea>
-                  </div>
-
-                  <p class="tmc-note">— or —</p>
+                
 
                   <div class="tmc-drop" data-tmc-drop>
                     <span class="tmc-drop__thumb">
