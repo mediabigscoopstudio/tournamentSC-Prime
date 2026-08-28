@@ -21,7 +21,7 @@ Context: tournament
       <p class="fxsec__s">
         {% if sec_pool %}{{ sec_played }} of {{ sec_total }} match{{ sec_total|pluralize:'es' }} final
         {% elif sec_knockout and sec_fixtures|length == 1 %}Championship match
-        {% elif sec_knockout %}{% widthratio sec_fixtures|length 1 2 %} teams remaining
+        {% elif sec_knockout %}{% widthratio sec_fixtures|length 1 2 %} entrants remaining
         {% else %}{{ sec_fixtures|length }} match{{ sec_fixtures|length|pluralize:'es' }}{% endif %}
       </p>
     </div>
@@ -29,6 +29,8 @@ Context: tournament
       <div class="fxsec__acts">
         <a class="btn btn-secondary btn-sm" href="#pool-standings">Standings</a>
         <button type="button" class="btn btn-ghost btn-sm" data-fx-only="{{ sec_key }}">Fixtures</button>
+        <button type="button" class="fxsec__edit" data-pool-rename="{{ sec_pool_label }}"
+                title="Rename pool" aria-label="Rename Pool {{ sec_pool_label }}">✏️</button>
         <button type="button" class="fxsec__add" data-open-dialog="pool-add-fixture-dialog"
                 data-pool-add="{{ sec_pool_label }}" title="Add a fixture to this pool"
                 aria-label="Add a fixture to Pool {{ sec_pool_label }}">+</button>

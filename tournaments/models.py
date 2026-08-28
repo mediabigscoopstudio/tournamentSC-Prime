@@ -122,6 +122,9 @@ class Tournament(TimeStamped):
     # Pool Stage + Knockout setup: {'num_pools', 'teams_per_pool',
     # 'qualifiers_per_pool'}. Empty for every tournament not using that mode.
     pool_config = models.JSONField(default=C.default_pool_config, blank=True)
+    # Swiss-format setup: {'num_rounds': N}. Empty for every tournament not
+    # using FORMAT_SWISS.
+    swiss_config = models.JSONField(default=C.default_swiss_config, blank=True)
     fixtures_generated = models.BooleanField(default=False)
     is_removed = models.BooleanField(default=False)  # admin moderation (soft)
 
@@ -176,7 +179,7 @@ class Tournament(TimeStamped):
 
     @property
     def uses_standings(self):
-        return self.format in (C.FORMAT_ROUND_ROBIN,) or self.is_pool_stage
+        return self.format in (C.FORMAT_ROUND_ROBIN, C.FORMAT_SWISS) or self.is_pool_stage
 
     # --- Pool Stage + Knockout ------------------------------------------
     @property
@@ -190,6 +193,36 @@ class Tournament(TimeStamped):
         """True only once the organizer has actively switched this tournament
         to Pool Stage + Knockout. Everything else stays on Custom Fixtures."""
         return self.supports_pool_stage and self.fixture_mode == C.FIXTURE_MODE_POOL
+
+    # --- Swiss ------------------------------------------------------------
+    @property
+    def is_swiss(self):
+        return self.format == C.FORMAT_SWISS
+
+    @property
+    def swiss_num_rounds(self):
+        """Organizer-configured round count, 0 when unset."""
+        cfg = self.swiss_config or {}
+        try:
+            return max(0, int(cfg.get('num_rounds') or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    @property
+    def swiss_round(self):
+        """Highest Swiss round generated so far, 0 before Round 1 exists.
+
+        Tracked explicitly in swiss_config (set by SwissEngine whenever it
+        generates a round) rather than derived from Fixture.round_no, since
+        the organizer can also add ad-hoc fixtures via "Add a fixture"
+        (round numbers of their own choosing) alongside the auto-paired
+        Swiss rounds — round_no alone isn't a reliable signal here.
+        """
+        cfg = self.swiss_config or {}
+        try:
+            return max(0, int(cfg.get('current_round') or 0))
+        except (TypeError, ValueError):
+            return 0
 
     @property
     def pool_settings(self):
@@ -211,16 +244,17 @@ class Tournament(TimeStamped):
 
     @property
     def pool_assignments(self):
-        """{team_entry_id: pool_label} from a manual pool setup, {} otherwise."""
+        """{entrant_key: pool_label} from a manual pool setup, {} otherwise.
+
+        `entrant_key` is the same 'team:<id>'/'reg:<id>' scheme used
+        throughout the pool system (see _entrants_for/_manual_entrant_choices
+        in engines.py/views.py) — not a raw integer, since Team and
+        IndividualRegistration are separate PK sequences that could
+        otherwise collide.
+        """
         cfg = self.pool_config or {}
         raw = cfg.get('assignments') or {}
-        out = {}
-        for k, v in raw.items():
-            try:
-                out[int(k)] = v
-            except (TypeError, ValueError):
-                continue
-        return out
+        return {str(k): v for k, v in raw.items() if str(k).strip()}
 
     @property
     def pool_extra_labels(self):
@@ -329,6 +363,7 @@ class IndividualRegistration(models.Model):
     bib_number = models.CharField(max_length=12, blank=True)
     seed = models.PositiveIntegerField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=C.ENTRY_STATUS, default='APPROVED')
+    group_name = models.CharField(max_length=40, blank=True)
     registered_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

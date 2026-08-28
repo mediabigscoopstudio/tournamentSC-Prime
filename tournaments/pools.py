@@ -24,7 +24,7 @@ from django.db import transaction
 
 from . import constants as C
 from .engines import (BracketEngine, _entrants_for, _make_participant, _num, _round_name,
-                      _round_robin_rounds)
+                      _round_robin_rounds, order_for_round_robin)
 from .models import Fixture, Standing
 
 
@@ -45,6 +45,41 @@ def pool_label(index):
         n, rem = divmod(n - 1, 26)
         label = chr(65 + rem) + label
     return label
+
+
+def rename_pool(tournament, old_label, new_label):
+    """Rename a pool everywhere its label is currently stored: live
+    fixtures, standings, the denormalised TeamEntry.group_name, and the
+    pool_config used to (re)generate.
+
+    Like a manually created empty pool (`extra_labels`), this is live state,
+    not a permanent identity: a full AUTO-mode regenerate recomputes every
+    label purely from position (`pool_label(i)`) and will not remember this
+    rename. MANUAL mode's `assignments` values are updated here too, so a
+    manual-mode regenerate does keep the new name.
+    """
+    tournament.fixtures.filter(stage=C.STAGE_POOL, pool_name=old_label, is_removed=False).update(pool_name=new_label)
+    tournament.standings.filter(group_name=old_label).update(group_name=new_label)
+    tournament.team_entries.filter(group_name=old_label).update(group_name=new_label)
+    tournament.registrations.filter(group_name=old_label).update(group_name=new_label)
+
+    cfg = dict(tournament.pool_config or {})
+    changed = False
+    assignments = cfg.get('assignments')
+    if assignments:
+        new_assignments = dict(assignments)
+        for team_id, label in assignments.items():
+            if label == old_label:
+                new_assignments[team_id] = new_label
+                changed = True
+        cfg['assignments'] = new_assignments
+    extra = cfg.get('extra_labels')
+    if extra and old_label in extra:
+        cfg['extra_labels'] = [new_label if l == old_label else l for l in extra]
+        changed = True
+    if changed:
+        tournament.pool_config = cfg
+        tournament.save(update_fields=['pool_config', 'updated_at'])
 
 
 def validate_pool_config(num_pools, teams_per_pool, qualifiers_per_pool, total_teams):
@@ -74,41 +109,42 @@ def validate_pool_config(num_pools, teams_per_pool, qualifiers_per_pool, total_t
 
 
 def validate_manual_pools(assignments, num_pools, qualifiers_per_pool, entrants):
-    """Return (is_valid, message) for a manual team->pool assignment.
+    """Return (is_valid, message) for a manual entrant->pool assignment.
 
-    `assignments` is {team_id: pool_label}. Every approved team must be
-    assigned to one of the `num_pools` valid labels, and every pool must end
-    up with enough teams to both play a round-robin (>= 2) and produce the
-    requested number of qualifiers.
+    `assignments` is {entrant_key: pool_label} — entrant_key is the
+    'team:<id>'/'reg:<id>' scheme every entrant payload already carries
+    (see _entrants_for). Every approved entrant must be assigned to one of
+    the `num_pools` valid labels, and every pool must end up with enough
+    entrants to both play a round-robin (>= 2) and produce the requested
+    number of qualifiers.
     """
     if num_pools < 2:
         return False, 'Enter at least 2 pools.'
     if qualifiers_per_pool < 1:
-        return False, 'At least 1 team per pool must qualify for the knockout.'
+        return False, 'At least 1 entrant per pool must qualify for the knockout.'
     valid_labels = {pool_label(i) for i in range(num_pools)}
     counts = {label: 0 for label in valid_labels}
     unassigned = 0
     for e in entrants:
-        team = e.get('team')
-        label = assignments.get(team.id) if team else None
+        label = assignments.get(e.get('key'))
         if label not in valid_labels:
             unassigned += 1
             continue
         counts[label] += 1
     if unassigned:
-        return False, (f'{unassigned} team{"" if unassigned == 1 else "s"} '
+        return False, (f'{unassigned} entrant{"" if unassigned == 1 else "s"} '
                        f'{"is" if unassigned == 1 else "are"} not assigned to a pool.')
     empty_or_small = [label for label in sorted(valid_labels, key=_label_sort_key)
                       if counts[label] < 2]
     if empty_or_small:
         return False, (f'Pool {", ".join(empty_or_small)} '
-                       f'{"needs" if len(empty_or_small) == 1 else "need"} at least 2 teams '
+                       f'{"needs" if len(empty_or_small) == 1 else "need"} at least 2 entrants '
                        f'so they can play each other.')
     too_few_qualifiers = [label for label in sorted(valid_labels, key=_label_sort_key)
                           if counts[label] < qualifiers_per_pool]
     if too_few_qualifiers:
         return False, (f'Pool {", ".join(too_few_qualifiers)} '
-                       f'{"has" if len(too_few_qualifiers) == 1 else "have"} fewer teams than '
+                       f'{"has" if len(too_few_qualifiers) == 1 else "have"} fewer entrants than '
                        f'the {qualifiers_per_pool} qualifiers requested.')
     return True, ''
 
@@ -219,6 +255,17 @@ def knockout_order(pools):
     return order
 
 
+def qualified_choices(engine):
+    """(key, label, payload) triples for the pool-derived knockout seed
+    dialog, in `knockout_order()`'s own cross-pool sequence — so a fresh
+    dialog can default each seed input to that position (1..N).
+    """
+    order = engine.qualified_entrants()
+    return [(e['key'], e['label'],
+             {'team': e.get('team'), 'player': e.get('player'), 'label': e['label'], 'stats': {}})
+            for e in order]
+
+
 # ======================================================================
 # Engine
 # ======================================================================
@@ -243,12 +290,18 @@ class PoolKnockoutEngine(BracketEngine):
 
     # -- pool stage -----------------------------------------------------
     @transaction.atomic
-    def generate_fixtures(self, entrants=None):
+    def generate_fixtures(self, entrants=None, pairing_mode='adjacent'):
         """Split the field into pools and play a full round-robin inside each.
 
         Replaces any existing fixtures for this tournament (same contract as
         every other generator on the platform) — the organizer confirms this
         before the button posts.
+
+        `pairing_mode` only affects which pair opens each pool's own
+        round-robin schedule (Round 1) — every team in a pool still plays
+        every other team by the end, and which team lands in which pool is
+        unaffected (that's decided above, by `manual`/`assignments` or the
+        seed-sliced default, before this reordering ever runs).
         """
         t = self.tournament
         num_pools, per_pool, qualifiers = self._settings()
@@ -268,12 +321,16 @@ class PoolKnockoutEngine(BracketEngine):
         for p in range(num_pools):
             label = pool_label(p)
             if manual:
-                members = [e for e in entrants if e.get('team') and assignments.get(e['team'].id) == label]
+                members = [e for e in entrants if assignments.get(e.get('key')) == label]
             else:
                 members = entrants[p * per_pool:(p + 1) * per_pool]
+            self._remember_pool_membership(label, members)
             # Circle method: every pair meets once, nobody plays twice in the
             # same round — the same scheduling the basketball league already
-            # uses, just scoped to one pool.
+            # uses, just scoped to one pool. `pairing_mode` only reorders this
+            # already-fixed membership list, so it changes Round 1's pairing
+            # without ever changing who's in the pool.
+            members = order_for_round_robin(members, pairing_mode)
             for rno, pairs in enumerate(_round_robin_rounds(members), start=1):
                 for a, b in pairs:
                     fx = Fixture.objects.create(
@@ -283,19 +340,90 @@ class PoolKnockoutEngine(BracketEngine):
                     _make_participant(fx, a, 0)
                     _make_participant(fx, b, 1)
                     seq += 1
-            self._remember_pool_membership(label, members)
 
         self.compute_standings()
         return t.fixtures.filter(is_removed=False).count()
 
     def _remember_pool_membership(self, label, members):
-        """Denormalise the draw onto the team entries, so the pool a team is in
-        is readable straight from the entry list (the admin console already
-        surfaces `group_name`). Standings are still derived from fixtures, so
-        this is a convenience, never a source of truth."""
+        """Denormalise the draw onto the team/registration entries, so the
+        pool an entrant is in is readable straight from the entry list (the
+        admin console already surfaces `group_name`). Standings are still
+        derived from fixtures, so this is a convenience, never a source of
+        truth."""
         team_ids = [m['team'].id for m in members if m.get('team')]
         if team_ids:
             self.tournament.team_entries.filter(team_id__in=team_ids).update(group_name=label)
+        reg_ids = [int(m['key'].split(':', 1)[1]) for m in members
+                  if m.get('key', '').startswith('reg:')]
+        if reg_ids:
+            self.tournament.registrations.filter(id__in=reg_ids).update(group_name=label)
+
+    @transaction.atomic
+    def rebuild_pool_membership(self, moves, pairing_mode='adjacent'):
+        """"Fixture creation by pool": move the given entrants into new pools
+        and regenerate fixtures for every pool whose membership actually
+        changes as a result — the pool(s) entrants move into, and any pool
+        they move out of. Every other pool's fixtures and standings are left
+        untouched.
+
+        `moves` is {entrant_key: new_label} — entrant_key is the same
+        'team:<id>'/'reg:<id>' scheme every entrant payload already carries
+        (see _entrants_for), so this works uniformly for team-based and
+        individual/registration-based tournaments. A brand-new label needs no
+        special handling — it simply becomes an "affected" label the first
+        time an entrant's move points at it. A pool that drops below 2
+        members after entrants leave just ends up with no fixtures (a round
+        robin needs at least 2 entrants); it isn't otherwise deleted.
+
+        Returns the set of affected labels, so the caller can tell the
+        organizer which *other* pools got rebuilt as a side effect.
+        """
+        t = self.tournament
+        payload_by_key = {e['key']: e for e in _entrants_for(t)}
+        current_label = {}
+        for e in t.team_entries.filter(status='APPROVED'):
+            current_label[f'team:{e.team_id}'] = e.group_name or ''
+        for r in t.registrations.filter(status='APPROVED'):
+            current_label[f'reg:{r.id}'] = r.group_name or ''
+
+        affected = set()
+        for key, new_label in moves.items():
+            old_label = current_label.get(key, '')
+            if old_label:
+                affected.add(old_label)
+            if new_label:
+                affected.add(new_label)
+            current_label[key] = new_label
+
+        author = getattr(t.organizer.user, 'id', None)
+        seq = t.fixtures.filter(is_removed=False).count()
+        for label in affected:
+            t.fixtures.filter(stage=C.STAGE_POOL, pool_name=label, is_removed=False).delete()
+            member_keys = [k for k, lbl in current_label.items() if lbl == label]
+            members = sorted((payload_by_key[k] for k in member_keys if k in payload_by_key),
+                             key=lambda d: (d['seed'], d['label'].lower()))
+            if len(members) < 2:
+                continue
+            ordered = order_for_round_robin(members, pairing_mode)
+            for rno, pairs in enumerate(_round_robin_rounds(ordered), start=1):
+                for a, b in pairs:
+                    fx = Fixture.objects.create(
+                        tournament=t, round_no=rno, sequence=seq,
+                        round_name=f'Pool {label} · Round {rno}',
+                        stage=C.STAGE_POOL, pool_name=label, created_by_id=author)
+                    _make_participant(fx, a, 0)
+                    _make_participant(fx, b, 1)
+                    seq += 1
+
+        team_moves = {int(k.split(':', 1)[1]): v for k, v in moves.items() if k.startswith('team:')}
+        reg_moves = {int(k.split(':', 1)[1]): v for k, v in moves.items() if k.startswith('reg:')}
+        for team_id, new_label in team_moves.items():
+            t.team_entries.filter(team_id=team_id).update(group_name=new_label)
+        for reg_id, new_label in reg_moves.items():
+            t.registrations.filter(id=reg_id).update(group_name=new_label)
+
+        self.compute_standings()
+        return affected
 
     # -- standings ------------------------------------------------------
     def _pool_fixtures(self):
@@ -433,12 +561,38 @@ class PoolKnockoutEngine(BracketEngine):
         return self._knockout_fixtures().exists()
 
     def qualified_entrants(self):
-        """The qualifying teams, ordered so consecutive pairs are round-1 matches."""
+        """The qualifying entrants, ordered so consecutive pairs are round-1
+        matches.
+
+        `key` uses the 'team:<id>'/'reg:<id>' scheme every other seed-handling
+        function in this module expects (see engines.persist_seeds). A
+        Standing row only carries a `player` (PlayerProfile) FK or a bare
+        `label`, not the originating IndividualRegistration.id directly, so
+        for the individual branch it's resolved via a lookup: by player_id
+        for account-linked registrations, by display_name for account-less
+        ones. In the rare case neither matches (shouldn't happen in normal
+        use, since the standing itself was derived from the current
+        registration list), falls back to a 'standing:<id>' key that
+        persist_seeds silently ignores rather than crashing on.
+        """
+        t = self.tournament
         _, _, qualifiers_per_pool = self._settings()
         if qualifiers_per_pool < 1:
             return []
+        reg_by_player = {r.player_id: r.id for r in t.registrations.filter(player__isnull=False)}
+        reg_by_name = {r.display_name: r.id for r in t.registrations.filter(player__isnull=True)}
+
+        def key_for(s):
+            if s.team_id:
+                return f'team:{s.team_id}'
+            if s.player_id and s.player_id in reg_by_player:
+                return f'reg:{reg_by_player[s.player_id]}'
+            if s.label in reg_by_name:
+                return f'reg:{reg_by_name[s.label]}'
+            return f'standing:{s.id}'
+
         by_pool = {}
-        for s in self.tournament.standings.filter(
+        for s in t.standings.filter(
                 group_name__gt='').select_related('team', 'player__user').order_by('position'):
             by_pool.setdefault(s.group_name, []).append(s)
         pools = []
@@ -448,17 +602,24 @@ class PoolKnockoutEngine(BracketEngine):
                 'pool': label, 'pool_position': s.position,
                 'stats': {'pool': label, 'pool_position': s.position},
                 'seed': 0,
+                'key': key_for(s),
             } for s in by_pool[label][:qualifiers_per_pool]])
         return knockout_order(pools)
 
     @transaction.atomic
-    def generate_knockout(self, force=False):
+    def generate_knockout(self, force=False, manual_order=None):
         """Build the full bracket — quarterfinals through the final — from the
         pool qualifiers. Returns the number of knockout fixtures created.
 
         Silently does nothing until the pool stage is finished, or if a bracket
         already exists (so re-saving an earlier pool result can never wipe
         knockout scores); `force=True` is the organizer's explicit rebuild.
+
+        `manual_order`, when given, overrides the automatic `knockout_order()`
+        cross-pairing with the organizer's own seed/pairing choice from the
+        "Generate/Rebuild knockout bracket" dialog — used only for the
+        explicit button, never for the automatic build that fires the instant
+        the last pool match is finalized.
         """
         t = self.tournament
         if not self.pool_stage_complete():
@@ -468,7 +629,7 @@ class PoolKnockoutEngine(BracketEngine):
                 return 0
             self._knockout_fixtures().delete()
 
-        order = self.qualified_entrants()
+        order = manual_order if manual_order is not None else self.qualified_entrants()
         n = len(order)
         if n < 2:
             return 0

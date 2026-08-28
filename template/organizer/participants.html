@@ -4,13 +4,20 @@
 {% block content %}
 <section class="section wrap">
   <a href="{% url 'tournament_manage' tournament.slug %}" class="dim">← Manage {{ tournament.name }}</a>
-  <h1 style="margin-top:12px">Participants</h1>
+  <div class="spread" style="margin-top:12px">
+    <h1 style="margin:0">Participants</h1>
+    {% if entries or registrations %}
+      <button type="button" class="btn btn-danger btn-sm" data-open-dialog="remove-all-dialog">
+        Remove All {% if tournament.is_team_based %}Teams{% else %}Participants{% endif %}
+      </button>
+    {% endif %}
+  </div>
   {% if tournament.fixtures_generated %}
     <div class="msg warning">Fixtures already exist — regenerate them after changing participants.</div>
   {% endif %}
 
   <div class="two-col" style="margin-top:20px; align-items:start">
-    <div class="stack">
+    <div class="stack" id="participants-list">
       {% if tournament.is_team_based %}
         {% for e in entries %}
           {% with roster=e.team.memberships.all %}
@@ -20,7 +27,14 @@
                 {% if e.team.logo %}<img src="{{ e.team.logo.url }}" alt="">{% else %}{{ e.team.initials }}{% endif %}
               </span>
               <div class="trc__id">
-                <h3 class="trc__name">{{ e.team.name }}</h3>
+                <h3 class="trc__name">
+                  {{ e.team.name }}
+                  <button type="button" class="name-edit-btn" data-rename-url="{% url 'team_rename' tournament.slug e.team.id %}"
+                          data-rename-value="{{ e.team.name }}" data-rename-title="Rename team"
+                          aria-label="Rename {{ e.team.name }}">
+                    <svg class="ico" aria-hidden="true"><use href="#i-edit"></use></svg>
+                  </button>
+                </h3>
                 <div class="trc__meta">
                   <span class="trc-status trc-status--{{ e.get_status_display|slugify }}">
                     <svg class="ico" aria-hidden="true"><use href="{% if e.status == 'APPROVED' %}#i-check{% elif e.status == 'REJECTED' %}#i-x{% else %}#i-clock{% endif %}"></use></svg>{{ e.get_status_display }}
@@ -81,7 +95,21 @@
                           {% if m.jersey_number %}{{ m.jersey_number }}{% else %}<svg class="ico" aria-hidden="true"><use href="#i-shirt"></use></svg>{% endif %}
                         </span>
                         <span class="trc-player__body">
-                          <span class="trc-player__name">{{ m.name }}</span>
+                          <span class="trc-player__name">
+                            <span class="trc-player__name-text">{{ m.name }}</span>
+                            {% if not m.player_id %}
+                              <button type="button" class="name-edit-btn"
+                                      data-rename-url="{% url 'team_member_rename' tournament.slug e.team.id m.id %}"
+                                      data-rename-value="{{ m.display_name }}" data-rename-title="Rename player"
+                                      aria-label="Rename {{ m.name }}">
+                                <svg class="ico" aria-hidden="true"><use href="#i-edit"></use></svg>
+                              </button>
+                            {% else %}
+                              <span class="name-locked" title="Linked to a player account — edit their profile to change this name">
+                                <svg class="ico" aria-hidden="true"><use href="#i-lock"></use></svg>
+                              </span>
+                            {% endif %}
+                          </span>
                           <span class="trc-player__tags">
                             <span class="trc-player__role">{{ m.get_role_display }}</span>
                             {% if m.role == 'CAPTAIN' %}<span class="trc-flag trc-flag--captain">C</span>{% endif %}
@@ -146,7 +174,21 @@
             <tbody>
               {% for r in registrations %}
                 <tr>
-                  <td>{{ r.name }}</td>
+                  <td>
+                    {{ r.name }}
+                    {% if not r.player_id %}
+                      <button type="button" class="name-edit-btn"
+                              data-rename-url="{% url 'registration_rename' tournament.slug r.id %}"
+                              data-rename-value="{{ r.display_name }}" data-rename-title="Rename entrant"
+                              aria-label="Rename {{ r.name }}">
+                        <svg class="ico" aria-hidden="true"><use href="#i-edit"></use></svg>
+                      </button>
+                    {% else %}
+                      <span class="name-locked" title="Linked to a player account — edit their profile to change this name">
+                        <svg class="ico" aria-hidden="true"><use href="#i-lock"></use></svg>
+                      </span>
+                    {% endif %}
+                  </td>
                   <td>{{ r.event_category.name|default:'—' }}</td>
                   <td class="mono">{{ r.bib_number|default:'—' }}</td>
                   <td class="mono">{{ r.seed|default:'—' }}</td>
@@ -388,6 +430,41 @@
       {% endif %}
     </aside>
   </div>
+
+  {# --- Rename a team / roster player / entrant (opened from a ✏️ button) - #}
+  <dialog id="name-rename-dialog" class="poolassign-dialog" style="max-width:380px">
+    <form method="post" id="name-rename-form">
+      {% csrf_token %}
+      <h3 class="fxpanel__h" style="margin-top:0" id="name-rename-title">Rename</h3>
+      <label class="poolcfg__f" style="margin-top:12px">
+        <span>Name</span>
+        <input class="input" type="text" name="new_name" id="name-rename-input" required maxlength="120">
+      </label>
+      <div class="row-flex" style="margin-top:14px">
+        <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+        <button class="btn btn-primary btn-sm">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  {# --- Remove all teams / participants (opened from the heading button) - #}
+  <dialog id="remove-all-dialog" class="poolassign-dialog" style="max-width:400px">
+    <form method="post" action="{% url 'participants_remove_all' tournament.slug %}">
+      {% csrf_token %}
+      <h3 class="fxpanel__h" style="margin-top:0">
+        Remove all {% if tournament.is_team_based %}teams{% else %}participants{% endif %}?
+      </h3>
+      <p class="muted" style="margin-top:8px">
+        This permanently removes
+        {% if tournament.is_team_based %}every team and its roster{% else %}every participant{% endif %}
+        from this tournament. This cannot be undone.
+      </p>
+      <div class="row-flex" style="margin-top:14px">
+        <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+        <button class="btn btn-danger btn-sm">Confirm</button>
+      </div>
+    </form>
+  </dialog>
 </section>
 {% endblock %}
 
@@ -474,5 +551,74 @@
     });
   });
 })();
+</script>
+<script>
+/* Inline team/player/entrant renaming: a shared dialog whose form.action is
+   set per click (team, roster player, and individual entrant each post to a
+   different endpoint), submitted via fetch() so the participants list
+   updates in place — same technique as the pool-rename dialog on the
+   fixtures page (template/organizer/fixtures.html), self-contained here
+   since this template has no shared JS with that one. */
+(function () {
+  var dialog = document.getElementById('name-rename-dialog');
+  var form = document.getElementById('name-rename-form');
+  var input = document.getElementById('name-rename-input');
+  var title = document.getElementById('name-rename-title');
+  var list = document.getElementById('participants-list');
+  if (!dialog || !form) return;
+
+  window.fxInitRenameButtons = function () {
+    document.querySelectorAll('[data-rename-url]').forEach(function (btn) {
+      if (btn.dataset.renameBound) return;
+      btn.dataset.renameBound = '1';
+      btn.addEventListener('click', function () {
+        form.action = btn.getAttribute('data-rename-url');
+        input.value = btn.getAttribute('data-rename-value') || '';
+        title.textContent = btn.getAttribute('data-rename-title') || 'Rename';
+        dialog.showModal();
+      });
+    });
+  };
+  window.fxInitRenameButtons();
+
+  document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var d = btn.closest('dialog');
+      if (d) d.close();
+    });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var button = form.querySelector('button[type="submit"], button:not([type])');
+    var fd = new FormData(form);
+    if (button) button.disabled = true;
+    fetch(form.action, { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (resp) { return resp.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var fresh = doc.getElementById('participants-list');
+        if (!fresh || !list) { window.location.reload(); return; }
+        list.innerHTML = fresh.innerHTML;
+        dialog.close();
+        form.reset();
+        window.fxInitRenameButtons();
+      })
+      .catch(function () { form.submit(); })
+      .finally(function () { if (button) button.disabled = false; });
+  });
+})();
+</script>
+<script>
+/* Generic [data-open-dialog] opener for any plain <dialog> on this page
+   (the rename dialog wires its own click handler above since it also needs
+   to set form.action/input value per button; "Remove All ..." just needs a
+   plain open). */
+document.querySelectorAll('[data-open-dialog]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var dialog = document.getElementById(btn.getAttribute('data-open-dialog'));
+    if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
+  });
+});
 </script>
 {% endblock %}

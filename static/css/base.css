@@ -1020,6 +1020,9 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .poolassign-dialog{ border:none; border-radius:var(--r-lg); padding:22px; box-shadow:var(--shadow); max-width:640px;
   width:92vw; }
 .poolassign-dialog::backdrop{ background:rgba(10,14,30,.45); }
+/* Wider variant for the drag-and-drop pool-assignment dialog — a 640px cap
+   leaves no room for 10+ pool columns side by side. */
+.poolassign-dialog--wide{ max-width:min(96vw,1100px); }
 .bball-roster-list{ display:flex; flex-direction:column; gap:6px; margin:14px 0; max-height:280px; overflow-y:auto; }
 .bball-roster-btn{ text-align:left; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:#fff;
   font-weight:600; font-size:14px; color:var(--navy); cursor:pointer; font-family:var(--font-body); }
@@ -1285,6 +1288,17 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .trc__name{ font-family:var(--font-display); font-weight:900; font-style:italic;
   font-size:clamp(1.15rem, 2.1vw, 1.5rem); letter-spacing:-.025em; line-height:1.1; color:var(--navy);
   overflow-wrap:anywhere; }
+/* Inline rename affordance — next to a team/player/entrant name, wherever it
+   appears (team cards, roster rows, the individual-entrants table). */
+.name-edit-btn{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+  border:none; background:none; padding:3px; margin-left:1px; cursor:pointer; border-radius:var(--r-sm);
+  color:var(--muted); opacity:.55; vertical-align:middle; transition:opacity .15s, background .15s, color .15s; }
+.name-edit-btn .ico{ width:14px; height:14px; }
+.name-edit-btn:hover{ opacity:1; background:var(--bg-2); color:var(--orange); }
+.name-edit-btn:focus-visible{ outline:2px solid var(--orange); outline-offset:1px; opacity:1; }
+.name-locked{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+  color:var(--line-2); vertical-align:middle; cursor:help; }
+.name-locked .ico{ width:13px; height:13px; }
 .trc__meta{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:10px; }
 .trc__count{ display:inline-flex; align-items:center; gap:7px; font-family:var(--font-score);
   font-weight:600; font-size:12.5px; color:var(--muted); }
@@ -1344,8 +1358,8 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .trc-player:hover .trc-player__jersey{ background:var(--sp); border-color:var(--sp); color:#fff; }
 .trc-player:hover .trc-player__jersey .ico{ color:#fff; }
 .trc-player__body{ display:block; min-width:0; flex:1; }
-.trc-player__name{ display:block; font-weight:700; font-size:14px; color:var(--navy);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trc-player__name{ display:flex; align-items:center; gap:4px; font-weight:700; font-size:14px; color:var(--navy); }
+.trc-player__name-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .trc-player__tags{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:5px; }
 .trc-player__role{ font-family:var(--font-score); font-weight:600; font-size:11px; letter-spacing:.06em;
   text-transform:uppercase; color:var(--muted); }
@@ -1614,6 +1628,18 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .poolcard h4{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .poolcard__count{ font-family:var(--font-score); font-weight:600; font-size:11px;
   text-transform:uppercase; letter-spacing:.06em; color:var(--muted); white-space:nowrap; }
+.pool-rename-btn{ border:none; background:none; padding:2px 4px; margin-left:2px; font-size:12px;
+  line-height:1; cursor:pointer; border-radius:var(--r-sm); vertical-align:middle; opacity:.65;
+  transition:opacity .15s, background .15s; }
+.pool-rename-btn:hover{ opacity:1; background:var(--bg-2); }
+.pool-rename-btn:focus-visible{ outline:2px solid var(--orange); outline-offset:1px; opacity:1; }
+/* Quick-pick chips in "Fixture creation by pool" — click to fill the pool
+   name input with an existing label instead of typing it. */
+.pool-build-chip{ border:1.5px solid var(--line-2); background:#fff; color:var(--ink-2);
+  font-weight:600; font-size:12.5px; padding:5px 12px; border-radius:var(--r-pill); cursor:pointer;
+  transition:border-color .15s, background .15s, color .15s; }
+.pool-build-chip:hover{ border-color:var(--orange); color:var(--navy); }
+.pool-build-chip.is-active{ background:var(--orange); border-color:var(--orange); color:#fff; }
 .poolcard table{ table-layout:auto; }
 .poolcard th,.poolcard td{ padding:11px 9px; }
 .poolcard th.n,.poolcard td.n,.poolcard td.pts{ width:1%; white-space:nowrap; }
@@ -1626,6 +1652,56 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .poolsec+.poolsec{ margin-top:24px; }
 .poolsec__h{ font-family:var(--font-score); font-weight:700; font-size:12px; text-transform:uppercase;
   letter-spacing:.08em; color:var(--muted); margin:0 0 10px; }
+
+/* Drag-and-drop pool assignment: one scrollable column per pool (plus
+   Unassigned), each holding draggable team chips. */
+.pooldnd{ margin-top:10px; }
+.pooldnd__bench{ display:none; }
+.pooldnd__cols{ display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; max-height:400px; }
+.pooldnd__col{ flex:0 0 190px; display:flex; flex-direction:column; background:var(--bg-2);
+  border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; }
+/* Unassigned is always built first (see buildColumns in fixtures.html) and
+   pinned in place — with 10+ pools, teams would otherwise have to be
+   dragged clean off the visible, scrolled-away edge to reach it. */
+.pooldnd__col:first-child{ position:sticky; left:0; z-index:2;
+  box-shadow:4px 0 8px -4px rgba(10,14,30,.15); }
+.pooldnd__colh{ display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:10px 12px; font-family:var(--font-score); font-weight:700; font-size:12px;
+  text-transform:uppercase; letter-spacing:.05em; color:var(--ink-2); border-bottom:1px solid var(--line); }
+.pooldnd__count{ font-family:var(--font-score); font-weight:700; font-size:11px; color:var(--muted);
+  background:#fff; border:1px solid var(--line); border-radius:var(--r-pill); padding:2px 8px; }
+.pooldnd__list{ flex:1; min-height:120px; padding:10px; display:flex; flex-direction:column; gap:8px;
+  overflow-y:auto; transition:background .15s, box-shadow .15s; }
+.pooldnd__list.is-over{ background:color-mix(in srgb,var(--orange) 10%,var(--bg-2));
+  box-shadow:inset 0 0 0 2px var(--orange); border-radius:var(--r-sm); }
+.pooldnd__chip{ display:flex; flex-direction:column; gap:2px; padding:9px 12px; background:#fff;
+  border:1.5px solid var(--line-2); border-radius:var(--r-md); cursor:grab; user-select:none;
+  transition:border-color .15s, box-shadow .15s, opacity .15s; }
+.pooldnd__chip:hover{ border-color:var(--orange); }
+.pooldnd__chip:focus-visible{ outline:2px solid var(--orange); outline-offset:2px; }
+.pooldnd__chip.is-dragging{ opacity:.4; cursor:grabbing; }
+.pooldnd__chip.is-selected{ border-color:var(--orange); box-shadow:0 0 0 3px rgba(242,106,27,.15); }
+.pooldnd__chip-name{ font-weight:600; font-size:13.5px; color:var(--navy); }
+.pooldnd__chip-seed{ font-size:11.5px; color:var(--muted); }
+
+/* "Add a fixture" round-column board: entrant chips (reusable, never
+   consumed — the same chip can be dragged into many match cards across
+   rounds) dropped onto a pending match card, which auto-saves the instant
+   its second slot fills. */
+.fxadd-card{ display:flex; flex-direction:column; gap:6px; padding:8px; background:#fff;
+  border:1.5px dashed var(--line-2); border-radius:var(--r-md); transition:border-color .15s, background .15s, opacity .15s; }
+.fxadd-card.is-over{ border-color:var(--orange); border-style:solid;
+  background:color-mix(in srgb,var(--orange) 8%,#fff); }
+.fxadd-card.is-saving{ opacity:.5; pointer-events:none; }
+.fxadd-card__slot{ padding:8px 10px; border-radius:var(--r-sm); background:var(--bg-2);
+  font-size:12.5px; color:var(--muted); text-align:center; }
+.fxadd-card__slot.is-filled{ background:color-mix(in srgb,var(--orange) 10%,#fff); color:var(--navy);
+  font-weight:600; }
+/* Already-saved pairing shown inside its round column, so creating a match
+   is visibly confirmed right there — not just in match-centre below. */
+.fxadd-card--done{ border-style:solid; border-color:var(--line); cursor:default; }
+.fxadd-card--done .fxadd-card__slot{ background:color-mix(in srgb,var(--green) 10%,#fff);
+  color:var(--navy); font-weight:600; }
 
 @media (max-width:767.98px){
   /* Phones: one pool table at a time, and the setup fields stack rather than
@@ -1769,6 +1845,11 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
   box-shadow:var(--shadow-sm); transition:background .18s var(--ease), transform .18s var(--ease); }
 .fxsec__add:hover{ background:var(--orange-d); transform:translateY(-1px); }
 .fxsec__add:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.fxsec__edit{ flex:none; width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,255,255,.34);
+  background:rgba(255,255,255,.12); color:#fff; font-size:14px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; transition:background .18s var(--ease), transform .18s var(--ease); }
+.fxsec__edit:hover{ background:rgba(255,255,255,.22); transform:translateY(-1px); }
+.fxsec__edit:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
 .fxsec__none{ padding:18px; text-align:center; font-size:13.5px; color:var(--muted);
   background:var(--bg-2); border-radius:var(--r-md); }
 .fxsec__empty{ grid-column:1/-1; padding:22px; text-align:center; font-size:13.5px; color:var(--muted);

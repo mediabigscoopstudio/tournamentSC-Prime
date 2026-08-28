@@ -229,6 +229,45 @@ def team_member_add(request, slug, team_id):
 
 @approved_organizer_required
 @require_POST
+def team_rename(request, slug, team_id):
+    t = _owned(request, slug)
+    team = get_object_or_404(Team, id=team_id, entries__tournament=t)
+    new_name = (request.POST.get('new_name') or '').strip()
+    if not new_name:
+        messages.error(request, 'Enter a team name.')
+    elif len(new_name) > 120:
+        messages.error(request, 'Team name is too long (max 120 characters).')
+    else:
+        team.name = new_name
+        team.save(update_fields=['name', 'updated_at'])
+        messages.success(request, f'Team renamed to "{new_name}".')
+    return redirect('participants_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
+def team_member_rename(request, slug, team_id, membership_id):
+    t = _owned(request, slug)
+    membership = get_object_or_404(TeamMembership, id=membership_id, team_id=team_id,
+                                   team__entries__tournament=t)
+    if membership.player_id:
+        messages.error(request, 'This player is linked to an account — rename it from their profile instead.')
+        return redirect('participants_manage', slug=slug)
+
+    new_name = (request.POST.get('new_name') or '').strip()
+    if not new_name:
+        messages.error(request, 'Enter a player name.')
+    elif len(new_name) > 120:
+        messages.error(request, 'Player name is too long (max 120 characters).')
+    else:
+        membership.display_name = new_name
+        membership.save(update_fields=['display_name'])
+        messages.success(request, f'Player renamed to "{new_name}".')
+    return redirect('participants_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
 def team_members_bulk_import(request, slug, team_id):
     """Bulk-import a basketball roster from a CSV/.xlsx of Player Name + Jersey
     Number. Basketball-only; uses the same TeamMembership flow as manual add."""
@@ -406,6 +445,27 @@ def individual_add(request, slug):
 
 @approved_organizer_required
 @require_POST
+def registration_rename(request, slug, reg_id):
+    t = _owned(request, slug)
+    reg = get_object_or_404(IndividualRegistration, id=reg_id, tournament=t)
+    if reg.player_id:
+        messages.error(request, 'This entrant is linked to an account — rename it from their profile instead.')
+        return redirect('participants_manage', slug=slug)
+
+    new_name = (request.POST.get('new_name') or '').strip()
+    if not new_name:
+        messages.error(request, 'Enter an entrant name.')
+    elif len(new_name) > 120:
+        messages.error(request, 'Entrant name is too long (max 120 characters).')
+    else:
+        reg.display_name = new_name
+        reg.save(update_fields=['display_name'])
+        messages.success(request, f'Entrant renamed to "{new_name}".')
+    return redirect('participants_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
 def entry_decide(request, slug, kind, entry_id, decision):
     """Approve / reject / remove a team entry or an individual registration."""
     t = _owned(request, slug)
@@ -431,6 +491,28 @@ def entry_decide(request, slug, kind, entry_id, decision):
     return redirect('participants_manage', slug=slug)
 
 
+@approved_organizer_required
+@require_POST
+def participants_remove_all(request, slug):
+    """Bulk version of entry_decide's 'remove' — clears every team entry (or
+    every individual registration) for this tournament in one go. Same
+    non-destructive semantics as removing one at a time: the underlying
+    Team/TeamMembership rows aren't hard-deleted, they just stop being
+    associated with this tournament."""
+    t = _owned(request, slug)
+    if t.fixtures_generated:
+        messages.warning(request, 'Fixtures already exist — regenerate them after this change.')
+    if t.is_team_based:
+        count = t.team_entries.count()
+        t.team_entries.all().delete()
+        messages.success(request, f'Removed all {count} team{"s" if count != 1 else ""}.')
+    else:
+        count = t.registrations.count()
+        t.registrations.all().delete()
+        messages.success(request, f'Removed all {count} participant{"s" if count != 1 else ""}.')
+    return redirect('participants_manage', slug=slug)
+
+
 # ======================================================================
 # Fixtures & scheduling
 # ======================================================================
@@ -439,7 +521,7 @@ def entry_decide(request, slug, kind, entry_id, decision):
 # Group-session formats (time-trial, single-event, and the esports round-robin
 # lobby, where one fixture holds every entrant at once) have no 1-vs-1 shape to
 # pick, so they keep using the engine's bulk generator.
-_MANUAL_PAIRWISE_FORMATS = {C.FORMAT_KNOCKOUT, C.FORMAT_ROUND_ROBIN}
+_MANUAL_PAIRWISE_FORMATS = {C.FORMAT_KNOCKOUT, C.FORMAT_ROUND_ROBIN, C.FORMAT_SWISS}
 
 
 def _manual_fixtures_supported(t):
@@ -547,13 +629,14 @@ def fixtures_generate_bracket(request, slug):
 @approved_organizer_required
 @require_POST
 def bracket_seed_set(request, slug):
-    """Save organiser-chosen seed numbers for a knockout tournament's entrants.
+    """Save organiser-chosen seed numbers for a knockout tournament's entrants,
+    then immediately (re)generate the bracket from them.
 
-    Doesn't touch fixtures or the bracket itself — `_entrants_for()` already
-    sorts by `seed` ascending and `BracketEngine.generate_fixtures()` already
-    pairs adjacent entrants (0v1, 2v3, ...), i.e. seed 1v2, 3v4, 5v6. This view
-    only makes those seed values organiser-editable; "Generate knockout
-    bracket" picks them up automatically, unchanged.
+    `BracketEngine.generate_fixtures()` always pairs adjacent entrants in
+    whatever list it's handed (0v1, 2v3, ...) and gives the last entrant in
+    an odd-length list the bye — so both pairing styles ('1 v 2' and
+    '1 v Last') are produced purely by controlling the order of the list
+    passed to it here; the engine itself is never touched.
     """
     t = _owned(request, slug)
     if t.format != C.FORMAT_KNOCKOUT or t.is_pool_stage:
@@ -565,51 +648,42 @@ def bracket_seed_set(request, slug):
         messages.error(request, 'Add participants first — see Participants.')
         return redirect('fixtures_manage', slug=slug)
 
-    seeds = {}
-    for key, label, _payload in choices:
-        raw = (request.POST.get(f'seed_{key}') or '').strip()
-        if not raw.isdigit() or int(raw) < 1:
-            messages.error(request, f'Enter a seed number for {label}.')
-            return redirect('fixtures_manage', slug=slug)
-        seeds[key] = int(raw)
+    from .engines import parse_seed_fields, persist_seeds, resolve_bye, order_by_seed
 
-    if len(set(seeds.values())) != len(seeds):
-        messages.error(request, 'Seed numbers must be unique — two entrants currently share a seed.')
+    seeds, err = parse_seed_fields(choices, request.POST)
+    if err:
+        messages.error(request, err)
         return redirect('fixtures_manage', slug=slug)
 
-    bye_key = (request.POST.get('bye_entrant') or '').strip()
-    if bye_key:
-        if bye_key not in seeds:
-            messages.error(request, 'Select a valid entrant for the bye.')
-            return redirect('fixtures_manage', slug=slug)
-        if len(choices) % 2 == 0:
-            messages.error(request, 'A bye only applies with an odd number of entrants.')
-            return redirect('fixtures_manage', slug=slug)
-        others = [v for k, v in seeds.items() if k != bye_key]
-        seeds[bye_key] = (max(others) if others else 0) + 1
+    seeds, _bye_key, err = resolve_bye(choices, seeds, request.POST)
+    if err:
+        messages.error(request, err)
+        return redirect('fixtures_manage', slug=slug)
 
-    team_ids, reg_ids = {}, {}
-    for key, seed in seeds.items():
-        kind, _, raw_id = key.partition(':')
-        if kind == 'team':
-            team_ids[int(raw_id)] = seed
-        else:
-            reg_ids[int(raw_id)] = seed
-    for entry in t.team_entries.filter(team_id__in=team_ids):
-        entry.seed = team_ids[entry.team_id]
-        entry.save(update_fields=['seed'])
-    for reg in t.registrations.filter(id__in=reg_ids):
-        reg.seed = reg_ids[reg.id]
-        reg.save(update_fields=['seed'])
+    persist_seeds(t, seeds)
 
-    ordered = sorted(seeds.items(), key=lambda kv: kv[1])
+    if t.participant_count() < 2:
+        messages.error(request, 'Add at least two participants before generating a bracket.')
+        return redirect('fixtures_manage', slug=slug)
+
+    pairing_mode = request.POST.get('pairing_mode') or 'adjacent'
+    entrants, final_keys = order_by_seed(choices, seeds, pairing_mode)
+
+    count = t.engine.generate_fixtures(entrants)
+    t.fixtures_generated = True
+    if t.status == 'DRAFT':
+        t.status = 'PUBLISHED'
+    t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+
     labels = {key: label for key, label, _ in choices}
-    pairs = [f'{labels[a]} v {labels[b]}' for (a, _), (b, _) in
-             zip(ordered[::2], ordered[1::2])]
-    summary = ', '.join(pairs) if pairs else ''
-    if len(ordered) % 2:
-        summary += f'{", " if summary else ""}{labels[ordered[-1][0]]} has a bye'
-    messages.success(request, f'Seeds saved — {summary}.' if summary else 'Seeds saved.')
+    style_label = '1 v Last' if pairing_mode == 'standard' else '1 v 2'
+    bye_seed_key = final_keys[-1] if len(final_keys) % 2 else None
+    pairs = [f'{labels[a]} v {labels[b]}' for a, b in zip(final_keys[::2], final_keys[1::2])]
+    summary = ', '.join(pairs)
+    if bye_seed_key:
+        summary += f'{", " if summary else ""}{labels[bye_seed_key]} has a bye'
+    messages.success(request, f'Seeds saved and bracket generated ({style_label}) — '
+                              f'{summary} ({count} fixtures).')
     return redirect('fixtures_manage', slug=slug)
 
 
@@ -713,6 +787,55 @@ def pool_fixture_add(request, slug):
 
 @approved_organizer_required
 @require_POST
+def pool_fixture_build(request, slug):
+    """"Fixture creation by pool": (re)build one pool's round-robin schedule
+    from an explicit entrant list + pairing mode. Any selected entrant
+    currently sitting in a *different* pool is moved here, and that other
+    pool's schedule is rebuilt too (see
+    PoolKnockoutEngine.rebuild_pool_membership) — every pool not involved in
+    the move is left untouched."""
+    t = _owned(request, slug)
+    if not t.is_pool_stage:
+        messages.error(request, 'Switch this tournament to Pool Stage + Knockout first.')
+        return redirect('fixtures_manage', slug=slug)
+
+    pool_label_in = (request.POST.get('pool_label') or '').strip()
+    if not pool_label_in:
+        messages.error(request, 'Enter a pool name.')
+        return redirect('fixtures_manage', slug=slug)
+    if len(pool_label_in) > 40:
+        messages.error(request, 'Pool name is too long (max 40 characters).')
+        return redirect('fixtures_manage', slug=slug)
+
+    entrant_ids = request.POST.getlist('entrant_ids')
+    if len(entrant_ids) < 2:
+        messages.error(request, 'Select at least two entrants for this pool.')
+        return redirect('fixtures_manage', slug=slug)
+
+    valid_keys = {key for key, _label, _payload in _manual_entrant_choices(t)}
+    if not set(entrant_ids) <= valid_keys:
+        messages.error(request, 'One or more selected entrants are no longer valid.')
+        return redirect('fixtures_manage', slug=slug)
+
+    pairing_mode = request.POST.get('pairing_mode') or 'adjacent'
+    moves = {key: pool_label_in for key in entrant_ids}
+    affected = t.engine.rebuild_pool_membership(moves, pairing_mode=pairing_mode)
+
+    t.fixtures_generated = True
+    if t.status == 'DRAFT':
+        t.status = 'PUBLISHED'
+    t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+
+    others = sorted(affected - {pool_label_in})
+    msg = f'Pool {pool_label_in} fixtures generated ({len(entrant_ids)} entrants).'
+    if others:
+        msg += f' Also rebuilt: {", ".join(others)} (entrant(s) moved out).'
+    messages.success(request, msg)
+    return redirect('fixtures_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
 def pool_create(request, slug):
     """Create a new, initially empty pool that the organiser can add
     fixtures to via `pool_fixture_add`. Never touches existing pools."""
@@ -739,6 +862,41 @@ def pool_create(request, slug):
     t.pool_config = cfg
     t.save(update_fields=['pool_config', 'updated_at'])
     messages.success(request, f'Pool "{name}" created — add fixtures to it below.')
+    return redirect('fixtures_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
+def pool_rename(request, slug):
+    """Rename an existing pool — updates its fixtures, standings, and
+    denormalised team-entry pool membership in one go, wherever the sport
+    (basketball, currently the only one with pools) is displaying it."""
+    from .pools import pool_view_context, rename_pool
+    t = _owned(request, slug)
+    if not t.is_pool_stage:
+        messages.error(request, 'This tournament does not run the Pool Stage format.')
+        return redirect('fixtures_manage', slug=slug)
+
+    old_label = (request.POST.get('old_label') or '').strip()
+    new_label = (request.POST.get('new_label') or '').strip()
+    if not new_label:
+        messages.error(request, 'Enter a pool name.')
+        return redirect('fixtures_manage', slug=slug)
+    if len(new_label) > 40:
+        messages.error(request, 'Pool name is too long (max 40 characters).')
+        return redirect('fixtures_manage', slug=slug)
+
+    known_pools = {p['label'] for p in pool_view_context(t)['pools']}
+    if old_label not in known_pools:
+        messages.error(request, 'That pool no longer exists.')
+        return redirect('fixtures_manage', slug=slug)
+    if new_label != old_label and new_label.lower() in {label.lower() for label in known_pools}:
+        messages.error(request, f'A pool named "{new_label}" already exists.')
+        return redirect('fixtures_manage', slug=slug)
+
+    if new_label != old_label:
+        rename_pool(t, old_label, new_label)
+        messages.success(request, f'Pool renamed to "{new_label}".')
     return redirect('fixtures_manage', slug=slug)
 
 
@@ -773,13 +931,24 @@ def fixtures_manage(request, slug):
     custom_mode = _custom_fixtures_active(t)
     pool_mode = t.is_pool_stage
     is_knockout = t.format == C.FORMAT_KNOCKOUT and not pool_mode
+    is_swiss = t.is_swiss
     num_pools, teams_per_pool, qualifiers_per_pool = t.pool_settings
     ctx = {
         'tournament': t, 'fixtures': fixtures,
         'manual_mode': manual_mode,
         'custom_mode': custom_mode,
         'entrant_choices': _manual_entrant_choices(t) if (custom_mode or pool_mode) else [],
+        'existing_rounds': (sorted(set(fixtures.values_list('round_no', flat=True)))
+                            if custom_mode else []),
+        # Feeds the "Add a fixture" round-column board so a pair created
+        # there shows up inside its own round column immediately, not just
+        # in the match-centre list further down the page.
+        'existing_fixtures_by_round': ([
+            {'round_no': fx.round_no, 'a': parts[0].name, 'b': parts[1].name}
+            for fx in fixtures for parts in [list(fx.participants.all())] if len(parts) == 2
+        ] if custom_mode else []),
         'is_knockout': is_knockout,
+        'is_swiss': is_swiss,
         # Pool Stage + Knockout (basketball only — see Tournament.supports_pool_stage)
         'pool_supported': t.supports_pool_stage,
         'pool_mode': pool_mode,
@@ -787,9 +956,14 @@ def fixtures_manage(request, slug):
         'pool_form': {'num_pools': num_pools or '', 'teams_per_pool': teams_per_pool or '',
                       'qualifiers_per_pool': qualifiers_per_pool or ''},
         'pool_assignment_mode': t.pool_assignment_mode,
-        'pool_teams': [{'id': e.team.id, 'name': e.team.name, 'seed': e.seed,
-                        'pool': t.pool_assignments.get(e.team.id, '')}
-                       for e in t.approved_entries()] if pool_mode and t.is_team_based else [],
+        'pool_entrants': ([{'key': f'team:{e.team_id}', 'name': e.team.name, 'seed': e.seed,
+                            'pool': t.pool_assignments.get(f'team:{e.team_id}', '')}
+                           for e in t.team_entries.filter(status='APPROVED').select_related('team')]
+                          if pool_mode and t.is_team_based
+                          else [{'key': f'reg:{r.id}', 'name': r.name, 'seed': r.seed,
+                                'pool': t.pool_assignments.get(f'reg:{r.id}', '')}
+                               for r in t.registrations.filter(status='APPROVED')]
+                          if pool_mode else []),
         'pool_labels': [pool_label(i) for i in range(max(num_pools, 2))] if pool_mode else [],
         'bracket_entrants': ([{'key': f'team:{e.team_id}', 'name': e.team.name, 'seed': e.seed}
                               for e in t.team_entries.filter(status='APPROVED').select_related('team')]
@@ -803,8 +977,47 @@ def fixtures_manage(request, slug):
         ctx['bracket_rounds'] = bracket_rounds
         ctx['champion'] = champion
     if pool_mode:
-        from .pools import pool_view_context
+        from .pools import pool_view_context, qualified_choices
         ctx.update(pool_view_context(t))
+        # Guards the rename-pool button in the shared public/_pool_standings.html
+        # partial — that template also renders on the public tournament page,
+        # which must never get an organizer-only edit affordance.
+        ctx['pool_names_editable'] = True
+        if ctx.get('pool_stage_complete'):
+            team_seeds = {e.team_id: e.seed for e in t.team_entries.all()}
+            reg_seeds = {r.id: r.seed for r in t.registrations.all()}
+
+            def _bracket_seed(key):
+                kind, _, raw_id = key.partition(':')
+                if kind == 'team':
+                    return team_seeds.get(int(raw_id))
+                if kind == 'reg':
+                    return reg_seeds.get(int(raw_id))
+                return None
+
+            ctx['pool_bracket_entrants'] = [
+                {'key': key, 'name': label, 'seed': _bracket_seed(key)}
+                for key, label, _payload in qualified_choices(t.engine)
+            ]
+        else:
+            ctx['pool_bracket_entrants'] = []
+    if is_swiss:
+        import math
+        current_round = t.swiss_round
+        current_fixtures = t.fixtures.filter(round_no=current_round, is_removed=False) if current_round else t.fixtures.none()
+        entrant_total = t.participant_count()
+        ctx.update({
+            'swiss_round': current_round,
+            'swiss_num_rounds': t.swiss_num_rounds,
+            'swiss_suggested_rounds': max(1, math.ceil(math.log2(entrant_total))) if entrant_total > 1 else 1,
+            'swiss_current_round_played': current_fixtures.filter(status='COMPLETED').count(),
+            'swiss_current_round_total': current_fixtures.count(),
+            'swiss_current_round_complete': bool(current_round) and not current_fixtures.exclude(
+                status__in=('COMPLETED', 'CANCELLED')).exists(),
+            'swiss_can_generate_next': bool(current_round) and (
+                not t.swiss_num_rounds or current_round < t.swiss_num_rounds),
+            'swiss_standings': list(t.standings.all().order_by('position')),
+        })
     return render(request, 'organizer/fixtures.html', ctx)
 
 
@@ -846,8 +1059,9 @@ def fixture_mode_set(request, slug):
 def pool_setup(request, slug):
     """Save the pool configuration, and optionally generate the pool fixtures.
 
-    Validation is server-side and authoritative: pools × teams-per-pool must
-    equal the approved team count, and nothing is generated until it does.
+    Validation is server-side and authoritative: pools × entrants-per-pool
+    must equal the approved entrant count, and nothing is generated until it
+    does.
     """
     from .pools import PoolConfigError, validate_manual_pools, validate_pool_config
     t = _owned(request, slug)
@@ -864,12 +1078,11 @@ def pool_setup(request, slug):
     existing_extra = (t.pool_config or {}).get('extra_labels') or []
 
     if manual:
-        entries = list(t.approved_entries())
         assignments = {}
-        for e in entries:
-            label = (request.POST.get(f'team_pool_{e.team.id}') or '').strip()
-            if label:
-                assignments[e.team.id] = label
+        for key, _label, _payload in _manual_entrant_choices(t):
+            pool_label_for_entrant = (request.POST.get(f'pool_for_{key}') or '').strip()
+            if pool_label_for_entrant:
+                assignments[key] = pool_label_for_entrant
         # Remember what the organizer picked even when it does not validate,
         # so the dialog comes back with the same selections rather than blank.
         t.pool_config = {'num_pools': num_pools, 'qualifiers_per_pool': qualifiers_per_pool,
@@ -900,8 +1113,17 @@ def pool_setup(request, slug):
         messages.success(request, 'Pool setup saved.')
         return redirect('fixtures_manage', slug=slug)
 
+    from .engines import parse_seed_fields, persist_seeds
+    choices = _manual_entrant_choices(t)
+    seeds, err = parse_seed_fields(choices, request.POST)
+    if err:
+        messages.error(request, err)
+        return redirect('fixtures_manage', slug=slug)
+    persist_seeds(t, seeds)
+    pairing_mode = request.POST.get('pairing_mode') or 'adjacent'
+
     try:
-        count = t.engine.generate_fixtures()
+        count = t.engine.generate_fixtures(pairing_mode=pairing_mode)
     except PoolConfigError as exc:
         messages.error(request, str(exc))
         return redirect('fixtures_manage', slug=slug)
@@ -936,11 +1158,101 @@ def pool_knockout_generate(request, slug):
     if not engine.pool_stage_complete():
         messages.error(request, 'Finish every pool match before generating the knockout bracket.')
         return redirect('fixtures_manage', slug=slug)
-    count = engine.generate_knockout(force=True)
+
+    from .pools import qualified_choices
+    from .engines import parse_seed_fields, persist_seeds, resolve_bye, order_by_seed
+
+    choices = qualified_choices(engine)
+    if not choices:
+        messages.error(request, 'Not enough qualified teams to build a knockout bracket.')
+        return redirect('fixtures_manage', slug=slug)
+
+    seeds, err = parse_seed_fields(choices, request.POST)
+    if err:
+        messages.error(request, err)
+        return redirect('fixtures_manage', slug=slug)
+
+    seeds, _bye_key, err = resolve_bye(choices, seeds, request.POST)
+    if err:
+        messages.error(request, err)
+        return redirect('fixtures_manage', slug=slug)
+
+    persist_seeds(t, seeds)
+    pairing_mode = request.POST.get('pairing_mode') or 'adjacent'
+    order, _ = order_by_seed(choices, seeds, pairing_mode)
+
+    count = engine.generate_knockout(force=True, manual_order=order)
     if count:
         messages.success(request, f'Knockout bracket generated — {count} fixtures.')
     else:
         messages.error(request, 'Not enough qualified teams to build a knockout bracket.')
+    return redirect('fixtures_manage', slug=slug)
+
+
+# ======================================================================
+# Swiss format (chess)
+# ======================================================================
+@approved_organizer_required
+@require_POST
+def swiss_setup(request, slug):
+    """Save the Swiss round count, and generate Round 1 if requested. Round
+    2 onward always goes through swiss_generate_round instead — pairing
+    only makes sense once the previous round's results exist."""
+    t = _owned(request, slug)
+    if not t.is_swiss:
+        messages.error(request, 'This tournament does not run the Swiss format.')
+        return redirect('fixtures_manage', slug=slug)
+
+    num_rounds = _pool_int(request, 'num_rounds')
+    if num_rounds < 1:
+        messages.error(request, 'Enter at least 1 round.')
+        return redirect('fixtures_manage', slug=slug)
+
+    t.swiss_config = {**(t.swiss_config or {}), 'num_rounds': num_rounds}
+    t.save(update_fields=['swiss_config', 'updated_at'])
+
+    if request.POST.get('action') != 'generate':
+        messages.success(request, 'Swiss setup saved.')
+        return redirect('fixtures_manage', slug=slug)
+
+    if t.swiss_round:
+        messages.error(request, 'Round 1 has already been generated — use "Generate next round" instead.')
+        return redirect('fixtures_manage', slug=slug)
+
+    count = t.engine.generate_fixtures()
+    if count:
+        t.fixtures_generated = True
+        if t.status == 'DRAFT':
+            t.status = 'PUBLISHED'
+        t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+        messages.success(request, f'Round 1 generated ({count} fixtures).')
+    else:
+        messages.error(request, 'Add at least two participants before generating Round 1.')
+    return redirect('fixtures_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
+def swiss_generate_round(request, slug):
+    """Pair and create the next Swiss round from current standings. Only
+    possible once every fixture in the current round is decided, and only
+    up to the configured number of rounds."""
+    t = _owned(request, slug)
+    if not t.is_swiss:
+        messages.error(request, 'This tournament does not run the Swiss format.')
+        return redirect('fixtures_manage', slug=slug)
+    if not t.swiss_round:
+        messages.error(request, 'Generate Round 1 first.')
+        return redirect('fixtures_manage', slug=slug)
+    if t.swiss_num_rounds and t.swiss_round >= t.swiss_num_rounds:
+        messages.error(request, 'Every configured round has already been generated.')
+        return redirect('fixtures_manage', slug=slug)
+
+    count = t.engine.generate_next_round()
+    if count:
+        messages.success(request, f'Round {t.swiss_round} generated ({count} fixtures).')
+    else:
+        messages.error(request, 'Finish every match in the current round before generating the next one.')
     return redirect('fixtures_manage', slug=slug)
 
 

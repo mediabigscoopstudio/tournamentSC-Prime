@@ -117,13 +117,14 @@
                        {% if form.format.value|stringformat:'s' == value|stringformat:'s' %}checked{% endif %}
                        {% if form.locked %}disabled{% endif %}>
                 <span class="tcopt__box">
-                  <span class="tcopt__emo" aria-hidden="true">{% if value == 'KNOCKOUT' %}🏅{% elif value == 'ROUND_ROBIN' %}📊{% elif value == 'TIME_TRIAL' %}⏱️{% else %}🎯{% endif %}</span>
+                  <span class="tcopt__emo" aria-hidden="true">{% if value == 'KNOCKOUT' %}🏅{% elif value == 'ROUND_ROBIN' %}📊{% elif value == 'TIME_TRIAL' %}⏱️{% elif value == 'SWISS' %}♟️{% else %}🎯{% endif %}</span>
                   <span class="tcopt__txt">
                     <span class="tcopt__t">{{ label }}</span>
                     <span class="tcopt__d">
                       {% if value == 'KNOCKOUT' %}Lose once and you're out. Straight to a final.
                       {% elif value == 'ROUND_ROBIN' %}Everyone plays everyone — a points table decides it.
                       {% elif value == 'TIME_TRIAL' %}Ranked on times or positions across sessions.
+                      {% elif value == 'SWISS' %}Paired one round at a time by score — no rematches, no early elimination.
                       {% else %}One mass-start event, ranked a single time.{% endif %}
                     </span>
                   </span>

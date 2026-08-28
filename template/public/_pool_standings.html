@@ -3,17 +3,25 @@ Pool Stage standings — one table per pool. Shared by the organizer's fixtures
 page, the public tournament tab and the standalone standings page, so the three
 can never drift apart.
 Context: pools, qualifiers_per_pool, has_pool_draws
+  pool_names_editable  organizer-only flag — shows a rename (✏️) button next
+                        to each pool heading; never set on the public pages.
 {% endcomment %}
 <div class="poolgrid">
   {% for pool in pools %}
     <div class="tblcard poolcard">
       <h4>
-        <span>Pool {{ pool.label }}</span>
+        <span>
+          Pool {{ pool.label }}
+          {% if pool_names_editable %}
+            <button type="button" class="pool-rename-btn" data-pool-rename="{{ pool.label }}"
+                    title="Rename pool" aria-label="Rename Pool {{ pool.label }}">✏️</button>
+          {% endif %}
+        </span>
         <span class="poolcard__count">{{ pool.played }}/{{ pool.total }} played</span>
       </h4>
       <div class="table-wrap"><table>
         <thead><tr>
-          <th>Team</th>
+          <th>Entrant</th>
           <th class="n" title="Matches played">P</th>
           <th class="n" title="Wins">W</th>
           {% if has_pool_draws %}<th class="n" title="Draws">D</th>{% endif %}
@@ -37,7 +45,7 @@ Context: pools, qualifiers_per_pool, has_pool_draws
               <td class="pts">{{ s.points|floatformat:'-1' }}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="9" class="dim">No teams in this pool yet.</td></tr>
+            <tr><td colspan="9" class="dim">No entrants in this pool yet.</td></tr>
           {% endfor %}
         </tbody>
       </table></div>
@@ -47,6 +55,6 @@ Context: pools, qualifiers_per_pool, has_pool_draws
 {% if pools %}
   <div class="qnote"><span class="qkey"></span>
     Top {{ qualifiers_per_pool }} of each pool qualify for the knockout.
-    Level teams are separated by point difference, then points scored, then their head-to-head result.
+    Level entrants are separated by point difference, then points scored, then their head-to-head result.
   </div>
 {% endif %}

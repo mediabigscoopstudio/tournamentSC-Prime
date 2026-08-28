@@ -8,7 +8,7 @@
   <div class="fxcc">
     <div class="fxcc__row">
       <div class="fxcc__id">
-        <span class="fxcc__ico">🏀</span>
+        <span class="fxcc__ico">{{ tournament.sport.icon }}</span>
         <div>
           <p class="fxcc__eyebrow">Fixtures &amp; scoring</p>
           <h1 class="fxcc__t">Tournament Control Center</h1>
@@ -80,8 +80,8 @@
     <div class="panel tblcard fxpanel">
       <h3 class="fxpanel__h"><span class="fxpanel__ico">🗂️</span>Pool stage setup</h3>
       <p class="muted fxpanel__p">
-        Teams are drawn into pools in seed order. Inside each pool every team plays every
-        other team once.
+        Entrants are drawn into pools in seed order. Inside each pool every entrant plays every
+        other entrant once.
       </p>
       <form method="post" action="{% url 'pool_setup' tournament.slug %}" style="margin-top:14px"
             id="pool-setup-form" data-team-total="{{ team_total }}">
@@ -105,7 +105,7 @@
           </label>
         </div>
         <p class="poolcfg__hint" id="pool-hint" role="status" aria-live="polite">
-          This tournament has <strong>{{ team_total }}</strong> approved team{{ team_total|pluralize }}.
+          This tournament has <strong>{{ team_total }}</strong> approved entrant{{ team_total|pluralize }}.
         </p>
         <div class="row-flex" style="margin-top:14px">
           <button class="btn btn-secondary btn-sm" name="action" value="save">Save setup</button>
@@ -113,23 +113,26 @@
                   data-confirm="Generate pool fixtures? Any existing fixtures and their scores for this tournament will be replaced.">
             {% if pools %}Regenerate{% else %}Generate{% endif %} pool fixtures
           </button>
-          {% if pool_teams %}
+          {% if pool_entrants %}
             <button type="button" class="btn btn-secondary btn-sm" data-open-dialog="pool-assign-dialog">
-              Assign teams to pools manually
+              Assign entrants to pools manually
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" data-open-dialog="pool-build-dialog">
+              Fixture creation by pool
             </button>
           {% endif %}
         </div>
       </form>
     </div>
 
-    {% if pool_teams %}
-      <dialog id="pool-assign-dialog" class="poolassign-dialog">
+    {% if pool_entrants %}
+      <dialog id="pool-assign-dialog" class="poolassign-dialog poolassign-dialog--wide">
         <form method="post" action="{% url 'pool_setup' tournament.slug %}" id="pool-assign-form">
           {% csrf_token %}
           <input type="hidden" name="assignment_mode" value="manual">
-          <h3 class="fxpanel__h" style="margin-top:0">Assign teams to pools</h3>
-          <p class="muted fxpanel__p">Pick which pool each team plays in. Pools do not need to be
-            the same size — every team just needs at least one other team in its pool.</p>
+          <h3 class="fxpanel__h" style="margin-top:0">Assign entrants to pools</h3>
+          <p class="muted fxpanel__p">Drag each entrant into the pool they play in. Pools do not need to
+            be the same size — every entrant just needs at least one other entrant in its pool.</p>
           <div class="poolcfg" style="margin-top:12px">
             <label class="poolcfg__f">
               <span>Number of Pools</span>
@@ -143,28 +146,18 @@
             </label>
           </div>
           <p class="poolcfg__hint" id="pool-assign-counts" role="status" aria-live="polite"></p>
-          <div style="max-height:340px; overflow-y:auto; margin-top:10px; border:1px solid var(--line); border-radius:var(--r-lg)">
-            <table class="dtable">
-              <thead>
-                <tr><th>Team</th><th>Seed</th><th>Pool</th></tr>
-              </thead>
-              <tbody>
-                {% for team in pool_teams %}
-                  <tr>
-                    <td>{{ team.name }}</td>
-                    <td>{{ team.seed|default:'—' }}</td>
-                    <td>
-                      <select class="input" name="team_pool_{{ team.id }}" data-pool-select>
-                        <option value="">Unassigned</option>
-                        {% for label in pool_labels %}
-                          <option value="{{ label }}" {% if team.pool == label %}selected{% endif %}>Pool {{ label }}</option>
-                        {% endfor %}
-                      </select>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+          <div class="pooldnd" id="pool-assign-dnd">
+            <div class="pooldnd__cols" id="pool-assign-cols"></div>
+            <div class="pooldnd__bench" hidden>
+              {% for entrant in pool_entrants %}
+                <div class="pooldnd__chip" draggable="true" tabindex="0" role="button"
+                     data-entrant-id="{{ entrant.key }}">
+                  <span class="pooldnd__chip-name">{{ entrant.name }}</span>
+                  <span class="pooldnd__chip-seed">Seed {{ entrant.seed|default:'—' }}</span>
+                  <input type="hidden" name="pool_for_{{ entrant.key }}" value="{{ entrant.pool }}">
+                </div>
+              {% endfor %}
+            </div>
           </div>
           <div class="row-flex" style="margin-top:14px">
             <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
@@ -176,7 +169,103 @@
           </div>
         </form>
       </dialog>
+
+      {# --- Build/rebuild one pool's fixtures from an explicit team list -- #}
+      <dialog id="pool-build-dialog" class="poolassign-dialog poolassign-dialog--wide">
+        <form method="post" action="{% url 'pool_fixture_build' tournament.slug %}" id="pool-build-form">
+          {% csrf_token %}
+          <h3 class="fxpanel__h" style="margin-top:0">Fixture creation by pool</h3>
+          <p class="muted fxpanel__p">
+            Pick an existing pool or type a new name, drag entrants in from either side — any
+            entrant, even one already in another pool — then generate that pool's round robin.
+            Only the pool(s) involved in this move are affected; every other pool is untouched.
+          </p>
+          <label class="poolcfg__f" style="margin-top:12px">
+            <span>Pool name</span>
+            <input class="input" type="text" name="pool_label" id="pool-build-label" maxlength="40"
+                   placeholder="e.g. A, or a new pool name" required autocomplete="off">
+          </label>
+          {% if pool_labels %}
+            <div class="row-flex" style="margin-top:8px; flex-wrap:wrap">
+              {% for label in pool_labels %}
+                <button type="button" class="pool-build-chip" data-pool-pick="{{ label }}">Pool {{ label }}</button>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <label class="poolcfg__f" style="margin-top:12px">
+            <span>Pairing</span>
+            <select class="input" name="pairing_mode">
+              <option value="adjacent">1 v 2, 3 v 4, 5 v 6...</option>
+              <option value="standard">1 v Last, 2 v 2nd-last...</option>
+            </select>
+          </label>
+          <div class="pooldnd" id="pool-build-dnd" style="margin-top:12px">
+            <div class="pooldnd__cols" id="pool-build-cols"></div>
+            <div class="pooldnd__bench" hidden>
+              {% for entrant in pool_entrants %}
+                <div class="pooldnd__chip" draggable="true" tabindex="0" role="button"
+                     data-entrant-id="{{ entrant.key }}" data-current-pool="{{ entrant.pool }}">
+                  <span class="pooldnd__chip-name">{{ entrant.name }}</span>
+                  <span class="pooldnd__chip-seed">
+                    Seed {{ entrant.seed|default:'—' }}{% if entrant.pool %} · currently in Pool {{ entrant.pool }}{% else %} · Unassigned{% endif %}
+                  </span>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="row-flex" style="margin-top:14px">
+            <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+            <button class="btn btn-primary btn-sm" id="pool-build-submit"
+                    data-confirm="Generate this pool's fixtures? Its existing fixtures — and any other pool a selected entrant is currently in — will be replaced.">
+              Generate pool fixtures
+            </button>
+          </div>
+        </form>
+      </dialog>
     {% endif %}
+
+    {# --- Mandatory seed gate before generating pool fixtures ------------ #}
+    <dialog id="pool-seed-dialog" class="poolassign-dialog">
+      <form method="post" action="{% url 'pool_setup' tournament.slug %}" id="pool-seed-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="generate">
+        <div id="pool-seed-carried-fields"></div>
+        <h3 class="fxpanel__h" style="margin-top:0">Set seeds &amp; pairing</h3>
+        <p class="muted fxpanel__p">
+          Give each entrant a seed number, then choose which pair opens Round 1 of
+          each pool's schedule. Every entrant still plays every other entrant in its
+          pool — this only decides the order matches happen in. Seeds are also
+          recorded for use when the knockout bracket is built later.
+        </p>
+        <label class="poolcfg__f" style="margin-top:12px">
+          <span>Pairing</span>
+          <select class="input" name="pairing_mode">
+            <option value="adjacent">1 v 2, 3 v 4, 5 v 6...</option>
+            <option value="standard">1 v Last, 2 v 2nd-last...</option>
+          </select>
+        </label>
+        <div style="max-height:340px; overflow-y:auto; margin-top:12px; border:1px solid var(--line); border-radius:var(--r-lg)">
+          <table class="dtable">
+            <thead><tr><th>Entrant</th><th>Seed</th></tr></thead>
+            <tbody>
+              {% for entrant in pool_entrants %}
+                <tr>
+                  <td>{{ entrant.name }}</td>
+                  <td>
+                    <input class="input" type="number" min="1" name="seed_{{ entrant.key }}"
+                           value="{{ entrant.seed|default:'' }}" data-seed-input>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="row-flex" style="margin-top:14px">
+          <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary btn-sm">Save seeds &amp; generate pool fixtures</button>
+        </div>
+      </form>
+    </dialog>
 
     {# --- Add a fixture to one pool (opened from that pool's "+" button) - #}
     <dialog id="pool-add-fixture-dialog" class="poolassign-dialog" style="max-width:420px">
@@ -188,11 +277,11 @@
         </h3>
         <div class="row-flex" style="margin-top:12px; flex-wrap:wrap">
           <select class="input" name="entrant_a" required style="max-width:200px">
-            <option value="">Team A…</option>
+            <option value="">Entrant A…</option>
             {% for key, label, payload in entrant_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
           </select>
           <select class="input" name="entrant_b" required style="max-width:200px">
-            <option value="">Team B…</option>
+            <option value="">Entrant B…</option>
             {% for key, label, payload in entrant_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
           </select>
         </div>
@@ -220,6 +309,25 @@
       </form>
     </dialog>
 
+    {# --- Rename an existing pool (opened from its ✏️ edit button) -------- #}
+    <dialog id="pool-rename-dialog" class="poolassign-dialog" style="max-width:380px">
+      <form method="post" action="{% url 'pool_rename' tournament.slug %}" id="pool-rename-form">
+        {% csrf_token %}
+        <input type="hidden" name="old_label" id="pool-rename-old-label" value="">
+        <h3 class="fxpanel__h" style="margin-top:0">
+          Rename <span id="pool-rename-title">pool</span>
+        </h3>
+        <label class="poolcfg__f" style="margin-top:12px">
+          <span>Pool name</span>
+          <input class="input" type="text" name="new_label" id="pool-rename-input" required maxlength="40">
+        </label>
+        <div class="row-flex" style="margin-top:14px">
+          <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary btn-sm">Save</button>
+        </div>
+      </form>
+    </dialog>
+
     {% if pools %}
       {# --- Pool progress + knockout trigger --------------------------- #}
       <div class="panel tblcard fxpanel">
@@ -238,13 +346,9 @@
             </p>
           </div>
           {% if pool_stage_complete %}
-            <form method="post" action="{% url 'pool_knockout_generate' tournament.slug %}"
-                  onsubmit="return confirm('Rebuild the knockout bracket from the current pool standings? Any knockout fixtures and their scores will be replaced.')">
-              {% csrf_token %}
-              <button class="btn btn-secondary btn-sm">
-                {% if has_knockout %}Rebuild{% else %}Generate{% endif %} knockout bracket
-              </button>
-            </form>
+            <button type="button" class="btn btn-secondary btn-sm" data-open-dialog="pool-knockout-seed-dialog">
+              {% if has_knockout %}Rebuild{% else %}Generate{% endif %} knockout bracket
+            </button>
           {% endif %}
         </div>
         <div class="poolbar" style="margin-top:14px" role="img"
@@ -252,6 +356,57 @@
           <span class="poolbar__fill" style="width:{% if pool_stage_total %}{% widthratio pool_stage_played pool_stage_total 100 %}{% else %}0{% endif %}%"></span>
         </div>
       </div>
+
+      {% if pool_stage_complete %}
+        <dialog id="pool-knockout-seed-dialog" class="poolassign-dialog">
+          <form method="post" action="{% url 'pool_knockout_generate' tournament.slug %}" id="pool-knockout-seed-form"
+                onsubmit="return confirm('{% if has_knockout %}Rebuild{% else %}Generate{% endif %} the knockout bracket with these seeds? Any existing knockout fixtures and scores will be replaced.')">
+            {% csrf_token %}
+            <h3 class="fxpanel__h" style="margin-top:0">Set seeds &amp; pairing</h3>
+            <p class="muted fxpanel__p">
+              Rank the qualified entrants, then choose how round 1 should pair them up.
+            </p>
+            <label class="poolcfg__f" style="margin-top:12px">
+              <span>Pairing</span>
+              <select class="input" name="pairing_mode" id="pool-knockout-pairing-mode">
+                <option value="adjacent">1 v 2, 3 v 4, 5 v 6...</option>
+                <option value="standard">1 v Last, 2 v 2nd-last...</option>
+              </select>
+            </label>
+            <div style="max-height:340px; overflow-y:auto; margin-top:12px; border:1px solid var(--line); border-radius:var(--r-lg)">
+              <table class="dtable">
+                <thead><tr><th>Team</th><th>Seed</th></tr></thead>
+                <tbody>
+                  {% for e in pool_bracket_entrants %}
+                    <tr>
+                      <td>{{ e.name }}</td>
+                      <td>
+                        <input class="input" type="number" min="1" name="seed_{{ e.key }}"
+                               value="{{ e.seed|default:'' }}" data-seed-input data-seed-name="{{ e.name }}"
+                               data-seed-key="{{ e.key }}">
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if pool_bracket_entrants|length|divisibleby:2 == False %}
+              <label class="poolcfg__f" style="margin-top:12px">
+                <span>Give a bye to (optional)</span>
+                <select class="input" name="bye_entrant">
+                  <option value="">— none, use lowest seed —</option>
+                  {% for e in pool_bracket_entrants %}<option value="{{ e.key }}">{{ e.name }}</option>{% endfor %}
+                </select>
+              </label>
+            {% endif %}
+            <p class="poolcfg__hint" id="pool-knockout-seed-preview" role="status" aria-live="polite"></p>
+            <div class="row-flex" style="margin-top:14px">
+              <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+              <button class="btn btn-primary btn-sm">Save seeds &amp; {% if has_knockout %}rebuild{% else %}generate{% endif %} bracket</button>
+            </div>
+          </form>
+        </dialog>
+      {% endif %}
 
       {# --- Pool standings --------------------------------------------- #}
       <div class="fxblock" id="pool-standings">
@@ -280,30 +435,33 @@
         automatically, and winners advance into the next round as each match is finalized.
       </p>
       <div class="row-flex" style="margin-top:12px; flex-wrap:wrap">
-        <form method="post" action="{% url 'fixtures_generate_bracket' tournament.slug %}"
-              onsubmit="return confirm('Generate a knockout bracket automatically? This replaces any existing fixtures and scores for this tournament.')">
-          {% csrf_token %}
-          <button class="btn btn-primary btn-sm">
+        {% if bracket_entrants %}
+          <button type="button" class="btn btn-primary btn-sm" data-open-dialog="bracket-seed-dialog">
             {% if tournament.fixtures_generated %}Regenerate{% else %}Generate{% endif %} knockout bracket
           </button>
-        </form>
-        {% if bracket_entrants %}
-          <button type="button" class="btn btn-secondary btn-sm" data-open-dialog="bracket-seed-dialog">
-            Set seeds / pairing
-          </button>
+        {% else %}
+          <p class="muted fxpanel__p">Add participants first — see Participants.</p>
         {% endif %}
       </div>
     </div>
 
     {% if bracket_entrants %}
       <dialog id="bracket-seed-dialog" class="poolassign-dialog">
-        <form method="post" action="{% url 'bracket_seed_set' tournament.slug %}" id="bracket-seed-form">
+        <form method="post" action="{% url 'bracket_seed_set' tournament.slug %}" id="bracket-seed-form"
+              onsubmit="return confirm('Save these seeds and generate the bracket? Any existing fixtures and scores for this tournament will be replaced.')">
           {% csrf_token %}
           <h3 class="fxpanel__h" style="margin-top:0">Set seeds &amp; pairing</h3>
           <p class="muted fxpanel__p">
-            Rank each entrant — the bracket pairs 1 v 2, 3 v 4, 5 v 6...
+            Rank each entrant, then choose how round 1 should pair them up.
           </p>
-          <div style="max-height:340px; overflow-y:auto; margin-top:10px; border:1px solid var(--line); border-radius:var(--r-lg)">
+          <label class="poolcfg__f" style="margin-top:12px">
+            <span>Pairing</span>
+            <select class="input" name="pairing_mode" id="bracket-pairing-mode">
+              <option value="adjacent">1 v 2, 3 v 4, 5 v 6...</option>
+              <option value="standard">1 v Last, 2 v 2nd-last...</option>
+            </select>
+          </label>
+          <div style="max-height:340px; overflow-y:auto; margin-top:12px; border:1px solid var(--line); border-radius:var(--r-lg)">
             <table class="dtable">
               <thead><tr><th>Entrant</th><th>Seed</th></tr></thead>
               <tbody>
@@ -312,7 +470,8 @@
                     <td>{{ e.name }}</td>
                     <td>
                       <input class="input" type="number" min="1" name="seed_{{ e.key }}"
-                             value="{{ e.seed|default:'' }}" data-seed-input data-seed-name="{{ e.name }}">
+                             value="{{ e.seed|default:'' }}" data-seed-input data-seed-name="{{ e.name }}"
+                             data-seed-key="{{ e.key }}">
                     </td>
                   </tr>
                 {% endfor %}
@@ -331,10 +490,82 @@
           <p class="poolcfg__hint" id="bracket-seed-preview" role="status" aria-live="polite"></p>
           <div class="row-flex" style="margin-top:14px">
             <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
-            <button class="btn btn-primary btn-sm">Save seeds</button>
+            <button class="btn btn-primary btn-sm">Save seeds &amp; generate bracket</button>
           </div>
         </form>
       </dialog>
+    {% endif %}
+  {% endif %}
+
+  {% if is_swiss %}
+    <div class="panel tblcard fxpanel">
+      <h3 class="fxpanel__h"><span class="fxpanel__ico">♟️</span>Swiss pairing</h3>
+      {% if not swiss_round %}
+        <p class="muted fxpanel__p">
+          Set the number of rounds, then generate Round 1 — a seed-ordered top-half vs
+          bottom-half pairing. Every later round pairs entrants on similar scores,
+          avoiding rematches, once the previous round is fully decided.
+        </p>
+        <form method="post" action="{% url 'swiss_setup' tournament.slug %}"
+              class="row-flex" style="margin-top:12px; flex-wrap:wrap">
+          {% csrf_token %}
+          <label class="poolcfg__f" style="max-width:180px">
+            <span>Number of rounds</span>
+            <input class="input" type="number" name="num_rounds" min="1"
+                   value="{{ swiss_num_rounds|default:swiss_suggested_rounds }}" required>
+          </label>
+          <button class="btn btn-secondary btn-sm" name="action" value="save">Save setup</button>
+          <button class="btn btn-primary btn-sm" name="action" value="generate"
+                  data-confirm="Generate Round 1? Any existing fixtures and their scores for this tournament will be replaced.">
+            Generate Round 1
+          </button>
+        </form>
+        {% if not entrant_choices %}
+          <p class="dim" style="margin-top:8px; font-size:13px">Add participants first — see Participants.</p>
+        {% endif %}
+      {% else %}
+        <p class="muted fxpanel__p">
+          Round {{ swiss_round }} of {{ swiss_num_rounds|default:"?" }} —
+          {{ swiss_current_round_played }} of {{ swiss_current_round_total }} match{{ swiss_current_round_total|pluralize }} final.
+        </p>
+        <div class="row-flex" style="margin-top:12px; flex-wrap:wrap; align-items:center">
+          {% if swiss_can_generate_next %}
+            <form method="post" action="{% url 'swiss_generate_round' tournament.slug %}"
+                  onsubmit="return confirm('Generate the next round from current standings?')">
+              {% csrf_token %}
+              <button class="btn btn-primary btn-sm" {% if not swiss_current_round_complete %}disabled{% endif %}>
+                Generate next round
+              </button>
+            </form>
+            {% if not swiss_current_round_complete %}
+              <p class="dim" style="font-size:13px; margin:0">Finish every match in the current round first.</p>
+            {% endif %}
+          {% else %}
+            <p class="dim" style="font-size:13px; margin:0">Every configured round has been generated.</p>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    {% if swiss_standings %}
+      <div class="panel tblcard fxpanel">
+        <h3 class="fxpanel__h"><span class="fxpanel__ico">📊</span>Standings</h3>
+        <div class="table-wrap" style="margin-top:12px"><table class="dtable">
+          <thead><tr><th>#</th><th>Entrant</th><th class="n">P</th><th class="n">Pts</th>
+                 <th class="n" title="Buchholz tiebreak — sum of your opponents' points">Buch.</th></tr></thead>
+          <tbody>
+            {% for s in swiss_standings %}
+              <tr>
+                <td>{{ s.position }}</td>
+                <td>{{ s.name }}</td>
+                <td class="n">{{ s.played }}</td>
+                <td class="n">{{ s.points|floatformat:'-1' }}</td>
+                <td class="n">{{ s.extra_stats.buchholz|default:0 }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      </div>
     {% endif %}
   {% endif %}
 
@@ -348,25 +579,29 @@
   {% if custom_mode %}
     <div class="panel tblcard fxpanel">
       <h3 class="fxpanel__h"><span class="fxpanel__ico">➕</span>Add a fixture</h3>
-      <p class="muted fxpanel__p">Create fixtures yourself — pick who plays whom and add them one at a time.</p>
-      <form method="post" action="{% url 'fixture_add_manual' tournament.slug %}"
-            class="row-flex" style="margin-top:12px; flex-wrap:wrap">
-        {% csrf_token %}
-        <select class="input" name="entrant_a" required style="max-width:200px">
-          <option value="">Team A…</option>
-          {% for key, label, payload in entrant_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
-        </select>
-        <select class="input" name="entrant_b" required style="max-width:200px">
-          <option value="">Team B…</option>
-          {% for key, label, payload in entrant_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
-        </select>
-        <input class="input" type="number" name="round_no" min="1" value="1" title="Round number"
-               style="max-width:90px">
-        <input class="input" type="text" name="round_name" placeholder="Round label (optional)"
-               style="max-width:180px">
-        <button class="btn btn-primary btn-sm">Add fixture</button>
-      </form>
-      {% if not entrant_choices %}
+      {% if entrant_choices %}
+        <p class="muted fxpanel__p">
+          Drag an entrant into a round to start a match, then drag a second entrant onto it
+          to complete the pairing — it saves instantly, no Save button needed.
+        </p>
+        <div class="pooldnd" id="fxadd-dnd" style="margin-top:12px">
+          <form id="fxadd-csrf-form">{% csrf_token %}</form>
+          <div class="pooldnd__cols" id="fxadd-cols"></div>
+          <div class="pooldnd__bench" hidden>
+            {% for key, label, payload in entrant_choices %}
+              <div class="pooldnd__chip" draggable="true" tabindex="0" role="button"
+                   data-entrant-id="{{ key }}" data-entrant-name="{{ label }}">
+                <span class="pooldnd__chip-name">{{ label }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="fxadd-add-round" style="margin-top:10px">
+          + Add round
+        </button>
+        {{ existing_rounds|json_script:"fxadd-existing-rounds" }}
+        {{ existing_fixtures_by_round|json_script:"fxadd-existing-fixtures" }}
+      {% else %}
         <p class="dim" style="margin-top:8px; font-size:13px">Add participants first — see Participants.</p>
       {% endif %}
     </div>
@@ -393,7 +628,7 @@
       </div>
 
       <p class="fxfil__empty" data-fx-noresult hidden>
-        <span class="fxfil__empty-ico">🏀</span>
+        <span class="fxfil__empty-ico">{{ tournament.sport.icon }}</span>
         <strong>No matches here</strong>
         Nothing matches the filters you picked — try “All matches”.
       </p>
@@ -402,7 +637,7 @@
         {% if pool_mode %}
           {# Pool tournaments read pool by pool, then round by round. #}
           {% for pool in pools %}
-            {% include 'organizer/_fixture_group.html' with sec_key="pool-"|add:pool.label|slugify sec_title="Pool "|add:pool.label sec_fixtures=pool.fixtures sec_icon="🏀" sec_pool=1 sec_played=pool.played sec_total=pool.total sec_pool_label=pool.label %}
+            {% include 'organizer/_fixture_group.html' with sec_key="pool-"|add:pool.label|slugify sec_title="Pool "|add:pool.label sec_fixtures=pool.fixtures sec_icon=tournament.sport.icon sec_pool=1 sec_played=pool.played sec_total=pool.total sec_pool_label=pool.label %}
           {% endfor %}
           <button type="button" class="poolcreate-bar" data-open-dialog="create-pool-dialog">
             <span class="poolcreate-bar__ico">+</span> Create another pool
@@ -420,7 +655,7 @@
             {% elif g.grouper %}
               {% include 'organizer/_fixture_group.html' with sec_key=g.grouper|slugify sec_title=g.grouper sec_fixtures=g.list %}
             {% else %}
-              {% include 'organizer/_fixture_group.html' with sec_key='fixtures' sec_title='Fixtures' sec_fixtures=g.list sec_icon='🏀' %}
+              {% include 'organizer/_fixture_group.html' with sec_key='fixtures' sec_title='Fixtures' sec_fixtures=g.list sec_icon=tournament.sport.icon %}
             {% endif %}
           {% endfor %}
         {% endif %}
@@ -428,7 +663,7 @@
     </div>
   {% else %}
     <div class="fxempty">
-      <span class="fxempty__ico">🏀</span>
+      <span class="fxempty__ico">{{ tournament.sport.icon }}</span>
       <h3>No fixtures yet</h3>
       <p>
         {% if pool_mode %}Set up your pools above and generate them to begin tournament play.
@@ -603,31 +838,31 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
 
   function check() {
     var pools = read('num_pools'), per = read('teams_per_pool'), qual = read('qualifiers_per_pool');
-    var teamWord = total === 1 ? 'team' : 'teams';
+    var entrantWord = total === 1 ? 'entrant' : 'entrants';
     if (!pools || !per) {
       hint.className = 'poolcfg__hint';
-      hint.innerHTML = 'This tournament has <strong>' + total + '</strong> approved ' + teamWord + '.';
+      hint.innerHTML = 'This tournament has <strong>' + total + '</strong> approved ' + entrantWord + '.';
       return true;
     }
     var required = pools * per;
     if (pools < 2) { return fail('Enter at least 2 pools.'); }
-    if (per < 2) { return fail('Each pool needs at least 2 teams so they can play each other.'); }
+    if (per < 2) { return fail('Each pool needs at least 2 entrants so they can play each other.'); }
     if (required !== total) {
-      return fail(pools + ' pools × ' + per + ' teams = ' + required + ' teams required — this '
-                  + 'tournament has ' + total + ' approved ' + teamWord + '.');
+      return fail(pools + ' pools × ' + per + ' entrants = ' + required + ' entrants required — this '
+                  + 'tournament has ' + total + ' approved ' + entrantWord + '.');
     }
-    if (qual < 1) { return fail('At least 1 team per pool must qualify for the knockout.'); }
+    if (qual < 1) { return fail('At least 1 entrant per pool must qualify for the knockout.'); }
     if (qual > per) {
-      return fail('Only ' + per + ' teams are in each pool, so at most ' + per + ' can qualify.');
+      return fail('Only ' + per + ' entrants are in each pool, so at most ' + per + ' can qualify.');
     }
     if (pools * qual < 2) {
-      return fail('At least 2 teams in total must qualify for a knockout to be playable.');
+      return fail('At least 2 entrants in total must qualify for a knockout to be playable.');
     }
     var perPool = per * (per - 1) / 2;
     hint.className = 'poolcfg__hint is-ok';
-    hint.textContent = pools + ' pools × ' + per + ' teams = ' + required + ' teams · '
+    hint.textContent = pools + ' pools × ' + per + ' entrants = ' + required + ' entrants · '
       + perPool + ' matches per pool (' + (perPool * pools) + ' total) · top ' + qual
-      + ' of each pool qualify (' + (pools * qual) + ' teams).';
+      + ' of each pool qualify (' + (pools * qual) + ' entrants).';
     return true;
   }
 
@@ -638,29 +873,36 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
   }
 
   form.addEventListener('input', check);
-  form.addEventListener('submit', function (e) {
-    if (e.submitter === generate) {
-      if (!check()) { e.preventDefault(); return; }
-      if (!window.confirm(generate.dataset.confirm)) { e.preventDefault(); }
-    }
+  generate.type = 'button';
+  generate.addEventListener('click', function () {
+    if (!check()) return;
+    if (!window.confirm(generate.dataset.confirm)) return;
+    window.fxOpenPoolSeedGate(form);
   });
   check();
 })();
 </script>
 <script>
-/* Manual pool-assignment dialog: keep each team's <select> pool options in
-   sync with "Number of pools", and show a live per-pool count. Purely
-   cosmetic — tournaments/pools.py::validate_manual_pools is the authority
-   and re-checks everything on submit. */
+/* Manual pool-assignment dialog: drag-and-drop entrant chips between pool
+   columns instead of per-entrant <select> dropdowns (40+ entrants across
+   10+ pools makes 40 separate dropdowns painful). Each chip carries its own
+   hidden pool_for_<key> input, so its value always matches whichever
+   column it's currently sitting in — no separate bookkeeping needed, the
+   form just submits whatever's in the DOM. Purely a front-end interaction
+   change: tournaments/pools.py::validate_manual_pools is still the
+   authority and re-checks everything on submit. */
 (function () {
   var dialog = document.getElementById('pool-assign-dialog');
   if (!dialog) return;
 
   var form = document.getElementById('pool-assign-form');
   var numPoolsInput = document.getElementById('pool-assign-num-pools');
-  var selects = Array.prototype.slice.call(form.querySelectorAll('[data-pool-select]'));
   var counts = document.getElementById('pool-assign-counts');
   var generate = form.querySelector('button[value="generate"]');
+  var cols = document.getElementById('pool-assign-cols');
+  var bench = form.querySelector('.pooldnd__bench');
+  var chips = Array.prototype.slice.call(bench.querySelectorAll('.pooldnd__chip'));
+  var selected = null;
 
   function poolLabel(index) {
     var n = index + 1, label = '';
@@ -668,42 +910,264 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
     return label;
   }
 
-  function syncOptions() {
-    var n = Math.max(parseInt(numPoolsInput.value, 10) || 0, 0);
-    selects.forEach(function (sel) {
-      var current = sel.value;
-      while (sel.options.length > 1) sel.remove(1);
-      for (var i = 0; i < n; i++) {
-        var label = poolLabel(i);
-        var opt = document.createElement('option');
-        opt.value = label;
-        opt.textContent = 'Pool ' + label;
-        sel.appendChild(opt);
-      }
-      sel.value = Array.prototype.some.call(sel.options, function (o) { return o.value === current; }) ? current : '';
+  function chipInput(chip) { return chip.querySelector('input[type="hidden"]'); }
+
+  function selectChip(chip) {
+    if (selected) selected.classList.remove('is-selected');
+    selected = (selected === chip) ? null : chip;
+    if (selected) selected.classList.add('is-selected');
+  }
+
+  function moveChip(chip, list, label) {
+    list.appendChild(chip);
+    chipInput(chip).value = label;
+    if (selected === chip) selectChip(chip);
+    updateCounts();
+  }
+
+  function makeColumn(label) {
+    var col = document.createElement('div');
+    col.className = 'pooldnd__col';
+    var head = document.createElement('div');
+    head.className = 'pooldnd__colh';
+    var title = document.createElement('span');
+    title.textContent = label ? 'Pool ' + label : 'Unassigned';
+    var badge = document.createElement('span');
+    badge.className = 'pooldnd__count';
+    badge.textContent = '0';
+    head.appendChild(title);
+    head.appendChild(badge);
+    var list = document.createElement('div');
+    list.className = 'pooldnd__list';
+    list.dataset.poolLabel = label;
+
+    list.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      list.classList.add('is-over');
     });
+    list.addEventListener('dragleave', function () { list.classList.remove('is-over'); });
+    list.addEventListener('drop', function (e) {
+      e.preventDefault();
+      list.classList.remove('is-over');
+      var entrantId = e.dataTransfer.getData('text/plain');
+      var chip = chips.filter(function (c) { return c.dataset.entrantId === entrantId; })[0];
+      if (chip) moveChip(chip, list, label);
+    });
+    list.addEventListener('click', function () {
+      if (selected) moveChip(selected, list, label);
+    });
+
+    col.appendChild(head);
+    col.appendChild(list);
+    return { col: col, list: list, badge: badge };
+  }
+
+  function buildColumns(n) {
+    // Rebuild the column DOM, then re-home each chip using its *current*
+    // hidden-input value (not the initial server-rendered one), so a
+    // pool-count change never discards drags already made.
+    cols.innerHTML = '';
+    var lists = {};
+    var built = makeColumn('');
+    cols.appendChild(built.col);
+    lists[''] = built;
+    for (var i = 0; i < n; i++) {
+      var label = poolLabel(i);
+      built = makeColumn(label);
+      cols.appendChild(built.col);
+      lists[label] = built;
+    }
+
+    chips.forEach(function (chip) {
+      var v = chipInput(chip).value || '';
+      var target = lists[v] || lists[''];
+      if (!lists[v]) chipInput(chip).value = '';  // pool no longer exists — back to Unassigned
+      target.list.appendChild(chip);
+    });
+
     updateCounts();
   }
 
   function updateCounts() {
     var tally = {}, unassigned = 0;
-    selects.forEach(function (sel) {
-      if (!sel.value) { unassigned++; return; }
-      tally[sel.value] = (tally[sel.value] || 0) + 1;
+    chips.forEach(function (chip) {
+      var v = chipInput(chip).value || '';
+      if (!v) { unassigned++; return; }
+      tally[v] = (tally[v] || 0) + 1;
+    });
+    cols.querySelectorAll('.pooldnd__list').forEach(function (list) {
+      var label = list.dataset.poolLabel;
+      var n = label ? (tally[label] || 0) : unassigned;
+      list.parentNode.querySelector('.pooldnd__count').textContent = n;
     });
     var parts = Object.keys(tally).sort().map(function (label) { return 'Pool ' + label + ': ' + tally[label]; });
     if (unassigned) parts.push(unassigned + ' unassigned');
-    counts.textContent = parts.join(' · ') || 'No teams assigned yet.';
+    counts.textContent = parts.join(' · ') || 'No entrants assigned yet.';
   }
 
-  numPoolsInput.addEventListener('input', syncOptions);
-  selects.forEach(function (sel) { sel.addEventListener('change', updateCounts); });
-  form.addEventListener('submit', function (e) {
-    if (e.submitter === generate && !window.confirm(generate.dataset.confirm)) {
-      e.preventDefault();
-    }
+  chips.forEach(function (chip) {
+    chip.addEventListener('dragstart', function (e) {
+      e.dataTransfer.setData('text/plain', chip.dataset.entrantId);
+      e.dataTransfer.effectAllowed = 'move';
+      chip.classList.add('is-dragging');
+    });
+    chip.addEventListener('dragend', function () { chip.classList.remove('is-dragging'); });
+    chip.addEventListener('click', function (e) {
+      e.stopPropagation();  // don't also trigger the parent list's click-to-place handler
+      selectChip(chip);
+    });
+    chip.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectChip(chip); }
+    });
   });
-  syncOptions();
+
+  numPoolsInput.addEventListener('input', function () {
+    buildColumns(Math.max(parseInt(numPoolsInput.value, 10) || 0, 0));
+  });
+  generate.type = 'button';
+  generate.addEventListener('click', function () {
+    if (!window.confirm(generate.dataset.confirm)) return;
+    window.fxOpenPoolSeedGate(form);
+  });
+  buildColumns(Math.max(parseInt(numPoolsInput.value, 10) || 0, 0));
+})();
+</script>
+<script>
+/* "Fixture creation by pool" dialog: a simple two-column version of the same
+   drag-and-drop chip pattern above (Available / In this pool), rebuilt from
+   each chip's server-rendered data-current-pool whenever the pool-name text
+   input changes — not from a "live" value, so switching to a different pool
+   name always starts from the real current membership, not whatever was
+   dragged around for a previously-typed name. */
+(function () {
+  var dialog = document.getElementById('pool-build-dialog');
+  if (!dialog) return;
+
+  var form = document.getElementById('pool-build-form');
+  var labelInput = document.getElementById('pool-build-label');
+  var cols = document.getElementById('pool-build-cols');
+  var bench = form.querySelector('.pooldnd__bench');
+  var chips = Array.prototype.slice.call(bench.querySelectorAll('.pooldnd__chip'));
+  var selected = null;
+
+  function selectChip(chip) {
+    if (selected) selected.classList.remove('is-selected');
+    selected = (selected === chip) ? null : chip;
+    if (selected) selected.classList.add('is-selected');
+  }
+
+  function moveChip(chip, list) {
+    list.appendChild(chip);
+    if (selected === chip) selectChip(chip);
+    updateCounts();
+  }
+
+  function makeColumn(title, zone) {
+    var col = document.createElement('div');
+    col.className = 'pooldnd__col';
+    var head = document.createElement('div');
+    head.className = 'pooldnd__colh';
+    var titleEl = document.createElement('span');
+    titleEl.textContent = title;
+    var badge = document.createElement('span');
+    badge.className = 'pooldnd__count';
+    badge.textContent = '0';
+    head.appendChild(titleEl);
+    head.appendChild(badge);
+    var list = document.createElement('div');
+    list.className = 'pooldnd__list';
+    list.dataset.zone = zone;
+
+    list.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      list.classList.add('is-over');
+    });
+    list.addEventListener('dragleave', function () { list.classList.remove('is-over'); });
+    list.addEventListener('drop', function (e) {
+      e.preventDefault();
+      list.classList.remove('is-over');
+      var entrantId = e.dataTransfer.getData('text/plain');
+      var chip = chips.filter(function (c) { return c.dataset.entrantId === entrantId; })[0];
+      if (chip) moveChip(chip, list);
+    });
+    list.addEventListener('click', function () {
+      if (selected) moveChip(selected, list);
+    });
+
+    col.appendChild(head);
+    col.appendChild(list);
+    return { col: col, list: list };
+  }
+
+  function updateCounts() {
+    cols.querySelectorAll('.pooldnd__list').forEach(function (list) {
+      list.parentNode.querySelector('.pooldnd__count').textContent = list.children.length;
+    });
+  }
+
+  function buildColumns() {
+    var label = (labelInput.value || '').trim();
+    cols.innerHTML = '';
+    var avail = makeColumn('Available', 'available');
+    var inPool = makeColumn(label ? 'In Pool ' + label : 'In this pool', 'in-pool');
+    cols.appendChild(avail.col);
+    cols.appendChild(inPool.col);
+    chips.forEach(function (chip) {
+      var target = (label && chip.dataset.currentPool === label) ? inPool.list : avail.list;
+      target.appendChild(chip);
+    });
+    updateCounts();
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('dragstart', function (e) {
+      e.dataTransfer.setData('text/plain', chip.dataset.entrantId);
+      e.dataTransfer.effectAllowed = 'move';
+      chip.classList.add('is-dragging');
+    });
+    chip.addEventListener('dragend', function () { chip.classList.remove('is-dragging'); });
+    chip.addEventListener('click', function (e) {
+      e.stopPropagation();
+      selectChip(chip);
+    });
+    chip.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectChip(chip); }
+    });
+  });
+
+  labelInput.addEventListener('input', buildColumns);
+  document.querySelectorAll('[data-pool-pick]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      labelInput.value = btn.getAttribute('data-pool-pick');
+      buildColumns();
+    });
+  });
+
+  buildColumns();
+})();
+</script>
+<script>
+/* Mandatory seed gate shared by both pool-generation forms: clones the
+   origin form's own fields as hidden inputs into pool-seed-form, so
+   confirming the seed dialog posts everything (config/assignments + seeds)
+   in a single request to pool_setup. */
+(function () {
+  var seedDialog = document.getElementById('pool-seed-dialog');
+  if (!seedDialog) return;
+  var carried = document.getElementById('pool-seed-carried-fields');
+
+  window.fxOpenPoolSeedGate = function (originForm) {
+    carried.innerHTML = '';
+    new FormData(originForm).forEach(function (value, name) {
+      if (name === 'csrfmiddlewaretoken' || name === 'action') return;
+      var inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = name; inp.value = value;
+      carried.appendChild(inp);
+    });
+    var assignDialog = document.getElementById('pool-assign-dialog');
+    if (assignDialog && assignDialog.open) assignDialog.close();
+    seedDialog.showModal();
+  };
 })();
 </script>
 <script>
@@ -720,6 +1184,11 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
   var poolTitle = document.getElementById('pool-add-fixture-title');
   var addError = document.getElementById('pool-add-fixture-error');
   var createForm = document.getElementById('create-pool-form');
+  var renameForm = document.getElementById('pool-rename-form');
+  var renameOldLabel = document.getElementById('pool-rename-old-label');
+  var renameInput = document.getElementById('pool-rename-input');
+  var renameTitle = document.getElementById('pool-rename-title');
+  var buildForm = document.getElementById('pool-build-form');
 
   /* Wire up whichever "+" buttons exist right now — re-run after every patch
      since the pool "+" buttons live inside the patched [data-fx-list]. */
@@ -738,10 +1207,31 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
   };
   window.fxInitPoolAddButtons();
 
+  /* Wire up whichever ✏️ rename buttons exist right now — re-run after every
+     patch, same reasoning as fxInitPoolAddButtons: rename buttons live both
+     inside [data-fx-list] (fixture section headers) and #pool-standings
+     (standings cards), both of which submitAjax replaces wholesale. */
+  window.fxInitPoolRenameButtons = function () {
+    if (!renameForm) return;
+    document.querySelectorAll('[data-pool-rename]').forEach(function (btn) {
+      if (btn.dataset.fxPoolRenameBound) return;
+      btn.dataset.fxPoolRenameBound = '1';
+      btn.addEventListener('click', function () {
+        var label = btn.getAttribute('data-pool-rename');
+        renameOldLabel.value = label;
+        renameInput.value = label;
+        if (renameTitle) renameTitle.textContent = 'Pool ' + label;
+        document.getElementById('pool-rename-dialog').showModal();
+      });
+    });
+  };
+  window.fxInitPoolRenameButtons();
+
   function reinitFxUI() {
     if (window.fxInitDashboard) window.fxInitDashboard();
     if (window.fxInitDialogs) window.fxInitDialogs();
     if (window.fxInitPoolAddButtons) window.fxInitPoolAddButtons();
+    if (window.fxInitPoolRenameButtons) window.fxInitPoolRenameButtons();
   }
 
   function submitAjax(form, dialog) {
@@ -773,7 +1263,7 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
       var a = addForm.querySelector('[name="entrant_a"]').value;
       var b = addForm.querySelector('[name="entrant_b"]').value;
       if (a && b && a === b) {
-        if (addError) { addError.textContent = 'A team cannot play against itself.'; addError.hidden = false; }
+        if (addError) { addError.textContent = 'An entrant cannot play against itself.'; addError.hidden = false; }
         return;
       }
       if (addError) addError.hidden = true;
@@ -786,38 +1276,303 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
       submitAjax(createForm, document.getElementById('create-pool-dialog'));
     });
   }
+  if (renameForm) {
+    renameForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitAjax(renameForm, document.getElementById('pool-rename-dialog'));
+    });
+  }
+  if (buildForm) {
+    buildForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var inPoolList = buildForm.querySelector('[data-zone="in-pool"]');
+      var entrantIds = inPoolList
+        ? Array.prototype.map.call(inPoolList.children, function (c) { return c.dataset.entrantId; })
+        : [];
+      if (entrantIds.length < 2) {
+        window.alert('Select at least two entrants for this pool.');
+        return;
+      }
+      var submitBtn = document.getElementById('pool-build-submit');
+      if (submitBtn && submitBtn.dataset.confirm && !window.confirm(submitBtn.dataset.confirm)) return;
+      buildForm.querySelectorAll('input[name="entrant_ids"]').forEach(function (i) { i.remove(); });
+      entrantIds.forEach(function (id) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'entrant_ids'; inp.value = id;
+        buildForm.appendChild(inp);
+      });
+      submitAjax(buildForm, document.getElementById('pool-build-dialog'));
+    });
+  }
 })();
 </script>
 {% endif %}
-{% if bracket_entrants %}
+{% if bracket_entrants or pool_bracket_entrants %}
 <script>
-/* Knockout seed dialog: live "1 v 2, 3 v 4..." preview as the organiser types
-   seed numbers. Purely cosmetic — bracket_seed_set in views.py re-validates
-   and re-sorts everything server-side; this only saves the round trip. */
-(function () {
-  var form = document.getElementById('bracket-seed-form');
+/* Knockout seed dialogs (standalone bracket + pool-derived bracket): live
+   "1 v 2, 3 v 4..." / "1 v Last, 2 v 2nd-last..." preview as the organiser
+   types seed numbers or switches pairing style. Purely cosmetic — the
+   server view re-validates and re-derives the real pairing; this only
+   saves the round trip. One instance per dialog, sharing the same logic. */
+window.fxInitSeedPreview = function (formId, previewId, pairingSelectId) {
+  var form = document.getElementById(formId);
   if (!form) return;
   var inputs = Array.prototype.slice.call(form.querySelectorAll('[data-seed-input]'));
-  var preview = document.getElementById('bracket-seed-preview');
+  var preview = document.getElementById(previewId);
+  var pairingSelect = document.getElementById(pairingSelectId);
+  var byeSelect = form.querySelector('[name="bye_entrant"]');
 
   function update() {
     var rows = inputs.map(function (el) {
-      return { name: el.dataset.seedName, seed: parseInt(el.value, 10) };
+      return { key: el.dataset.seedKey, name: el.dataset.seedName, seed: parseInt(el.value, 10) };
     }).filter(function (r) { return !isNaN(r.seed); });
     rows.sort(function (a, b) { return a.seed - b.seed; });
+
+    var byeKey = byeSelect ? byeSelect.value : '';
+    var bye = null;
+    if (byeKey) {
+      var idx = rows.findIndex(function (r) { return r.key === byeKey; });
+      if (idx !== -1) bye = rows.splice(idx, 1)[0];
+    } else if (rows.length % 2) {
+      bye = rows.pop();
+    }
+
+    var playing = rows;
+    if (pairingSelect && pairingSelect.value === 'standard') {
+      var lo = 0, hi = playing.length - 1, interleaved = [];
+      while (lo <= hi) {
+        interleaved.push(playing[lo]); lo++;
+        if (lo <= hi) { interleaved.push(playing[hi]); hi--; }
+      }
+      playing = interleaved;
+    }
+
     var pairs = [];
-    for (var i = 0; i + 1 < rows.length; i += 2) {
-      pairs.push(rows[i].name + ' v ' + rows[i + 1].name);
+    for (var i = 0; i + 1 < playing.length; i += 2) {
+      pairs.push(playing[i].name + ' v ' + playing[i + 1].name);
     }
     var text = pairs.join(', ');
-    if (rows.length % 2) {
-      text += (text ? ', ' : '') + rows[rows.length - 1].name + ' — bye';
-    }
+    if (bye) text += (text ? ', ' : '') + bye.name + ' — bye';
     preview.textContent = text || 'Enter a seed for each entrant to preview the pairing.';
   }
 
+  if (pairingSelect) pairingSelect.addEventListener('change', update);
+  if (byeSelect) byeSelect.addEventListener('change', update);
+
   inputs.forEach(function (el) { el.addEventListener('input', update); });
   update();
+};
+window.fxInitSeedPreview('bracket-seed-form', 'bracket-seed-preview', 'bracket-pairing-mode');
+window.fxInitSeedPreview('pool-knockout-seed-form', 'pool-knockout-seed-preview', 'pool-knockout-pairing-mode');
+</script>
+{% endif %}
+{% if custom_mode %}
+<script>
+/* "Add a fixture" round-column board: entrant chips live permanently in a
+   pinned "Entrants" column (never consumed — the same entrant can be
+   dragged into many matches across rounds) and get dropped onto a pending
+   match card. The card auto-submits the instant its second slot fills —
+   fetch() straight to fixture_add_manual, then patches #match-centre in
+   place, exactly like every other AJAX flow on this page — no Save button
+   anywhere in this interaction. */
+(function () {
+  var panel = document.getElementById('fxadd-dnd');
+  if (!panel) return;
+
+  var cols = document.getElementById('fxadd-cols');
+  var bench = panel.querySelector('.pooldnd__bench');
+  var chips = Array.prototype.slice.call(bench.querySelectorAll('.pooldnd__chip'));
+  var addRoundBtn = document.getElementById('fxadd-add-round');
+  var existingRoundsEl = document.getElementById('fxadd-existing-rounds');
+  var existingRounds = existingRoundsEl ? JSON.parse(existingRoundsEl.textContent) : [];
+  var existingFixturesEl = document.getElementById('fxadd-existing-fixtures');
+  var existingFixtures = existingFixturesEl ? JSON.parse(existingFixturesEl.textContent) : [];
+  var fixturesByRound = {};
+  existingFixtures.forEach(function (fx) {
+    (fixturesByRound[fx.round_no] = fixturesByRound[fx.round_no] || []).push(fx);
+  });
+  var csrfInput = panel.querySelector('input[name="csrfmiddlewaretoken"]');
+  var addUrl = '{% url "fixture_add_manual" tournament.slug %}';
+  var selected = null;
+
+  function makeMatchDone(aName, bName) {
+    var el = document.createElement('div');
+    el.className = 'fxadd-card fxadd-card--done';
+    var line = document.createElement('div');
+    line.className = 'fxadd-card__slot is-filled';
+    line.textContent = aName + ' v ' + bName;
+    el.appendChild(line);
+    return el;
+  }
+
+  function selectChip(chip) {
+    if (selected) selected.classList.remove('is-selected');
+    selected = (selected === chip) ? null : chip;
+    if (selected) selected.classList.add('is-selected');
+  }
+
+  function resetCard(card) {
+    card.dataset.a = '';
+    card.dataset.b = '';
+    card.dataset.aName = '';
+    card.children[0].textContent = 'Drop entrant A here';
+    card.children[0].classList.remove('is-filled');
+    card.children[1].textContent = 'Drop entrant B here';
+    card.children[1].classList.remove('is-filled');
+  }
+
+  function submitPair(roundNo, a, b, aName, bName, list, card) {
+    card.classList.add('is-saving');
+    var fd = new FormData();
+    fd.append('csrfmiddlewaretoken', csrfInput ? csrfInput.value : '');
+    fd.append('entrant_a', a);
+    fd.append('entrant_b', b);
+    fd.append('round_no', roundNo);
+    fd.append('round_name', 'Round ' + roundNo);
+    fetch(addUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.text();
+      })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var fresh = doc.getElementById('match-centre');
+        var cur = document.getElementById('match-centre');
+        if (!fresh || !cur) {
+          // Response wasn't the page we expected (session expired, CSRF
+          // rejected, etc.) — leave the card filled rather than silently
+          // discarding the organizer's two picks, and say so.
+          window.alert('Could not save that fixture — the page may need a reload. Nothing was lost; try again.');
+          return;
+        }
+        cur.innerHTML = fresh.innerHTML;
+        // Show the new pairing right here in its round column immediately —
+        // don't make the organizer scroll down to match-centre to confirm
+        // it saved. Inserted before the still-empty pending card.
+        list.insertBefore(makeMatchDone(aName, bName), card);
+        resetCard(card);
+        if (window.fxInitDashboard) window.fxInitDashboard();
+        if (window.fxInitDialogs) window.fxInitDialogs();
+      })
+      .catch(function () {
+        window.alert('Could not save that fixture — try again.');
+      })
+      .finally(function () { card.classList.remove('is-saving'); });
+  }
+
+  function assignToCard(card, roundNo, list, id, name) {
+    if (!id) return;
+    if (!card.dataset.a) {
+      card.dataset.a = id;
+      card.dataset.aName = name;
+      card.children[0].textContent = name;
+      card.children[0].classList.add('is-filled');
+      return;
+    }
+    if (card.dataset.a === id) return;  // can't pair an entrant with itself
+    if (!card.dataset.b) {
+      card.dataset.b = id;
+      card.children[1].textContent = name;
+      card.children[1].classList.add('is-filled');
+      submitPair(roundNo, card.dataset.a, id, card.dataset.aName, name, list, card);
+    }
+  }
+
+  function makeCardSlot(text) {
+    var slot = document.createElement('div');
+    slot.className = 'fxadd-card__slot';
+    slot.textContent = text;
+    return slot;
+  }
+
+  function makeCard(roundNo, list) {
+    var card = document.createElement('div');
+    card.className = 'fxadd-card';
+    card.dataset.a = '';
+    card.dataset.b = '';
+    card.appendChild(makeCardSlot('Drop entrant A here'));
+    card.appendChild(makeCardSlot('Drop entrant B here'));
+
+    card.addEventListener('dragover', function (e) { e.preventDefault(); card.classList.add('is-over'); });
+    card.addEventListener('dragleave', function () { card.classList.remove('is-over'); });
+    card.addEventListener('drop', function (e) {
+      e.preventDefault();
+      card.classList.remove('is-over');
+      var id = e.dataTransfer.getData('text/plain');
+      var name = e.dataTransfer.getData('text/x-entrant-name') || id;
+      assignToCard(card, roundNo, list, id, name);
+    });
+    card.addEventListener('click', function () {
+      if (selected) {
+        assignToCard(card, roundNo, list, selected.dataset.entrantId, selected.dataset.entrantName);
+        selectChip(selected);
+      }
+    });
+    return card;
+  }
+
+  function makeColumn(title) {
+    var col = document.createElement('div');
+    col.className = 'pooldnd__col';
+    var head = document.createElement('div');
+    head.className = 'pooldnd__colh';
+    var titleEl = document.createElement('span');
+    titleEl.textContent = title;
+    head.appendChild(titleEl);
+    var list = document.createElement('div');
+    list.className = 'pooldnd__list';
+    col.appendChild(head);
+    col.appendChild(list);
+    return { col: col, list: list };
+  }
+
+  function makeEntrantsColumn() {
+    var built = makeColumn('Entrants');
+    chips.forEach(function (chip) { built.list.appendChild(chip); });
+    return built.col;
+  }
+
+  function makeRoundColumn(roundNo) {
+    var built = makeColumn('Round ' + roundNo);
+    (fixturesByRound[roundNo] || []).forEach(function (fx) {
+      built.list.appendChild(makeMatchDone(fx.a, fx.b));
+    });
+    built.list.appendChild(makeCard(roundNo, built.list));
+    return built.col;
+  }
+
+  var maxRound = 0;
+  cols.appendChild(makeEntrantsColumn());
+  existingRounds.forEach(function (r) {
+    cols.appendChild(makeRoundColumn(r));
+    if (r > maxRound) maxRound = r;
+  });
+  cols.appendChild(makeRoundColumn(maxRound + 1));
+  maxRound += 1;
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('dragstart', function (e) {
+      e.dataTransfer.setData('text/plain', chip.dataset.entrantId);
+      e.dataTransfer.setData('text/x-entrant-name', chip.dataset.entrantName);
+      e.dataTransfer.effectAllowed = 'copy';
+      chip.classList.add('is-dragging');
+    });
+    chip.addEventListener('dragend', function () { chip.classList.remove('is-dragging'); });
+    chip.addEventListener('click', function (e) {
+      e.stopPropagation();
+      selectChip(chip);
+    });
+    chip.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectChip(chip); }
+    });
+  });
+
+  if (addRoundBtn) {
+    addRoundBtn.addEventListener('click', function () {
+      maxRound += 1;
+      cols.appendChild(makeRoundColumn(maxRound));
+    });
+  }
 })();
 </script>
 {% endif %}

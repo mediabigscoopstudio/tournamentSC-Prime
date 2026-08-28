@@ -37,18 +37,21 @@ def _num(value):
 
 # ---- entrant normalisation --------------------------------------------
 def _entrants_for(tournament):
-    """Return a list of {'team','player','label','seed','stats'} for approved
-    entries, ordered by seed then registration.
+    """Return a list of {'key','team','player','label','seed','stats'} for
+    approved entries, ordered by seed then registration.
 
     `stats` denormalises the few registration facts a scoreboard needs (bib,
     rating) onto the fixture participant, so a leaderboard row never has to walk
-    back to the registration table.
+    back to the registration table. `key` is the same 'team:<id>'/'reg:<id>'
+    scheme _manual_entrant_choices (views.py) uses, so callers that need a
+    stable, PK-collision-free identifier (e.g. the pool system) don't have to
+    re-derive it from `team`/`player`.
     """
     out = []
     if tournament.is_team_based:
         for e in tournament.team_entries.filter(status='APPROVED').select_related('team'):
-            out.append({'team': e.team, 'player': None, 'label': e.team.name,
-                        'seed': e.seed or 9999, 'stats': {}})
+            out.append({'key': f'team:{e.team_id}', 'team': e.team, 'player': None,
+                        'label': e.team.name, 'seed': e.seed or 9999, 'stats': {}})
     else:
         for r in tournament.registrations.filter(status='APPROVED').select_related('player__user'):
             stats = {}
@@ -56,10 +59,94 @@ def _entrants_for(tournament):
                 stats['bib'] = r.bib_number
             if r.player and r.player.rating:
                 stats['rating'] = r.player.rating
-            out.append({'team': None, 'player': r.player, 'label': r.name,
-                        'seed': r.seed or 9999, 'stats': stats})
+            out.append({'key': f'reg:{r.id}', 'team': None, 'player': r.player,
+                        'label': r.name, 'seed': r.seed or 9999, 'stats': stats})
     out.sort(key=lambda d: (d['seed'], d['label'].lower()))
     return out
+
+
+# ---- seed / pairing (shared by the seed-gate popups) -------------------
+def parse_seed_fields(choices, post):
+    """Read `seed_<key>` for every (key, label, payload) in `choices` from a
+    POST dict. Returns (seeds, error) — seeds is {key: int} on success, or
+    {} with an error string set for the first missing/invalid/duplicate seed.
+    """
+    seeds = {}
+    for key, label, _payload in choices:
+        raw = (post.get(f'seed_{key}') or '').strip()
+        if not raw.isdigit() or int(raw) < 1:
+            return {}, f'Enter a seed number for {label}.'
+        seeds[key] = int(raw)
+    if len(set(seeds.values())) != len(seeds):
+        return {}, 'Seed numbers must be unique — two entrants currently share a seed.'
+    return seeds, None
+
+
+def resolve_bye(choices, seeds, post):
+    """Apply an explicit `bye_entrant` choice on top of parsed seeds, giving
+    it the highest seed so it always sorts last. Returns (seeds, bye_key, error).
+    """
+    bye_key = (post.get('bye_entrant') or '').strip()
+    if not bye_key:
+        return seeds, None, None
+    if bye_key not in seeds:
+        return seeds, None, 'Select a valid entrant for the bye.'
+    if len(choices) % 2 == 0:
+        return seeds, None, 'A bye only applies with an odd number of entrants.'
+    others = [v for k, v in seeds.items() if k != bye_key]
+    seeds = {**seeds, bye_key: (max(others) if others else 0) + 1}
+    return seeds, bye_key, None
+
+
+def persist_seeds(tournament, seeds):
+    """Write parsed seeds onto TeamEntry.seed / Registration.seed.
+
+    Any key whose prefix isn't 'team'/'reg' (e.g. qualified_entrants()'s rare
+    unmatched-registration fallback, 'standing:<id>') is silently skipped
+    rather than raising — there's genuinely nowhere to persist that seed, but
+    the bracket itself still generates fine from the payload dict regardless.
+    """
+    team_ids, reg_ids = {}, {}
+    for key, seed in seeds.items():
+        kind, _, raw_id = key.partition(':')
+        if kind == 'team':
+            team_ids[int(raw_id)] = seed
+        elif kind == 'reg':
+            reg_ids[int(raw_id)] = seed
+    for entry in tournament.team_entries.filter(team_id__in=team_ids):
+        entry.seed = team_ids[entry.team_id]
+        entry.save(update_fields=['seed'])
+    for reg in tournament.registrations.filter(id__in=reg_ids):
+        reg.seed = reg_ids[reg.id]
+        reg.save(update_fields=['seed'])
+
+
+def order_by_seed(choices, seeds, pairing_mode):
+    """Turn parsed seeds into a final ordered (payloads, keys) list, applying
+    the chosen pairing style. With an odd entrant count, the highest seed
+    always takes the bye — resolve_bye() guarantees an explicit bye_entrant
+    choice ends up with the highest seed, so this needs no bye_key input.
+    """
+    keys_sorted = [key for key, _ in sorted(seeds.items(), key=lambda kv: kv[1])]
+    if len(keys_sorted) % 2:
+        bye_seed_key, playing = keys_sorted[-1], keys_sorted[:-1]
+    else:
+        bye_seed_key, playing = None, keys_sorted
+
+    if pairing_mode == 'standard':
+        # 1 v Last, 2 v 2nd-last, ... — interleave the ranked list from both
+        # ends so BracketEngine's own adjacent-pairing (0v1, 2v3, ...) lands
+        # on 1vN, 2v(N-1), 3v(N-2) once it walks this reordered list.
+        lo, hi, interleaved = 0, len(playing) - 1, []
+        while lo <= hi:
+            interleaved.append(playing[lo]); lo += 1
+            if lo <= hi:
+                interleaved.append(playing[hi]); hi -= 1
+        playing = interleaved
+
+    final_keys = playing + ([bye_seed_key] if bye_seed_key else [])
+    payloads = {key: payload for key, _label, payload in choices}
+    return [payloads[key] for key in final_keys], final_keys
 
 
 def _make_participant(fixture, entrant, slot):
@@ -109,6 +196,25 @@ def _round_robin_rounds(entrants):
         # Rotate every position but the first (standard circle rotation).
         idx = [idx[0]] + [idx[-1]] + idx[1:-1]
     return rounds
+
+
+def order_for_round_robin(members, pairing_mode):
+    """Reorder one pool's members (already seed-ascending) so the round-robin
+    circle method's Round 1 pairs 1v2, 3v4, ... ('adjacent') instead of its
+    natural 1vLast, 2v2nd-last, ... ('standard' is a no-op here — that's
+    exactly what `_round_robin_rounds` already produces from seed-ascending
+    input, since it pairs field[0]v field[-1], field[1] v field[-2], ...).
+    """
+    if pairing_mode != 'adjacent':
+        return members
+    n = len(members)
+    front, back = [], []
+    for i in range(0, n - 1, 2):
+        front.append(members[i])
+        back.append(members[i + 1])
+    back.reverse()
+    tail = members[n - 1:] if n % 2 else []
+    return front + back + tail
 
 
 class FormatEngine:
@@ -254,6 +360,83 @@ class BracketEngine(FormatEngine):
             self._advance(fixture, best)
 
 
+def _points_standings(tournament, fixtures):
+    """Compute a points/Buchholz standings table from an iterable of
+    COMPLETED, head-to-head (2-participant) fixtures, and write it to
+    Standing rows. Shared by PointsTableEngine (non-lobby round-robin) and
+    SwissEngine — both are "everyone accumulates points across pairwise
+    matches" formats, just scheduled differently (round-robin upfront vs.
+    Swiss round-by-round). Returns the sorted rows (position order).
+    """
+    cfg = tournament.points_config
+    table = {}
+
+    def key_for(p):
+        if p.team_id:
+            return ('team', p.team_id)
+        if p.player_id:
+            return ('player', p.player_id)
+        return ('label', p.name)
+
+    def row_for(p):
+        k = key_for(p)
+        if k not in table:
+            table[k] = {'team': p.team, 'player': p.player, 'label': p.name,
+                        'played': 0, 'won': 0, 'lost': 0, 'drawn': 0, 'points': 0.0,
+                        'rating': (p.stats or {}).get('rating'), 'opponents': []}
+        return table[k]
+
+    for fx in fixtures:
+        parts = list(fx.participants.all())
+        if len(parts) == 1:
+            # A bye (Swiss odd-field round, or any future 1-participant
+            # fixture) — full win points, no opponent to record.
+            r = row_for(parts[0])
+            r['played'] += 1
+            r['won'] += 1
+            r['points'] += float(cfg.get('win', 3))
+            continue
+        if len(parts) != 2:
+            continue
+        a, b = parts
+        sa, sb = _num(a.score), _num(b.score)
+        if sa is None or sb is None:
+            continue
+        ra, rb = row_for(a), row_for(b)
+        ra['played'] += 1
+        rb['played'] += 1
+        # Remember who played whom — Buchholz needs the opponents' finals.
+        ra['opponents'].append(key_for(b))
+        rb['opponents'].append(key_for(a))
+        if sa > sb:
+            ra['won'] += 1; rb['lost'] += 1
+            ra['points'] += float(cfg.get('win', 3)); rb['points'] += float(cfg.get('loss', 0))
+        elif sb > sa:
+            rb['won'] += 1; ra['lost'] += 1
+            rb['points'] += float(cfg.get('win', 3)); ra['points'] += float(cfg.get('loss', 0))
+        else:
+            ra['drawn'] += 1; rb['drawn'] += 1
+            ra['points'] += float(cfg.get('draw', 1)); rb['points'] += float(cfg.get('draw', 1))
+
+    # Buchholz: the sum of your opponents' final scores. The standard Swiss /
+    # round-robin tie-break — two players on equal points are separated by
+    # whoever faced the tougher field.
+    for k, r in table.items():
+        r['buchholz'] = round(sum(table[o]['points'] for o in r['opponents'] if o in table), 1)
+
+    rows = sorted(table.values(),
+                  key=lambda r: (-r['points'], -r['buchholz'], -r['won'], r['label'].lower()))
+
+    tournament.standings.all().delete()
+    for pos, r in enumerate(rows, start=1):
+        Standing.objects.create(
+            tournament=tournament, team=r['team'], player=r['player'], label=r['label'],
+            played=r['played'], won=r['won'], lost=r['lost'], drawn=r['drawn'],
+            points=round(r['points'], 1), position=pos,
+            extra_stats={'buchholz': r['buchholz'], 'rating': r['rating']})
+    return rows
+
+
 class PointsTableEngine(FormatEngine):
     """Round-robin points table (chess, 2-team leagues) and battle-royale
     lobby scoring (esports) (FIX-03 / FIX-07)."""
@@ -341,8 +524,13 @@ class PointsTableEngine(FormatEngine):
     @transaction.atomic
     def compute_standings(self):
         t = self.tournament
+        if not self.is_lobby:
+            # Head-to-head round robin: the exact "everyone accumulates
+            # points across pairwise matches" shape SwissEngine also uses.
+            _points_standings(t, t.fixtures.filter(status='COMPLETED', is_removed=False))
+            return
+
         t.standings.all().delete()
-        cfg = t.points_config
         table = {}   # key -> dict
 
         def key_for(p):
@@ -356,66 +544,29 @@ class PointsTableEngine(FormatEngine):
             k = key_for(p)
             if k not in table:
                 table[k] = {'team': p.team, 'player': p.player, 'label': p.name,
-                            'played': 0, 'won': 0, 'lost': 0, 'drawn': 0, 'points': 0.0,
-                            'kills': 0.0, 'place_pts': 0.0,
-                            'rating': (p.stats or {}).get('rating'),
-                            'opponents': []}
+                            'played': 0, 'points': 0.0, 'kills': 0.0, 'place_pts': 0.0,
+                            'rating': (p.stats or {}).get('rating')}
             return table[k]
 
         completed = t.fixtures.filter(status='COMPLETED', is_removed=False)
         for fx in completed:
-            parts = list(fx.participants.all())
-            if self.is_lobby:
-                for p in parts:
-                    r = row_for(p)
-                    r['played'] += 1
-                    r['points'] += float(p.score or 0)
-                    stats = p.stats or {}
-                    r['kills'] += float(stats.get('kills') or 0)
-                    r['place_pts'] += float(stats.get('place_pts') or 0)
-            else:
-                if len(parts) != 2:
-                    continue
-                a, b = parts
-                sa, sb = _num(a.score), _num(b.score)
-                if sa is None or sb is None:
-                    continue
-                ra, rb = row_for(a), row_for(b)
-                ra['played'] += 1
-                rb['played'] += 1
-                # Remember who played whom — Buchholz needs the opponents' finals.
-                ra['opponents'].append(key_for(b))
-                rb['opponents'].append(key_for(a))
-                if sa > sb:
-                    ra['won'] += 1; rb['lost'] += 1
-                    ra['points'] += float(cfg.get('win', 3)); rb['points'] += float(cfg.get('loss', 0))
-                elif sb > sa:
-                    rb['won'] += 1; ra['lost'] += 1
-                    rb['points'] += float(cfg.get('win', 3)); ra['points'] += float(cfg.get('loss', 0))
-                else:
-                    ra['drawn'] += 1; rb['drawn'] += 1
-                    ra['points'] += float(cfg.get('draw', 1)); rb['points'] += float(cfg.get('draw', 1))
+            for p in fx.participants.all():
+                r = row_for(p)
+                r['played'] += 1
+                r['points'] += float(p.score or 0)
+                stats = p.stats or {}
+                r['kills'] += float(stats.get('kills') or 0)
+                r['place_pts'] += float(stats.get('place_pts') or 0)
 
-        # Buchholz: the sum of your opponents' final scores. The standard Swiss /
-        # round-robin tie-break — two players on equal points are separated by
-        # whoever faced the tougher field.
-        for k, r in table.items():
-            r['buchholz'] = round(sum(table[o]['points'] for o in r['opponents'] if o in table), 1)
-
-        if self.is_lobby:
-            rows = sorted(table.values(),
-                          key=lambda r: (-r['points'], -r['kills'], r['label'].lower()))
-        else:
-            rows = sorted(table.values(),
-                          key=lambda r: (-r['points'], -r['buchholz'], -r['won'],
-                                         r['label'].lower()))
+        rows = sorted(table.values(),
+                      key=lambda r: (-r['points'], -r['kills'], r['label'].lower()))
 
         for pos, r in enumerate(rows, start=1):
             Standing.objects.create(
                 tournament=t, team=r['team'], player=r['player'], label=r['label'],
-                played=r['played'], won=r['won'], lost=r['lost'], drawn=r['drawn'],
+                played=r['played'], won=0, lost=0, drawn=0,
                 points=round(r['points'], 1), position=pos,
-                extra_stats={'buchholz': r['buchholz'], 'kills': int(r['kills']),
+                extra_stats={'kills': int(r['kills']),
                              'place_pts': int(r['place_pts']), 'rating': r['rating']})
 
 
@@ -499,11 +650,225 @@ class SingleEventEngine(_LeaderboardEngine):
         return self.tournament.fixtures.count()
 
 
+class SwissEngine(FormatEngine):
+    """Swiss pairing (chess): one round generated at a time — each round's
+    pairings depend on the standings after the previous one, so unlike
+    every other engine here the full fixture list can never be built
+    upfront. `generate_fixtures()` only ever builds Round 1 (seed-ordered
+    top-half v bottom-half); every later round goes through
+    `generate_next_round()`, called explicitly by the organizer once the
+    current round is fully decided (see Tournament.swiss_round and
+    views.swiss_generate_round — there is no automatic "next round the
+    instant the last game finishes" the way pool-derived knockout has).
+
+    Pairing is a simplified Swiss system — score-bracket pairing avoiding
+    rematches (forcing a rematch only as an absolute last resort), no color
+    allocation, no Dutch-system float/color-balance rules. Good enough for
+    a club-run event; not FIDE-certified pairing software.
+    """
+    format = C.FORMAT_SWISS
+
+    @transaction.atomic
+    def generate_fixtures(self, entrants=None):
+        t = self.tournament
+        entrants = entrants if entrants is not None else _entrants_for(t)
+        if len(entrants) < 2:
+            return 0
+        self._clear_fixtures()
+        count = self._create_round(1, self._round1_order(entrants))
+        cfg = dict(t.swiss_config or {})
+        cfg['current_round'] = 1
+        t.swiss_config = cfg
+        t.save(update_fields=['swiss_config', 'updated_at'])
+        return count
+
+    def generate_next_round(self):
+        """Pair and create the next round from current standings. No-op
+        (returns 0) if the current round isn't fully decided yet, or the
+        configured round count has already been reached."""
+        t = self.tournament
+        current = t.swiss_round
+        total_rounds = t.swiss_num_rounds
+        if current < 1 or (total_rounds and current >= total_rounds):
+            return 0
+        current_fixtures = t.fixtures.filter(round_no=current, is_removed=False)
+        if not current_fixtures.exists() or current_fixtures.exclude(
+                status__in=('COMPLETED', 'CANCELLED')).exists():
+            return 0
+
+        next_round = current + 1
+        count = self._create_round(next_round, self._swiss_pairing_order())
+        cfg = dict(t.swiss_config or {})
+        cfg['current_round'] = next_round
+        t.swiss_config = cfg
+        t.save(update_fields=['swiss_config', 'updated_at'])
+        return count
+
+    @transaction.atomic
+    def record_result(self, fixture, data):
+        for p in fixture.participants.all():
+            entry = data.get(str(p.id), {})
+            score = _num(entry.get('score'))
+            if score is not None:
+                p.score = score
+            p.save()
+        if data.get('finalize'):
+            fixture.status = 'COMPLETED'
+            fixture.save(update_fields=['status'])
+        self.compute_standings()
+
+    def compute_standings(self):
+        t = self.tournament
+        _points_standings(t, t.fixtures.filter(status='COMPLETED', is_removed=False))
+
+    # -- pairing helpers --------------------------------------------------
+    def _round1_order(self, entrants):
+        """Seed-ordered top-half v bottom-half initial Swiss pairing (the
+        standard first-round seeding). If odd, the lowest-seeded entrant
+        sits out with a bye before the split — entrants already arrive
+        seed-ascending from _entrants_for."""
+        pool = list(entrants)
+        bye = pool.pop() if len(pool) % 2 else None
+        half = len(pool) // 2
+        top, bottom = pool[:half], pool[half:]
+        order = []
+        for a, b in zip(top, bottom):
+            order.extend([a, b])
+        if bye is not None:
+            order.append(bye)
+        return order
+
+    def _entrant_key_for_participant(self, p, reg_by_player, reg_by_name):
+        """Resolve a FixtureParticipant back to the 'reg:<id>' key scheme
+        used everywhere else (_entrants_for/_manual_entrant_choices) — chess
+        is individual-only, so this never needs the 'team:' branch. Falls
+        back to a per-participant key that simply won't match any current
+        entrant (rare: a withdrawn/renamed registration) rather than
+        crashing — that fixture's pairing history is then just not
+        attributable to anyone still active, which is the safest failure
+        mode for a rematch-avoidance check."""
+        if p.player_id and p.player_id in reg_by_player:
+            return f'reg:{reg_by_player[p.player_id]}'
+        if p.name in reg_by_name:
+            return f'reg:{reg_by_name[p.name]}'
+        return f'fp:{p.id}'
+
+    def _swiss_pairing_order(self):
+        t = self.tournament
+        entrants = _entrants_for(t)
+        by_key = {e['key']: e for e in entrants}
+        if not by_key:
+            return []
+
+        reg_by_player = {r.player_id: r.id for r in t.registrations.filter(player__isnull=False)}
+        reg_by_name = {r.display_name: r.id for r in t.registrations.filter(player__isnull=True)}
+        cfg = t.points_config
+
+        points = {key: 0.0 for key in by_key}
+        played = set()
+        bye_keys = set()
+
+        fixtures = t.fixtures.filter(status='COMPLETED', is_removed=False).prefetch_related('participants')
+        for fx in fixtures:
+            parts = list(fx.participants.all())
+            if len(parts) == 1:
+                k = self._entrant_key_for_participant(parts[0], reg_by_player, reg_by_name)
+                bye_keys.add(k)
+                if k in points:
+                    points[k] += float(cfg.get('win', 3))
+                continue
+            if len(parts) != 2:
+                continue
+            a, b = parts
+            ka = self._entrant_key_for_participant(a, reg_by_player, reg_by_name)
+            kb = self._entrant_key_for_participant(b, reg_by_player, reg_by_name)
+            played.add(frozenset((ka, kb)))
+            sa, sb = _num(a.score), _num(b.score)
+            if sa is None or sb is None:
+                continue
+            if sa > sb:
+                points[ka] = points.get(ka, 0.0) + float(cfg.get('win', 3))
+                points[kb] = points.get(kb, 0.0) + float(cfg.get('loss', 0))
+            elif sb > sa:
+                points[kb] = points.get(kb, 0.0) + float(cfg.get('win', 3))
+                points[ka] = points.get(ka, 0.0) + float(cfg.get('loss', 0))
+            else:
+                points[ka] = points.get(ka, 0.0) + float(cfg.get('draw', 1))
+                points[kb] = points.get(kb, 0.0) + float(cfg.get('draw', 1))
+
+        ranked = sorted(by_key.keys(),
+                        key=lambda k: (-points[k], by_key[k]['seed'], by_key[k]['label'].lower()))
+
+        # Group into score brackets (consecutive equal-points runs), then
+        # greedily pair within each bracket avoiding rematches — any entrant
+        # left unpaired in a bracket (odd bracket size) carries down into
+        # the next one, exactly like a Swiss "float."
+        brackets = []
+        for key in ranked:
+            if brackets and brackets[-1][0] == points[key]:
+                brackets[-1][1].append(key)
+            else:
+                brackets.append((points[key], [key]))
+
+        order_keys = []
+        carry = []
+        for _pts, group in brackets:
+            pool = carry + group
+            carry = []
+            while pool:
+                a = pool.pop(0)
+                partner_idx = next((i for i, b in enumerate(pool)
+                                    if frozenset((a, b)) not in played), None)
+                if partner_idx is None:
+                    if pool:
+                        partner_idx = 0  # forced rematch, last resort
+                    else:
+                        carry.append(a)
+                        continue
+                partner = pool.pop(partner_idx)
+                order_keys.extend([a, partner])
+
+        if carry:
+            bye_key = next((k for k in carry if k not in bye_keys), carry[0])
+            order_keys.append(bye_key)
+            carry.remove(bye_key)
+            order_keys.extend(carry)  # shouldn't normally happen — forced tail pairing/bye if it does
+
+        return [by_key[k] for k in order_keys if k in by_key]
+
+    def _create_round(self, round_no, order):
+        t = self.tournament
+        author = getattr(t.organizer.user, 'id', None)
+        seq = t.fixtures.filter(is_removed=False).count()
+        n = len(order)
+        pairs_n = n // 2
+        for i in range(pairs_n):
+            fx = Fixture.objects.create(
+                tournament=t, round_no=round_no, sequence=seq,
+                round_name=f'Round {round_no}', created_by_id=author)
+            _make_participant(fx, order[2 * i], 0)
+            _make_participant(fx, order[2 * i + 1], 1)
+            seq += 1
+        if n % 2:
+            fx = Fixture.objects.create(
+                tournament=t, round_no=round_no, sequence=seq,
+                round_name=f'Round {round_no}', created_by_id=author)
+            bye = _make_participant(fx, order[-1], 0)
+            bye.is_winner = True
+            bye.save(update_fields=['is_winner'])
+            fx.status = 'COMPLETED'
+            fx.summary = 'Bye'
+            fx.save(update_fields=['status', 'summary'])
+        self.compute_standings()
+        return t.fixtures.filter(round_no=round_no, is_removed=False).count()
+
+
 _ENGINES = {
     C.FORMAT_KNOCKOUT: BracketEngine,
     C.FORMAT_ROUND_ROBIN: PointsTableEngine,
     C.FORMAT_TIME_TRIAL: TimeTrialEngine,
     C.FORMAT_SINGLE_EVENT: SingleEventEngine,
+    C.FORMAT_SWISS: SwissEngine,
 }
 
 
