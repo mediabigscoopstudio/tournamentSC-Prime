@@ -181,6 +181,15 @@ if USE_S3_MEDIA:
             "querystring_auth": True,
             "querystring_expire": 3600,
             "file_overwrite": False,
+            # Without this, presigned URLs get built against the legacy
+            # global `s3.amazonaws.com` endpoint. Newer "opt-in" regions
+            # (ap-south-2 included) reject that outright with
+            # IllegalLocationConstraintException — actual API calls
+            # (save/read/delete) still work because the SDK resolves the
+            # right endpoint internally, but a browser hitting a presigned
+            # URL directly gets no such help. Forcing the regional endpoint
+            # here fixes it for both.
+            "endpoint_url": f"https://s3.{AWS_S3_REGION_NAME}.amazonaws.com",
         },
     }
 else:
