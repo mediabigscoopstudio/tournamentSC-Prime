@@ -198,3 +198,9 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '3600'))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS')
+    # Behind Nginx (or any reverse proxy) terminating TLS, Django only sees a
+    # plain HTTP connection from the proxy. Without this, request.is_secure()
+    # is always False and SECURE_SSL_REDIRECT above causes an infinite
+    # redirect loop. Requires the proxy to set `X-Forwarded-Proto` — e.g.
+    # `proxy_set_header X-Forwarded-Proto $scheme;` in the Nginx server block.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

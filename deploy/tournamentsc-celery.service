@@ -1,0 +1,33 @@
+# Celery worker for TournamentSC (support ticket emails).
+#
+# Without this running as a persistent service, `.delay()` calls either queue
+# up in Redis forever with nothing consuming them, or fail outright if Redis
+# itself isn't reachable — either way, no email ever goes out, silently.
+#
+# Install:
+#   sudo cp deploy/tournamentsc-celery.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now tournamentsc-celery
+#
+# Check it's actually running and consuming:
+#   sudo systemctl status tournamentsc-celery
+#   sudo journalctl -u tournamentsc-celery -f
+#
+# Adjust WorkingDirectory/ExecStart/User below if your paths differ.
+
+[Unit]
+Description=TournamentSC Celery worker (support ticket emails)
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/tournamentsc.com
+EnvironmentFile=/var/www/tournamentsc.com/.env
+ExecStart=/var/www/tournamentsc.com/venv/bin/celery -A tournamentsc worker -l info
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
