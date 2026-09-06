@@ -72,6 +72,23 @@ POOL_STAGE_SPORTS = {'basketball', 'badminton', 'pickleball'}
 STAGE_POOL = 'POOL'
 STAGE_KNOCKOUT = 'KNOCKOUT'
 
+# Racket sports get a draw-category picker at creation (badminton/pickleball
+# only). Doubles/Mixed Doubles switch the tournament to team-based (a "team"
+# is a 2-player pair) via Tournament.is_team_based — see that property.
+RACKET_SPORTS = {'badminton', 'pickleball'}
+
+DRAW_SINGLES = 'SINGLES'
+DRAW_DOUBLES = 'DOUBLES'
+DRAW_MIXED_DOUBLES = 'MIXED_DOUBLES'
+DRAW_WOMENS = 'WOMENS'
+DRAW_CATEGORY_CHOICES = [
+    (DRAW_SINGLES, 'Singles'),
+    (DRAW_DOUBLES, 'Doubles'),
+    (DRAW_MIXED_DOUBLES, 'Mixed Doubles'),
+    (DRAW_WOMENS, "Women's"),
+]
+DRAW_TEAM_CATEGORIES = {DRAW_DOUBLES, DRAW_MIXED_DOUBLES}
+
 # Pool-stage match points. Kept as their own keys inside the existing
 # per-tournament `points_config` blob so they are already configurable and
 # cannot collide with the round-robin engine's win/draw/loss values.

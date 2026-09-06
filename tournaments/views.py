@@ -1,8 +1,10 @@
+import csv
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Prefetch
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -33,6 +35,13 @@ def _owned(request, slug):
     if t.organizer.user_id != request.user.id:
         raise PermissionDenied('You do not manage this tournament.')
     return t
+
+
+def _is_pair_tournament(t):
+    """True for a racket-sport Doubles/Mixed Doubles tournament, where every
+    "team" is really a 2-player pair — caps roster size at 2 (see
+    team_member_add/team_members_bulk_import)."""
+    return t.sport.slug in C.RACKET_SPORTS and t.draw_category in C.DRAW_TEAM_CATEGORIES
 
 
 # ======================================================================
@@ -144,7 +153,7 @@ def tournament_delete(request, slug):
 @approved_organizer_required
 def participants_manage(request, slug):
     t = _owned(request, slug)
-    ctx = {'tournament': t}
+    ctx = {'tournament': t, 'is_racket_sport': t.sport.slug in C.RACKET_SPORTS}
     if t.is_team_based:
         ctx['entries'] = t.team_entries.select_related('team').prefetch_related(
             Prefetch('team__memberships',
@@ -217,13 +226,15 @@ def team_member_add(request, slug, team_id):
     t = _owned(request, slug)
     team = get_object_or_404(Team, id=team_id, entries__tournament=t)
     name = (request.POST.get('display_name') or '').strip()
-    if name:
+    if not name:
+        messages.error(request, 'Enter a name for the roster entry.')
+    elif _is_pair_tournament(t) and team.memberships.count() >= 2:
+        messages.error(request, 'Doubles pairs are limited to 2 players.')
+    else:
         TeamMembership.objects.create(team=team, display_name=name,
                                       jersey_number=request.POST.get('jersey_number', ''),
                                       is_approved=True)
         messages.success(request, f'Added {name} to {team.name}.')
-    else:
-        messages.error(request, 'Enter a name for the roster entry.')
     return redirect('participants_manage', slug=slug)
 
 
@@ -338,7 +349,7 @@ def participants_bulk_import(request, slug):
     replacing the old two-step team-then-roster flow. Re-running the same
     import is safe — existing teams/participants are skipped, not duplicated."""
     t = _owned(request, slug)
-    if t.sport.slug != 'basketball':
+    if t.sport.slug != 'basketball' and t.sport.slug not in C.RACKET_SPORTS:
         messages.error(request, 'This import is only available for basketball tournaments.')
         return redirect('participants_manage', slug=slug)
 
@@ -349,13 +360,16 @@ def participants_bulk_import(request, slug):
         return redirect('participants_manage', slug=slug)
 
     from .participant_import import parse_participants
-    parsed = parse_participants(uploaded_file=upload, pasted_text=pasted or None)
+    parsed = parse_participants(uploaded_file=upload, pasted_text=pasted or None,
+                                require_jersey=t.sport.slug == 'basketball')
     if parsed.errors:
         for e in parsed.errors:
             messages.error(request, e)
         return redirect('participants_manage', slug=slug)
 
     created_teams = created_participants = skipped_existing = 0
+    pair_capped = 0
+    is_pair = _is_pair_tournament(t)
     row_errors = []
 
     for team_name, rows in _group_rows_by_team(parsed.rows):
@@ -379,6 +393,9 @@ def participants_bulk_import(request, slug):
                     if existing:
                         skipped_existing += 1
                         continue
+                    if is_pair and team.memberships.count() >= 2:
+                        pair_capped += 1
+                        continue
                     TeamMembership.objects.create(team=team, display_name=row.participant_name,
                                                   jersey_number=row.jersey, phone_number=row.phone,
                                                   is_approved=True)
@@ -391,6 +408,8 @@ def participants_bulk_import(request, slug):
             f'Imported {created_participants} participant(s) across {created_teams} new team(s).')
     if skipped_existing:
         messages.info(request, f'{skipped_existing} participant(s) already existed and were skipped.')
+    if pair_capped:
+        messages.info(request, f'{pair_capped} participant(s) were skipped — doubles pairs are limited to 2 players.')
     if parsed.skipped_blank:
         messages.info(request, f'{parsed.skipped_blank} empty row(s) were skipped.')
     for err in row_errors[:20]:
@@ -440,6 +459,62 @@ def individual_add(request, slug):
         messages.success(request, f'Registered {reg.name}.')
     else:
         messages.error(request, 'Could not add entrant — a display name is required.')
+    return redirect('participants_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
+def individual_bulk_import(request, slug):
+    """Bulk-import solo entrants (Participant Name + optional Phone Number)
+    for a racket-sport Singles/Women's tournament — the individual-
+    registration counterpart to participants_bulk_import's team/pair import.
+    Re-running the same import is safe: existing names are skipped."""
+    t = _owned(request, slug)
+    if t.sport.slug not in C.RACKET_SPORTS or t.is_team_based:
+        messages.error(request, 'This import is only available for individual racket-sport tournaments.')
+        return redirect('participants_manage', slug=slug)
+
+    upload = request.FILES.get('participants_file')
+    pasted = (request.POST.get('participants_text') or '').strip()
+    if not upload and not pasted:
+        messages.error(request, 'Paste some rows or choose a file to import.')
+        return redirect('participants_manage', slug=slug)
+
+    from .participant_import import parse_individual_participants
+    parsed = parse_individual_participants(uploaded_file=upload, pasted_text=pasted or None)
+    if parsed.errors:
+        for e in parsed.errors:
+            messages.error(request, e)
+        return redirect('participants_manage', slug=slug)
+
+    existing = {r.display_name.casefold()
+                for r in t.registrations.filter(player__isnull=True) if r.display_name}
+    created = skipped_existing = 0
+    row_errors = []
+    for row in parsed.rows:
+        if row.error:
+            row_errors.append(f'Row {row.excel_row}: {row.error}.')
+            continue
+        if row.participant_name.casefold() in existing:
+            skipped_existing += 1
+            continue
+        IndividualRegistration.objects.create(tournament=t, display_name=row.participant_name,
+                                              phone_number=row.phone, status='APPROVED')
+        existing.add(row.participant_name.casefold())
+        created += 1
+
+    if created:
+        messages.success(request, f'Imported {created} entrant(s).')
+    if skipped_existing:
+        messages.info(request, f'{skipped_existing} entrant(s) already existed and were skipped.')
+    if parsed.skipped_blank:
+        messages.info(request, f'{parsed.skipped_blank} empty row(s) were skipped.')
+    for err in row_errors[:20]:
+        messages.error(request, err)
+    if len(row_errors) > 20:
+        messages.error(request, f'...and {len(row_errors) - 20} more row error(s).')
+    if not created and not skipped_existing and not row_errors:
+        messages.error(request, 'No entrants were imported — the input had no valid rows.')
     return redirect('participants_manage', slug=slug)
 
 
@@ -555,8 +630,10 @@ def _manual_entrant_choices(t):
             stats = {}
             if r.bib_number:
                 stats['bib'] = r.bib_number
-            if r.player and r.player.rating:
-                stats['rating'] = r.player.rating
+            if r.effective_rating:
+                stats['rating'] = r.effective_rating
+            if r.phone_number:
+                stats['phone'] = r.phone_number
             choices.append((f'reg:{r.id}', r.name,
                             {'team': None, 'player': r.player, 'label': r.name, 'stats': stats}))
     return choices
@@ -697,6 +774,12 @@ def fixture_add_manual(request, slug):
     if not _custom_fixtures_active(t):
         messages.error(request, 'Manual fixture creation is not available for this tournament format.')
         return redirect('fixtures_manage', slug=slug)
+    if t.is_swiss and t.swiss_round:
+        unfinished = t.fixtures.filter(round_no=t.swiss_round, is_removed=False).exclude(
+            status__in=('COMPLETED', 'CANCELLED')).exists()
+        if unfinished:
+            messages.error(request, 'Finish every match in the current round before adding a fixture.')
+            return redirect('fixtures_manage', slug=slug)
 
     key_a = (request.POST.get('entrant_a') or '').strip()
     key_b = (request.POST.get('entrant_b') or '').strip()
@@ -855,13 +938,39 @@ def pool_create(request, slug):
         messages.error(request, f'A pool named "{name}" already exists.')
         return redirect('fixtures_manage', slug=slug)
 
+    from .pools import append_pool_order
     cfg = dict(t.pool_config or {})
     extra = list(cfg.get('extra_labels') or [])
     extra.append(name)
     cfg['extra_labels'] = extra
+    append_pool_order(cfg, name)
     t.pool_config = cfg
     t.save(update_fields=['pool_config', 'updated_at'])
     messages.success(request, f'Pool "{name}" created — add fixtures to it below.')
+    return redirect('fixtures_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
+def pool_reorder(request, slug):
+    """Persist the organizer's drag-and-drop pool order — a full replacement
+    list of every current pool label, in the new display order."""
+    from .pools import pool_view_context
+    t = _owned(request, slug)
+    if not t.is_pool_stage:
+        messages.error(request, 'This tournament does not run the Pool Stage format.')
+        return redirect('fixtures_manage', slug=slug)
+
+    new_order = [l.strip() for l in request.POST.getlist('label') if l.strip()]
+    known_pools = {p['label'] for p in pool_view_context(t)['pools']}
+    if set(new_order) != known_pools:
+        messages.error(request, 'Pool order is out of date — reload and try again.')
+        return redirect('fixtures_manage', slug=slug)
+
+    cfg = dict(t.pool_config or {})
+    cfg['order'] = new_order
+    t.pool_config = cfg
+    t.save(update_fields=['pool_config', 'updated_at'])
     return redirect('fixtures_manage', slug=slug)
 
 
@@ -897,6 +1006,95 @@ def pool_rename(request, slug):
     if new_label != old_label:
         rename_pool(t, old_label, new_label)
         messages.success(request, f'Pool renamed to "{new_label}".')
+    return redirect('fixtures_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
+def knockout_round_rename(request, slug):
+    """Rename a pool-derived knockout round (Quarterfinal/Semifinal/Final,
+    or any custom name an organizer already gave it) — updates every fixture
+    sharing that round_no. Rounds are identified by round_no, not name, so
+    unlike pool_rename there is no uniqueness check to make."""
+    t = _owned(request, slug)
+    if not t.is_pool_stage:
+        messages.error(request, 'This tournament does not run the Pool Stage format.')
+        return redirect('fixtures_manage', slug=slug)
+
+    round_raw = (request.POST.get('round_no') or '').strip()
+    new_name = (request.POST.get('new_name') or '').strip()
+    if not new_name:
+        messages.error(request, 'Enter a round name.')
+        return redirect('fixtures_manage', slug=slug)
+    if len(new_name) > 40:
+        messages.error(request, 'Round name is too long (max 40 characters).')
+        return redirect('fixtures_manage', slug=slug)
+    if not round_raw.isdigit():
+        messages.error(request, 'That round no longer exists.')
+        return redirect('fixtures_manage', slug=slug)
+
+    round_fixtures = t.fixtures.filter(stage=C.STAGE_KNOCKOUT, round_no=int(round_raw), is_removed=False)
+    if not round_fixtures.exists():
+        messages.error(request, 'That round no longer exists.')
+        return redirect('fixtures_manage', slug=slug)
+
+    round_fixtures.update(round_name=new_name)
+    messages.success(request, f'Round renamed to "{new_name}".')
+    return redirect('fixtures_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
+def knockout_round_fixture_add(request, slug):
+    """Add one extra, standalone fixture into an existing pool-derived
+    knockout round (e.g. a replacement or 3rd-place match) — same "additive,
+    never auto-clears" contract as pool_fixture_add. It never wires
+    advances_to/advances_slot, so it never joins the bracket's own
+    auto-advancement — the organizer records its result manually."""
+    t = _owned(request, slug)
+    if not t.is_pool_stage:
+        messages.error(request, 'Switch this tournament to Pool Stage + Knockout first.')
+        return redirect('fixtures_manage', slug=slug)
+
+    round_raw = (request.POST.get('round_no') or '').strip()
+    if not round_raw.isdigit():
+        messages.error(request, 'That round no longer exists.')
+        return redirect('fixtures_manage', slug=slug)
+    round_no = int(round_raw)
+    round_fixtures = list(t.fixtures.filter(stage=C.STAGE_KNOCKOUT, round_no=round_no, is_removed=False))
+    if not round_fixtures:
+        messages.error(request, 'That round no longer exists.')
+        return redirect('fixtures_manage', slug=slug)
+    round_name = round_fixtures[0].round_name
+
+    key_a = (request.POST.get('entrant_a') or '').strip()
+    key_b = (request.POST.get('entrant_b') or '').strip()
+    if not key_a or not key_b:
+        messages.error(request, 'Select both teams before creating a fixture.')
+        return redirect('fixtures_manage', slug=slug)
+    if key_a == key_b:
+        messages.error(request, 'A team cannot play against itself.')
+        return redirect('fixtures_manage', slug=slug)
+
+    choices = {key: payload for key, _, payload in _manual_entrant_choices(t)}
+    a, b = choices.get(key_a), choices.get(key_b)
+    if a is None or b is None:
+        messages.error(request, 'Select two valid participating teams.')
+        return redirect('fixtures_manage', slug=slug)
+
+    from .engines import _make_participant
+    next_position = max((f.bracket_position or 0) for f in round_fixtures) + 1
+    fx = Fixture.objects.create(
+        tournament=t, round_no=round_no, sequence=t.fixtures.count(), bracket_position=next_position,
+        round_name=round_name, stage=C.STAGE_KNOCKOUT, created_by=request.user)
+    _make_participant(fx, a, 0)
+    _make_participant(fx, b, 1)
+
+    t.fixtures_generated = True
+    if t.status == 'DRAFT':
+        t.status = 'PUBLISHED'
+    t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+    messages.success(request, f'Fixture added to {round_name}: {a["label"]} vs {b["label"]}.')
     return redirect('fixtures_manage', slug=slug)
 
 
@@ -1018,6 +1216,11 @@ def fixtures_manage(request, slug):
                 not t.swiss_num_rounds or current_round < t.swiss_num_rounds),
             'swiss_standings': list(t.standings.all().order_by('position')),
         })
+    if t.sport.slug == 'chess' and t.format == C.FORMAT_ROUND_ROBIN:
+        # Round-robin is chess's default format — same rating-ordered points
+        # table as Swiss (see PointsTableEngine.compute_standings), just
+        # generated upfront instead of round by round.
+        ctx['chess_standings'] = list(t.standings.all().order_by('position'))
     return render(request, 'organizer/fixtures.html', ctx)
 
 
@@ -1257,6 +1460,71 @@ def swiss_generate_round(request, slug):
 
 
 @approved_organizer_required
+def chess_results_export(request, slug):
+    """Download fixtures as a CSV: round, White, Black, and the result (the
+    winner's name, or 'Draw', blank if not yet decided). A plain GET
+    download, same pattern as dash/views.py's admin CSV export — no state
+    change, so no CSRF/POST needed. Optional ?round=<n> limits the file to
+    a single round, for the per-round download icon on the fixtures page."""
+    t = _owned(request, slug)
+    if t.sport.slug != 'chess':
+        messages.error(request, 'CSV export is only available for chess tournaments.')
+        return redirect('fixtures_manage', slug=slug)
+
+    fixtures = t.fixtures.filter(is_removed=False).order_by('round_no', 'sequence', 'id')
+    round_no = request.GET.get('round')
+    suffix = ''
+    if round_no and round_no.isdigit():
+        fixtures = fixtures.filter(round_no=int(round_no))
+        suffix = f'-round-{round_no}'
+
+    response = HttpResponse(content_type='text/csv')
+    stamp = timezone.localtime(timezone.now()).strftime('%Y%m%d-%H%M')
+    response['Content-Disposition'] = f'attachment; filename="{t.slug}-chess-results{suffix}-{stamp}.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Round', 'White', 'Black', 'Result'])
+    for fx in fixtures:
+        parts = list(fx.ordered_participants())
+        white = parts[0].name if parts else ''
+        black = parts[1].name if len(parts) > 1 else ''
+        result = ''
+        if fx.status == 'COMPLETED' and len(parts) == 2:
+            # Score, not is_winner: the round-robin engine (chess's default
+            # format) never sets is_winner on FixtureParticipant, only score
+            # — 1/0 for a decisive game, 0.5/0.5 for a draw.
+            s0, s1 = parts[0].score, parts[1].score
+            if s0 is not None and s1 is not None and s0 != s1:
+                result = parts[0].name if s0 > s1 else parts[1].name
+            else:
+                result = 'Draw'
+        writer.writerow([fx.round_no, white, black, result])
+    return response
+
+
+@approved_organizer_required
+def participant_search(request):
+    """Name-search across this organizer's own past individual-registration
+    entrants (any of their tournaments), for the "Add an Entrant" form's
+    autocomplete — suggests a rating/phone to reuse instead of retyping."""
+    q = (request.GET.get('q') or '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+    qs = (IndividualRegistration.objects
+          .filter(tournament__organizer=request.user.organizer_profile, display_name__icontains=q)
+          .order_by('-registered_at')[:200])
+    seen, results = set(), []
+    for r in qs:
+        key = r.display_name.strip().casefold()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        results.append({'name': r.display_name, 'rating': r.rating, 'phone': r.phone_number})
+        if len(results) >= 10:
+            break
+    return JsonResponse({'results': results})
+
+
+@approved_organizer_required
 @require_POST
 def fixture_delete(request, slug, fixture_id):
     """Remove a single fixture from the Fixtures & Scoring list.
@@ -1387,6 +1655,8 @@ def score_fixture(request, slug, fixture_id):
     fixture = get_object_or_404(Fixture, id=fixture_id, tournament=t)
     participants = list(fixture.ordered_participants())
     is_basketball = t.sport.slug == 'basketball'
+    is_racket = t.sport.slug in C.RACKET_SPORTS
+    is_chess = t.sport.slug == 'chess'
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1425,6 +1695,14 @@ def score_fixture(request, slug, fixture_id):
                     fixture.shot_clock_seconds_remaining = fixture.shot_clock_duration_seconds
                     fixture.shot_clock_running_since = None
                     update_fields += ['shot_clock_seconds_remaining', 'shot_clock_running_since']
+                elif is_racket:
+                    # Best-of-3 (default) or best-of-5, chosen on the
+                    # pre-match setup screen (score.html's 'elif is_racket'
+                    # branch, only shown while SCHEDULED).
+                    best_of = request.POST.get('best_of')
+                    fixture.sets_to_win = 3 if best_of == '5' else 2
+                    fixture.set_scores = [{'a': 0, 'b': 0}]
+                    update_fields += ['sets_to_win', 'set_scores']
             fixture.save(update_fields=update_fields)
             sync_tournament_status(t)
             messages.info(request, 'Match marked LIVE.')
@@ -1670,6 +1948,160 @@ def score_fixture(request, slug, fixture_id):
                     fixture.save(update_fields=['live_started_at', 'updated_at'])
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
+        if action == 'racket_point':
+            if not is_racket:
+                messages.error(request, 'Point scoring is only available for badminton/pickleball matches.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            if fixture.status != 'LIVE' or not fixture.set_scores:
+                messages.error(request, 'Start the match before recording points.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            side = request.POST.get('side')
+            if side not in ('a', 'b'):
+                messages.error(request, 'Unknown side.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            delta = 1 if request.POST.get('delta') != '-1' else -1
+            sets = list(fixture.set_scores)
+            current = dict(sets[-1])
+            current[side] = max(0, current.get(side, 0) + delta)
+            sets[-1] = current
+            fixture.set_scores = sets
+            fixture.save(update_fields=['set_scores', 'updated_at'])
+            return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
+        if action in ('edit_set', 'delete_set'):
+            if not is_racket:
+                messages.error(request, 'Set controls are only available for badminton/pickleball matches.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            # Correcting/removing a set is only offered while the match is
+            # still LIVE — once it's COMPLETED, the winner has already been
+            # recorded and (for a bracket/pool) may have advanced into a
+            # later fixture, which nothing here can safely unwind.
+            if fixture.status != 'LIVE' or not fixture.set_scores:
+                messages.error(request, 'Sets can only be edited while the match is live.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
+            idx_raw = request.POST.get('set_index')
+            if not (idx_raw or '').isdigit() or int(idx_raw) >= len(fixture.set_scores):
+                messages.error(request, 'Unknown set.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            idx = int(idx_raw)
+            sets = list(fixture.set_scores)
+
+            if action == 'delete_set':
+                if len(sets) <= 1:
+                    messages.error(request, 'A match needs at least one set.')
+                    return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+                del sets[idx]
+                fixture.set_scores = sets
+                fixture.save(update_fields=['set_scores', 'updated_at'])
+                messages.success(request, f'Set {idx + 1} deleted.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
+            # edit_set
+            a_raw, b_raw = request.POST.get('score_a'), request.POST.get('score_b')
+            if not (a_raw or '').isdigit() or not (b_raw or '').isdigit():
+                messages.error(request, 'Enter a valid score for both sides.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            sets[idx] = {'a': int(a_raw), 'b': int(b_raw)}
+            fixture.set_scores = sets
+            fixture.save(update_fields=['set_scores', 'updated_at'])
+            messages.success(request, f'Set {idx + 1} updated.')
+            return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
+        if action in ('finish_set', 'add_set'):
+            if not is_racket:
+                messages.error(request, 'Set controls are only available for badminton/pickleball matches.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            if fixture.status != 'LIVE' or not fixture.set_scores:
+                messages.error(request, 'Start the match before managing sets.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
+            if action == 'add_set':
+                sets = list(fixture.set_scores) + [{'a': 0, 'b': 0}]
+                fixture.set_scores = sets
+                fixture.save(update_fields=['set_scores', 'updated_at'])
+                messages.success(request, 'Extra set added.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
+            # finish_set: freeze the live set, then either auto-complete the
+            # match (a side has reached sets_to_win) or open the next set.
+            finished_a = sum(1 for s in fixture.set_scores if s.get('a', 0) > s.get('b', 0))
+            finished_b = sum(1 for s in fixture.set_scores if s.get('b', 0) > s.get('a', 0))
+            if len(participants) == 2 and (finished_a >= fixture.sets_to_win
+                                            or finished_b >= fixture.sets_to_win):
+                # Score = sets won, not raw points — the generic engine picks
+                # the winner off the higher `score`, and a "2-1 in sets"
+                # scoreline is what every other view should show for this
+                # match; the full set-by-set points live in set_scores.
+                data = {'finalize': True,
+                        str(participants[0].id): {'score': finished_a},
+                        str(participants[1].id): {'score': finished_b}}
+                apply_result(fixture, data, actor=request.user)
+                messages.success(request, f'Match finalized {finished_a}-{finished_b} in sets.')
+            else:
+                sets = list(fixture.set_scores) + [{'a': 0, 'b': 0}]
+                fixture.set_scores = sets
+                fixture.save(update_fields=['set_scores', 'updated_at'])
+                messages.success(request, 'Set finished.')
+            return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
+        if action in ('chess_win', 'chess_draw'):
+            # Chess has no separate score page — these actions are triggered
+            # from the fixture tile on the fixtures list itself (see
+            # _fixture_row.html's Save Result/Draw Result popups), so they
+            # land back there rather than on score_fixture.
+            if not is_chess:
+                messages.error(request, 'This action is only available for chess matches.')
+                return redirect('fixtures_manage', slug=slug)
+            if len(participants) != 2:
+                messages.error(request, 'This game needs exactly two players before a result can be saved.')
+                return redirect('fixtures_manage', slug=slug)
+            p0, p1 = participants
+            if action == 'chess_draw':
+                data = {'finalize': True, str(p0.id): {'score': 0.5}, str(p1.id): {'score': 0.5}}
+                apply_result(fixture, data, actor=request.user)
+                messages.success(request, 'Draw recorded — 0.5-0.5.')
+            else:
+                winner_id = request.POST.get('winner_id')
+                if winner_id == str(p0.id):
+                    winner, loser = p0, p1
+                elif winner_id == str(p1.id):
+                    winner, loser = p1, p0
+                else:
+                    messages.error(request, 'Choose which player won.')
+                    return redirect('fixtures_manage', slug=slug)
+                data = {'finalize': True, str(winner.id): {'score': 1}, str(loser.id): {'score': 0}}
+                apply_result(fixture, data, actor=request.user)
+                messages.success(request, f'{winner.name} wins 1-0.')
+            return redirect('fixtures_manage', slug=slug)
+
+        if action == 'chess_swap_colors':
+            if not is_chess:
+                messages.error(request, 'This action is only available for chess matches.')
+                return redirect('fixtures_manage', slug=slug)
+            if len(participants) != 2:
+                messages.error(request, 'This game needs exactly two players.')
+                return redirect('fixtures_manage', slug=slug)
+            # Swapping only changes which FixtureParticipant displays as
+            # White/Black (their score/is_winner stay attached to the same
+            # row) — safe to allow anytime, including after a result is
+            # already recorded, so a mistake can be corrected.
+            black_id = request.POST.get('black_id')
+            # ordered_participants() sorts by slot ascending, so p0 is always
+            # currently White (slot 0) and p1 always currently Black (slot 1)
+            # — swap only if the organizer picked the current White to be Black.
+            p0, p1 = participants
+            if black_id not in (str(p0.id), str(p1.id)):
+                messages.error(request, 'Choose which player is Black.')
+                return redirect('fixtures_manage', slug=slug)
+            if black_id == str(p0.id):
+                with transaction.atomic():
+                    p0.slot, p1.slot = 1, 0
+                    p0.save(update_fields=['slot'])
+                    p1.save(update_fields=['slot'])
+            messages.success(request, 'Colors updated.')
+            return redirect('fixtures_manage', slug=slug)
+
         if action == 'adjust_score':
             if not is_basketball:
                 messages.error(request, 'Score adjustment is only available for basketball matches.')
@@ -1782,6 +2214,7 @@ def score_fixture(request, slug, fixture_id):
         'is_lobby': (t.format == C.FORMAT_ROUND_ROBIN and t.sport.slug == 'mobile-esports'),
         'is_time': t.format in (C.FORMAT_TIME_TRIAL, C.FORMAT_SINGLE_EVENT),
         'is_basketball': is_basketball,
+        'is_racket': is_racket,
         'events': fixture.events.exclude(event_type='score')[:30],
         'format_ms': format_ms,
     }

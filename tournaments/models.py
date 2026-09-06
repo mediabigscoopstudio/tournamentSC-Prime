@@ -127,6 +127,11 @@ class Tournament(TimeStamped):
     swiss_config = models.JSONField(default=C.default_swiss_config, blank=True)
     fixtures_generated = models.BooleanField(default=False)
     is_removed = models.BooleanField(default=False)  # admin moderation (soft)
+    # Draw category (Singles/Doubles/Mixed Doubles/Women's) — only meaningful
+    # for racket sports (see constants.RACKET_SPORTS); blank for every other
+    # sport. Doubles/Mixed Doubles switch the tournament to team-based (a
+    # "team" is a 2-player pair) — see is_team_based below.
+    draw_category = models.CharField(max_length=20, choices=C.DRAW_CATEGORY_CHOICES, blank=True)
 
     objects = TournamentQuerySet.as_manager()
 
@@ -162,7 +167,13 @@ class Tournament(TimeStamped):
     def is_team_based(self):
         # Team formats use teams; individual formats use registrations. Esports
         # is a TEAM sport that runs a points table, so key off the sport.
-        return self.sport.is_team_based
+        if self.sport.is_team_based:
+            return True
+        # Racket-sport Doubles/Mixed Doubles: a "team" is a 2-player pair,
+        # reusing the same Team/TournamentTeamEntry/TeamMembership machinery
+        # basketball uses for a full squad — see draw_category.
+        return (self.sport.slug in C.RACKET_SPORTS
+                and self.draw_category in C.DRAW_TEAM_CATEGORIES)
 
     @property
     def engine(self):
@@ -361,6 +372,11 @@ class IndividualRegistration(models.Model):
     display_name = models.CharField(max_length=120, blank=True,
                                     help_text='For entrants added by the organizer without an account')
     bib_number = models.CharField(max_length=12, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, help_text='Optional contact number')
+    rating = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Manually entered skill rating for entrants without an account '
+                  '(e.g. chess FIDE rating).')
     seed = models.PositiveIntegerField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=C.ENTRY_STATUS, default='APPROVED')
     group_name = models.CharField(max_length=40, blank=True)
@@ -381,6 +397,17 @@ class IndividualRegistration(models.Model):
         if self.player:
             return self.player.user.display_name
         return self.display_name or 'Entrant'
+
+    @property
+    def effective_rating(self):
+        """This registration's own rating if set, else the linked account's
+        rating, else None — the account-less common case (most organizer-run
+        chess entrants) only ever has the former."""
+        if self.rating is not None:
+            return self.rating
+        if self.player_id and self.player.rating:
+            return self.player.rating
+        return None
 
 
 # ======================================================================
@@ -453,6 +480,15 @@ class Fixture(TimeStamped):
     # Governs whether +1/+2/+3 and fouls ask for a scoring/fouling player
     # (individual attribution) or apply directly to the team only.
     individual_scoring_enabled = models.BooleanField(default=True)
+    # Set-by-set scoring (badminton/pickleball only). Ordered list of
+    # {'a': int, 'b': int}, one dict per set — the last entry is the live,
+    # in-progress set until the organizer taps "Finish Set" (score_fixture's
+    # 'finish_set' action). Empty for every fixture from any other sport.
+    set_scores = models.JSONField(default=list, blank=True)
+    # Sets needed to win the match (2 = best-of-3, the default; 3 = best-of-5),
+    # chosen on the racket-sport pre-match setup screen alongside starting
+    # set_scores. Unused outside badminton/pickleball.
+    sets_to_win = models.PositiveSmallIntegerField(default=2)
 
     class Meta:
         ordering = ['round_no', 'sequence', 'id']
@@ -543,6 +579,16 @@ class Fixture(TimeStamped):
             return {1: '1st', 2: '2nd', 3: '3rd', 4: '4th'}[n]
         ot = n - 4
         return 'OT' if ot == 1 else f'{ot}OT'
+
+    @property
+    def sets_won(self):
+        """(a_sets_won, b_sets_won) across every *finished* entry in
+        set_scores — the live/in-progress last set only counts once
+        finish_set freezes it (badminton/pickleball only)."""
+        finished = self.set_scores[:-1] if self.is_live else self.set_scores
+        a = sum(1 for s in finished if s.get('a', 0) > s.get('b', 0))
+        b = sum(1 for s in finished if s.get('b', 0) > s.get('a', 0))
+        return a, b
 
 
 class FixtureParticipant(models.Model):

@@ -14,7 +14,10 @@ Context: tournament, fx  (optional: round_key — filter group this card sits in
 
   {# Status strip #}
   <div class="fxc__top">
-    <span class="fxc__round">{{ fx.round_name|default:'Fixture' }}</span>
+    <span class="fxc__round">
+      {% if tournament.sport.slug == 'chess' %}Table {{ table_no|default:fx.sequence }}
+      {% else %}{{ fx.round_name|default:'Fixture' }}{% endif %}
+    </span>
     {% if fx.status == 'LIVE' %}
       <span class="fxs fxs--live"><span class="fxs__dot"></span>Live</span>
     {% elif fx.status == 'COMPLETED' %}
@@ -89,24 +92,88 @@ Context: tournament, fx  (optional: round_key — filter group this card sits in
     {% if fx.venue_detail %} · {{ fx.venue_detail }}{% endif %}
   </p>
 
-  {% comment %} Match control — the same four destinations as before. Only the
-  Score label changes with the status, so the primary action always reads as
-  the next thing to do. {% endcomment %}
-  <div class="fxc__acts">
-    <a class="btn btn-primary btn-sm fxc__act" href="{% url 'score_fixture' tournament.slug fx.id %}">
-      {% if fx.status == 'LIVE' %}Live control
-      {% elif fx.status == 'COMPLETED' %}Edit result
-      {% else %}Start match{% endif %}
-    </a>
-    <a class="btn btn-secondary btn-sm fxc__act" href="{% url 'fixture_schedule' tournament.slug fx.id %}">Schedule</a>
-    <a class="btn btn-secondary btn-sm fxc__act" href="{% url 'highlight_manage' tournament.slug fx.id %}">Highlight</a>
-    <form method="post" action="{% url 'fixture_delete' tournament.slug fx.id %}"
-          onsubmit="return confirm('Delete this fixture? This cannot be undone.')">
-      {% csrf_token %}
-      <button class="btn btn-sm fxc__del" type="submit" title="Delete fixture" aria-label="Delete fixture">
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
-      </button>
-    </form>
-  </div>
+  {% if tournament.sport.slug == 'chess' %}
+    {% comment %} Chess never leaves this page — every action is a popup right here.
+       Icon-only buttons: the organizer is clearing many boards per round,
+       no room (or need) for text labels. Each dialog below is rendered
+       per-fixture with its action URL and both players' identity baked in
+       server-side (same as Draw Result's own form) — nothing here relies
+       on JS mutating a shared dialog's action/labels at click time. {% endcomment %}
+    <div class="fxc__acts">
+      {% if ps|length == 2 %}
+        <button type="button" class="fxc__chessact fxc__chessact--primary"
+                data-chess-open-dialog="chess-result-dialog-{{ fx.id }}"
+                title="Save result" aria-label="Save result">🏆</button>
+        <form method="post" action="{% url 'score_fixture' tournament.slug fx.id %}" data-chess-draw-form>
+          {% csrf_token %}<input type="hidden" name="action" value="chess_draw">
+          <button class="fxc__chessact" type="submit" title="Draw result" aria-label="Draw result">🤝</button>
+        </form>
+        {% comment %} Edit is always available — correcting a result after the fact is
+           expected, not an edge case, for a sport reported by a human. {% endcomment %}
+        <button type="button" class="fxc__chessact" data-chess-open-dialog="chess-color-dialog-{{ fx.id }}"
+                title="Edit colors" aria-label="Edit colors">✏️</button>
+
+        <dialog id="chess-result-dialog-{{ fx.id }}" class="poolassign-dialog" data-chess-dialog style="max-width:360px">
+          <form method="post" action="{% url 'score_fixture' tournament.slug fx.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="chess_win">
+            <input type="hidden" name="winner_id" data-chess-winner-input value="">
+            <h3 class="fxpanel__h" style="margin-top:0">Who won?</h3>
+            <div class="chess-pick" style="margin-top:12px">
+              <button type="button" class="chess-pick__opt" data-chess-winner="{{ ps.0.id }}">{{ ps.0.name }}</button>
+              <button type="button" class="chess-pick__opt" data-chess-winner="{{ ps.1.id }}">{{ ps.1.name }}</button>
+            </div>
+            <div class="row-flex" style="margin-top:14px">
+              <button type="button" class="btn btn-secondary btn-sm" data-chess-close-dialog>Cancel</button>
+              <button type="submit" class="btn btn-primary btn-sm" data-chess-save disabled>Save</button>
+            </div>
+          </form>
+        </dialog>
+
+        <dialog id="chess-color-dialog-{{ fx.id }}" class="poolassign-dialog" data-chess-dialog style="max-width:360px">
+          <form method="post" action="{% url 'score_fixture' tournament.slug fx.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="chess_swap_colors">
+            <h3 class="fxpanel__h" style="margin-top:0">Choose player for Black</h3>
+            <p class="dim" style="font-size:13px">White will be assigned automatically.</p>
+            <div class="chess-pick" style="margin-top:8px">
+              <button type="submit" name="black_id" class="chess-pick__opt" value="{{ ps.0.id }}">{{ ps.0.name }} as Black</button>
+              <button type="submit" name="black_id" class="chess-pick__opt" value="{{ ps.1.id }}">{{ ps.1.name }} as Black</button>
+            </div>
+            <div class="row-flex" style="margin-top:14px">
+              <button type="button" class="btn btn-secondary btn-sm" data-chess-close-dialog>Cancel</button>
+            </div>
+          </form>
+        </dialog>
+      {% endif %}
+      <form method="post" action="{% url 'fixture_delete' tournament.slug fx.id %}"
+            onsubmit="return confirm('Delete this fixture? This cannot be undone.')">
+        {% csrf_token %}
+        <button class="btn btn-sm fxc__del" type="submit" title="Delete fixture" aria-label="Delete fixture">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        </button>
+      </form>
+    </div>
+  {% else %}
+    {% comment %} Match control — the same four destinations as before. Only the
+    Score label changes with the status, so the primary action always reads as
+    the next thing to do. {% endcomment %}
+    <div class="fxc__acts">
+      <a class="btn btn-primary btn-sm fxc__act" href="{% url 'score_fixture' tournament.slug fx.id %}">
+        {% if fx.status == 'LIVE' %}Live control
+        {% elif fx.status == 'COMPLETED' %}Edit result
+        {% else %}Start match{% endif %}
+      </a>
+      <a class="btn btn-secondary btn-sm fxc__act" href="{% url 'fixture_schedule' tournament.slug fx.id %}">Schedule</a>
+      <a class="btn btn-secondary btn-sm fxc__act" href="{% url 'highlight_manage' tournament.slug fx.id %}">Highlight</a>
+      <form method="post" action="{% url 'fixture_delete' tournament.slug fx.id %}"
+            onsubmit="return confirm('Delete this fixture? This cannot be undone.')">
+        {% csrf_token %}
+        <button class="btn btn-sm fxc__del" type="submit" title="Delete fixture" aria-label="Delete fixture">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        </button>
+      </form>
+    </div>
+  {% endif %}
 </article>
 {% endwith %}

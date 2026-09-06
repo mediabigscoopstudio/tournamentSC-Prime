@@ -93,7 +93,7 @@
             {% for s in form.sport.field.queryset %}
               <label class="tcopt {{ s.sp_class }}">
                 <input type="radio" name="{{ form.sport.html_name }}" value="{{ s.pk }}"
-                       data-tcsport="{{ s.icon }}|{{ s.name }}"
+                       data-tcsport="{{ s.icon }}|{{ s.name }}" data-tcslug="{{ s.slug }}"
                        {% if form.sport.value|stringformat:'s' == s.pk|stringformat:'s' %}checked{% endif %}
                        {% if form.locked %}disabled{% endif %}>
                 <span class="tcopt__box">
@@ -135,6 +135,16 @@
           </div>
           {% if form.format.help_text %}<p class="tcf__hint">{{ form.format.help_text }}</p>{% endif %}
           {% for e in form.format.errors %}<p class="tcf__err">{{ e }}</p>{% endfor %}
+        </div>
+
+        {# --- draw category: badminton/pickleball only, hidden otherwise --- #}
+        <div class="tcf {% if form.draw_category.errors %}tcf--err{% endif %}" id="tc-category-field" hidden>
+          <label class="tcf__lab" for="{{ form.draw_category.id_for_label }}">
+            <span class="tcf__emo">🏸</span>{{ form.draw_category.label }}</label>
+          {{ form.draw_category|add_class:'input tcin tcin--sel' }}
+          <p class="tcf__hint">Singles/Women's register solo entrants; Doubles/Mixed Doubles
+            register 2-player pairs (same team/roster tools as a team sport).</p>
+          {% for e in form.draw_category.errors %}<p class="tcf__err">{{ e }}</p>{% endfor %}
         </div>
 
       </div>
@@ -392,6 +402,19 @@
     };
     Array.prototype.forEach.call(sports, function (r) { r.addEventListener('change', echo); });
     echo();
+  }
+
+  /* ---- draw category field: badminton/pickleball only ---- */
+  var categoryField = document.getElementById('tc-category-field');
+  var racketSlugs = ['badminton', 'pickleball'];
+  if (categoryField && sports.length) {
+    var toggleCategory = function () {
+      var on = document.querySelector('[data-tcsport]:checked');
+      var slug = on ? on.getAttribute('data-tcslug') : '';
+      categoryField.hidden = racketSlugs.indexOf(slug) === -1;
+    };
+    Array.prototype.forEach.call(sports, function (r) { r.addEventListener('change', toggleCategory); });
+    toggleCategory();
   }
 
   /* ---- progress rail highlights the section you're looking at ---- */

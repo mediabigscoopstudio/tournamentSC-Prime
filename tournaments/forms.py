@@ -8,7 +8,7 @@ from .utils import is_probable_google_form_url, is_probable_youtube_url
 class TournamentForm(forms.ModelForm):
     class Meta:
         model = Tournament
-        fields = ['name', 'sport', 'format', 'description', 'rules', 'venue', 'city',
+        fields = ['name', 'sport', 'format', 'draw_category', 'description', 'rules', 'venue', 'city',
                   'start_date', 'end_date', 'registration_deadline',
                   'banner_image', 'entry_fee', 'prize_pool', 'max_participants', 'youtube_url',
                   'registration_form_url']
@@ -26,8 +26,9 @@ class TournamentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['venue'].empty_label = 'No venue set'
         self.fields['registration_form_url'].label = 'Google Form Registration Link'
+        self.fields['draw_category'].required = False
         if self.locked:
-            for f in ('sport', 'format'):
+            for f in ('sport', 'format', 'draw_category'):
                 self.fields[f].disabled = True
 
     def clean_prize_pool(self):
@@ -72,7 +73,7 @@ class TeamMemberForm(forms.ModelForm):
 class IndividualEntryForm(forms.ModelForm):
     class Meta:
         model = IndividualRegistration
-        fields = ['display_name', 'event_category', 'bib_number', 'seed']
+        fields = ['display_name', 'event_category', 'bib_number', 'rating', 'phone_number', 'seed']
 
     def __init__(self, *args, tournament=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -80,6 +81,11 @@ class IndividualEntryForm(forms.ModelForm):
             self.fields['event_category'].queryset = tournament.categories.all()
             if not tournament.categories.exists():
                 self.fields.pop('event_category', None)
+            if tournament.sport.slug == 'chess':
+                self.fields['rating'].label = 'FIDE rating'
+                self.fields.pop('bib_number', None)
+            else:
+                self.fields.pop('rating', None)
 
     def clean_display_name(self):
         name = (self.cleaned_data.get('display_name') or '').strip()
@@ -140,10 +146,10 @@ class AdminTournamentForm(forms.ModelForm):
 
     class Meta:
         model = Tournament
-        fields = ['name', 'slug', 'sport', 'organizer', 'format', 'status', 'description',
-                  'rules', 'venue', 'city', 'start_date', 'end_date', 'registration_deadline',
-                  'banner_image', 'entry_fee', 'prize_pool', 'max_participants', 'youtube_url',
-                  'is_featured', 'featured_order', 'is_removed']
+        fields = ['name', 'slug', 'sport', 'organizer', 'format', 'draw_category', 'status',
+                  'description', 'rules', 'venue', 'city', 'start_date', 'end_date',
+                  'registration_deadline', 'banner_image', 'entry_fee', 'prize_pool',
+                  'max_participants', 'youtube_url', 'is_featured', 'featured_order', 'is_removed']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
             'rules': forms.Textarea(attrs={'rows': 3}),
@@ -156,6 +162,7 @@ class AdminTournamentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['slug'].required = False
         self.fields['slug'].help_text = 'Leave blank to generate from the name.'
+        self.fields['draw_category'].required = False
 
     def clean(self):
         cleaned = super().clean()

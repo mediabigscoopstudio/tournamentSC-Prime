@@ -9,12 +9,20 @@ Context: tournament
   sec_fixtures  the fixtures to render
   sec_icon      optional leading glyph (defaults to the trophy)
   sec_knockout  optional flag — show "N teams remaining" instead of a match count
-  sec_pool      optional flag — pool header: Standings / Fixtures buttons plus a
-                played/total subtitle (sec_played, sec_total)
+  sec_pool      optional flag — pool header: Standings / Fixtures buttons, a drag
+                handle, plus a played/total subtitle (sec_played, sec_total)
+  sec_round_no  optional int — a pool-derived knockout round (Semifinal, Final,
+                ...): adds the same rename ✏️ / add + buttons as sec_pool, keyed
+                by round number instead of pool label. Its own order is fixed by
+                the bracket, so no drag handle.
 {% endcomment %}
 <section class="fxsec{% if sec_pool %} fxsec--pool{% endif %}" data-fx-section
+         {% if sec_pool %}draggable="true" data-pool-drag="{{ sec_pool_label }}"{% endif %}
          data-round="{{ sec_key }}" data-label="{{ sec_title }}" id="fxsec-{{ sec_key }}">
   <header class="fxsec__head">
+    {% if sec_pool %}
+      <span class="fxsec__drag" data-pool-drag-handle title="Drag to reorder" aria-hidden="true">⠿</span>
+    {% endif %}
     <span class="fxsec__ico">{{ sec_icon|default:'🏆' }}</span>
     <div class="fxsec__txt">
       <h3 class="fxsec__t">{{ sec_title }}</h3>
@@ -25,24 +33,37 @@ Context: tournament
         {% else %}{{ sec_fixtures|length }} match{{ sec_fixtures|length|pluralize:'es' }}{% endif %}
       </p>
     </div>
-    {% if sec_pool %}
+    {% if sec_pool or sec_round_no %}
       <div class="fxsec__acts">
-        <a class="btn btn-secondary btn-sm" href="#pool-standings">Standings</a>
-        <button type="button" class="btn btn-ghost btn-sm" data-fx-only="{{ sec_key }}">Fixtures</button>
-        <button type="button" class="fxsec__edit" data-pool-rename="{{ sec_pool_label }}"
-                title="Rename pool" aria-label="Rename Pool {{ sec_pool_label }}">✏️</button>
-        <button type="button" class="fxsec__add" data-open-dialog="pool-add-fixture-dialog"
-                data-pool-add="{{ sec_pool_label }}" title="Add a fixture to this pool"
-                aria-label="Add a fixture to Pool {{ sec_pool_label }}">+</button>
+        {% if sec_pool %}
+          <a class="btn btn-secondary btn-sm" href="#pool-standings">Standings</a>
+          <button type="button" class="btn btn-ghost btn-sm" data-fx-only="{{ sec_key }}">Fixtures</button>
+          <button type="button" class="fxsec__edit" data-pool-rename="{{ sec_pool_label }}"
+                  title="Rename pool" aria-label="Rename Pool {{ sec_pool_label }}">✏️</button>
+          <button type="button" class="fxsec__add" data-open-dialog="pool-add-fixture-dialog"
+                  data-pool-add="{{ sec_pool_label }}" title="Add a fixture to this pool"
+                  aria-label="Add a fixture to Pool {{ sec_pool_label }}">+</button>
+        {% endif %}
+        {% if sec_round_no %}
+          <button type="button" class="fxsec__edit" data-round-rename="{{ sec_round_no }}"
+                  title="Rename round" aria-label="Rename {{ sec_title }}">✏️</button>
+          <button type="button" class="fxsec__add" data-open-dialog="round-add-fixture-dialog"
+                  data-round-add="{{ sec_round_no }}" title="Add a fixture to this round"
+                  aria-label="Add a fixture to {{ sec_title }}">+</button>
+        {% endif %}
       </div>
     {% else %}
       <span class="fxsec__n" aria-hidden="true">{{ sec_fixtures|length }}</span>
+      {% if tournament.sport.slug == 'chess' and sec_fixtures %}
+        <a class="fxsec__dl" href="{% url 'chess_results_export' tournament.slug %}?round={{ sec_fixtures.0.round_no }}"
+           title="Download this round's results" aria-label="Download {{ sec_title }} results">⬇</a>
+      {% endif %}
     {% endif %}
   </header>
 
   <div class="fxgrid">
     {% for fx in sec_fixtures %}
-      {% include 'organizer/_fixture_row.html' with round_key=sec_key %}
+      {% include 'organizer/_fixture_row.html' with round_key=sec_key table_no=forloop.counter %}
     {% empty %}
       {% if sec_pool %}
         <p class="fxsec__empty">No fixtures yet — use the <strong>+</strong> button above to add the first one.</p>

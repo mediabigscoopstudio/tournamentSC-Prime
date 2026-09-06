@@ -170,7 +170,9 @@
       {% else %}
         <div class="table-wrap tblcard">
           <table class="dtable">
-            <thead><tr><th>Name</th><th>Category</th><th>Bib</th><th>Seed</th><th>Status</th><th class="ta-r">Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Category</th>
+              <th>{% if tournament.sport.slug == 'chess' %}Rating{% else %}Bib{% endif %}</th>
+              <th>Seed</th><th>Status</th><th class="ta-r">Actions</th></tr></thead>
             <tbody>
               {% for r in registrations %}
                 <tr>
@@ -190,7 +192,10 @@
                     {% endif %}
                   </td>
                   <td>{{ r.event_category.name|default:'—' }}</td>
-                  <td class="mono">{{ r.bib_number|default:'—' }}</td>
+                  <td class="mono">
+                    {% if tournament.sport.slug == 'chess' %}{{ r.effective_rating|default:'—' }}
+                    {% else %}{{ r.bib_number|default:'—' }}{% endif %}
+                  </td>
                   <td class="mono">{{ r.seed|default:'—' }}</td>
                   <td><span class="badge badge-{{ r.get_status_display|slugify }}">{{ r.get_status_display }}</span></td>
                   <td class="ta-r">
@@ -300,13 +305,15 @@
           </div>
 
           <div class="tmc__panel tmc__panel--import">
-            {% if tournament.sport.slug == 'basketball' %}
+            {% if tournament.sport.slug == 'basketball' or is_racket_sport %}
               <div class="tmc-card tmc-card--import">
                 <div class="tmc-card__head">
                   <span class="tmc-card__ic"><svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg></span>
                   <div>
                     <div class="tmc-card__t">Bulk Import Roster</div>
-                    <p class="tmc-card__s">Add teams and players together in one go.</p>
+                    <p class="tmc-card__s">
+                      {% if is_racket_sport %}Add pairs and players together in one go.
+                      {% else %}Add teams and players together in one go.{% endif %}</p>
                   </div>
                 </div>
 
@@ -336,11 +343,20 @@
                     <span class="tmc-hint">.CSV</span>
                     <span class="tmc-hint">4 columns</span>
                   </div>
-                  <p class="tmc-note">Use four columns: <code>Team Name</code>, <code>Participant Name</code>,
-                    <code>Jersey Number</code>, <code>Phone Number</code>. Team Name, Participant Name, and Jersey
-                    Number are required; Phone Number is optional. One participant per row, grouped by team name.
-                    Empty rows are skipped. If a team or participant already exists, it will be skipped rather than
-                    duplicated.</p>
+                  {% if is_racket_sport %}
+                    <p class="tmc-note">Use columns: <code>Team Name</code> (the pair's name),
+                      <code>Participant Name</code>, and optionally <code>Jersey Number</code>,
+                      <code>Phone Number</code>. Team Name and Participant Name are required. One
+                      participant per row, grouped by team name — each pair is limited to 2 players.
+                      Empty rows are skipped. If a pair or participant already exists, it will be
+                      skipped rather than duplicated.</p>
+                  {% else %}
+                    <p class="tmc-note">Use four columns: <code>Team Name</code>, <code>Participant Name</code>,
+                      <code>Jersey Number</code>, <code>Phone Number</code>. Team Name, Participant Name, and Jersey
+                      Number are required; Phone Number is optional. One participant per row, grouped by team name.
+                      Empty rows are skipped. If a team or participant already exists, it will be skipped rather than
+                      duplicated.</p>
+                  {% endif %}
 
                   <button class="btn tmc-cta tmc-cta--alt">
                     <svg class="ico" aria-hidden="true"><use href="#i-upload"></use></svg>Import Teams &amp; Players
@@ -409,7 +425,20 @@
             </div>
           </header>
 
-          <div class="tmc__panel tmc__panel--solo">
+          {% if is_racket_sport %}
+            <input class="tmc__tabin" type="radio" name="tmc-tab" id="tmc-tab-add" checked>
+            <input class="tmc__tabin" type="radio" name="tmc-tab" id="tmc-tab-import">
+            <div class="tmc__tabs">
+              <label class="tmc__tab" for="tmc-tab-add">
+                <svg class="ico" aria-hidden="true"><use href="#i-users"></use></svg>Add Entrant
+              </label>
+              <label class="tmc__tab" for="tmc-tab-import">
+                <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg>Bulk Import
+              </label>
+            </div>
+          {% endif %}
+
+          <div class="tmc__panel {% if is_racket_sport %}tmc__panel--add{% else %}tmc__panel--solo{% endif %}">
             <div class="tmc-card">
               <div class="tmc-card__head">
                 <span class="tmc-card__ic"><svg class="ico" aria-hidden="true"><use href="#i-users"></use></svg></span>
@@ -418,7 +447,7 @@
                   <p class="tmc-card__s">Register a single competitor for this tournament.</p>
                 </div>
               </div>
-              <form method="post" action="{% url 'individual_add' tournament.slug %}" data-tmc-busyform>
+              <form method="post" action="{% url 'individual_add' tournament.slug %}" id="individual-add-form" data-tmc-busyform>
                 {% csrf_token %}{% include 'partials/form.html' with form=entry_form %}
                 <button class="btn btn-primary tmc-cta">
                   <svg class="ico" aria-hidden="true"><use href="#i-bolt"></use></svg>Add Entrant
@@ -426,6 +455,53 @@
               </form>
             </div>
           </div>
+
+          {% if is_racket_sport %}
+            <div class="tmc__panel tmc__panel--import">
+              <div class="tmc-card tmc-card--import">
+                <div class="tmc-card__head">
+                  <span class="tmc-card__ic"><svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg></span>
+                  <div>
+                    <div class="tmc-card__t">Bulk Import Entrants</div>
+                    <p class="tmc-card__s">Add every entrant at once from a spreadsheet.</p>
+                  </div>
+                </div>
+
+                <form method="post" enctype="multipart/form-data" action="{% url 'individual_bulk_import' tournament.slug %}" data-tmc-busyform>
+                  {% csrf_token %}
+                  <div class="tmc-drop" data-tmc-drop>
+                    <span class="tmc-drop__thumb">
+                      <svg class="ico" aria-hidden="true"><use href="#i-upload"></use></svg>
+                      <img alt="" data-tmc-preview>
+                    </span>
+                    <span class="tmc-drop__copy">
+                      <span class="tmc-drop__t" data-tmc-title>Drag &amp; drop your file</span>
+                      <span class="tmc-drop__s" data-tmc-sub>or <span class="tmc-drop__browse">browse files</span> — .xlsx or .csv</span>
+                    </span>
+                    <span class="tmc-drop__file">
+                      <input type="file" name="participants_file" accept=".csv,.xlsx">
+                    </span>
+                    <button type="button" class="tmc-drop__clear" data-tmc-clear hidden aria-label="Remove selected file">
+                      <svg class="ico" aria-hidden="true"><use href="#i-x"></use></svg>
+                    </button>
+                  </div>
+
+                  <div class="tmc-hints">
+                    <span class="tmc-hint">.XLSX</span>
+                    <span class="tmc-hint">.CSV</span>
+                    <span class="tmc-hint">2 columns</span>
+                  </div>
+                  <p class="tmc-note">Use columns <code>Participant Name</code> and, optionally,
+                    <code>Phone Number</code> — one entrant per row. Empty rows are skipped. If an
+                    entrant already exists, it will be skipped rather than duplicated.</p>
+
+                  <button class="btn tmc-cta tmc-cta--alt">
+                    <svg class="ico" aria-hidden="true"><use href="#i-upload"></use></svg>Import Entrants
+                  </button>
+                </form>
+              </div>
+            </div>
+          {% endif %}
         </section>
       {% endif %}
     </aside>
@@ -621,4 +697,69 @@ document.querySelectorAll('[data-open-dialog]').forEach(function (btn) {
   });
 });
 </script>
+{% if not tournament.is_team_based %}
+<script>
+/* "Add an Entrant" name autocomplete — searches this organizer's own past
+   entrants (any of their tournaments) as you type, and fills in rating/
+   phone from whichever past registration matched, instead of retyping it
+   every time the same person enters a new event. Purely a client-side
+   convenience: it only pre-fills fields the organizer could type by hand. */
+(function () {
+  var form = document.getElementById('individual-add-form');
+  var nameInput = document.getElementById('id_display_name');
+  if (!form || !nameInput) return;
+  var ratingInput = document.getElementById('id_rating');
+  var phoneInput = document.getElementById('id_phone_number');
+
+  var list = document.createElement('div');
+  list.className = 'entrant-picker__list';
+  list.hidden = true;
+  list.style.position = 'absolute';
+  var wrap = document.createElement('div');
+  wrap.style.position = 'relative';
+  nameInput.parentNode.insertBefore(wrap, nameInput);
+  wrap.appendChild(nameInput);
+  wrap.appendChild(list);
+
+  var timer = null;
+  nameInput.addEventListener('input', function () {
+    var q = nameInput.value.trim();
+    if (timer) clearTimeout(timer);
+    if (q.length < 2) { list.hidden = true; return; }
+    timer = setTimeout(function () {
+      fetch('{% url "participant_search" %}?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var results = data.results || [];
+          list.innerHTML = '';
+          if (!results.length) { list.hidden = true; return; }
+          results.forEach(function (r) {
+            var opt = document.createElement('button');
+            opt.type = 'button';
+            opt.className = 'entrant-picker__opt';
+            var sub = r.rating ? ('Rating: ' + r.rating) : (r.phone || '');
+            opt.innerHTML = '<span class="entrant-picker__name"></span>' +
+              (sub ? '<span class="entrant-picker__sub"></span>' : '');
+            opt.querySelector('.entrant-picker__name').textContent = r.name;
+            if (sub) opt.querySelector('.entrant-picker__sub').textContent = sub;
+            opt.addEventListener('mousedown', function (e) {
+              e.preventDefault();
+              nameInput.value = r.name;
+              if (ratingInput && r.rating) ratingInput.value = r.rating;
+              if (phoneInput && r.phone) phoneInput.value = r.phone;
+              list.hidden = true;
+            });
+            list.appendChild(opt);
+          });
+          list.hidden = false;
+        })
+        .catch(function () { list.hidden = true; });
+    }, 250);
+  });
+  nameInput.addEventListener('blur', function () {
+    setTimeout(function () { list.hidden = true; }, 150);
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

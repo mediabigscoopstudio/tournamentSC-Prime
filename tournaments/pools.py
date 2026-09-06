@@ -47,6 +47,20 @@ def pool_label(index):
     return label
 
 
+def append_pool_order(cfg, label):
+    """Append `label` to `cfg['order']` (in place) if it isn't there yet.
+
+    `cfg` is a `pool_config` dict the caller already owns a mutable copy of
+    (not yet saved) — every call site that can introduce a brand-new pool
+    label uses this so new pools default to the bottom of the display order
+    instead of wherever they'd fall alphabetically (see `pool_view_context`).
+    """
+    order = list(cfg.get('order') or [])
+    if label not in order:
+        order.append(label)
+        cfg['order'] = order
+
+
 def rename_pool(tournament, old_label, new_label):
     """Rename a pool everywhere its label is currently stored: live
     fixtures, standings, the denormalised TeamEntry.group_name, and the
@@ -56,7 +70,8 @@ def rename_pool(tournament, old_label, new_label):
     not a permanent identity: a full AUTO-mode regenerate recomputes every
     label purely from position (`pool_label(i)`) and will not remember this
     rename. MANUAL mode's `assignments` values are updated here too, so a
-    manual-mode regenerate does keep the new name.
+    manual-mode regenerate does keep the new name. `order` is updated in
+    place (same index) so a rename never changes the pool's display position.
     """
     tournament.fixtures.filter(stage=C.STAGE_POOL, pool_name=old_label, is_removed=False).update(pool_name=new_label)
     tournament.standings.filter(group_name=old_label).update(group_name=new_label)
@@ -76,6 +91,10 @@ def rename_pool(tournament, old_label, new_label):
     extra = cfg.get('extra_labels')
     if extra and old_label in extra:
         cfg['extra_labels'] = [new_label if l == old_label else l for l in extra]
+        changed = True
+    order = cfg.get('order')
+    if order and old_label in order:
+        cfg['order'] = [new_label if l == old_label else l for l in order]
         changed = True
     if changed:
         tournament.pool_config = cfg
@@ -341,6 +360,18 @@ class PoolKnockoutEngine(BracketEngine):
                     _make_participant(fx, b, 1)
                     seq += 1
 
+        # Merge into the stored display order: labels that survive the
+        # regenerate keep their manual position, brand-new ones land at the
+        # bottom (see pool_view_context) instead of jumping in alphabetically.
+        labels = [pool_label(p) for p in range(num_pools)]
+        cfg = dict(t.pool_config or {})
+        old_order = list(cfg.get('order') or [])
+        new_order = [l for l in old_order if l in labels] + [l for l in labels if l not in old_order]
+        if new_order != old_order:
+            cfg['order'] = new_order
+            t.pool_config = cfg
+            t.save(update_fields=['pool_config', 'updated_at'])
+
         self.compute_standings()
         return t.fixtures.filter(is_removed=False).count()
 
@@ -386,6 +417,8 @@ class PoolKnockoutEngine(BracketEngine):
         for r in t.registrations.filter(status='APPROVED'):
             current_label[f'reg:{r.id}'] = r.group_name or ''
 
+        known_labels = {lbl for lbl in current_label.values() if lbl}
+
         affected = set()
         for key, new_label in moves.items():
             old_label = current_label.get(key, '')
@@ -394,6 +427,14 @@ class PoolKnockoutEngine(BracketEngine):
             if new_label:
                 affected.add(new_label)
             current_label[key] = new_label
+
+        new_labels = {lbl for lbl in moves.values() if lbl} - known_labels
+        if new_labels:
+            cfg = dict(t.pool_config or {})
+            for label in sorted(new_labels):
+                append_pool_order(cfg, label)
+            t.pool_config = cfg
+            t.save(update_fields=['pool_config', 'updated_at'])
 
         author = getattr(t.organizer.user, 'id', None)
         seq = t.fixtures.filter(is_removed=False).count()
@@ -708,8 +749,10 @@ def pool_view_context(tournament):
         elif fx.stage == C.STAGE_KNOCKOUT:
             knockout.append(fx)
 
-    labels = sorted(set(by_pool) | set(fixtures_by_pool) | set(tournament.pool_extra_labels),
-                    key=_label_sort_key)
+    known = set(by_pool) | set(fixtures_by_pool) | set(tournament.pool_extra_labels)
+    stored_order = list((tournament.pool_config or {}).get('order') or [])
+    labels = [l for l in stored_order if l in known]
+    labels += sorted(known - set(labels), key=_label_sort_key)
     pools = [{
         'label': label,
         'standings': by_pool.get(label, []),
@@ -720,7 +763,7 @@ def pool_view_context(tournament):
 
     rounds = {}
     for fx in knockout:
-        rounds.setdefault(fx.round_no, {'name': fx.round_name, 'fixtures': []})
+        rounds.setdefault(fx.round_no, {'name': fx.round_name, 'fixtures': [], 'round_no': fx.round_no})
         rounds[fx.round_no]['fixtures'].append(fx)
     knockout_rounds = [rounds[k] for k in sorted(rounds)]
     for rnd in knockout_rounds:

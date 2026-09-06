@@ -47,6 +47,11 @@ ul,ol{ margin:0; padding:0; list-style:none; }
 :focus-visible{ outline:3px solid var(--blue); outline-offset:2px; border-radius:4px; }
 
 .wrap{ width:100%; max-width:var(--maxw); margin-inline:auto; padding-inline:22px; }
+/* Phone/tablet: every panel and tile on the site shares this one container
+   for its outer edge, so a wider gutter here is what keeps them from
+   reading as edge-to-edge on a narrow screen — no per-component change
+   needed anywhere else. Desktop (>900px) keeps the tighter 22px above. */
+@media (max-width:900px){ .wrap{ padding-inline:28px; } }
 .score{ font-family:var(--font-score); font-weight:700; font-variant-numeric:tabular-nums; }
 .mono{ font-family:var(--font-score); font-variant-numeric:tabular-nums; }
 .ico{ width:1.15em; height:1.15em; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:none; }
@@ -163,6 +168,7 @@ ul,ol{ margin:0; padding:0; list-style:none; }
 .badge-live{ background:var(--live); color:#fff; border-radius:6px; }
 .badge-upcoming{ background:color-mix(in srgb,var(--blue) 12%,#fff); color:var(--blue); }
 .badge-completed{ background:color-mix(in srgb,var(--green) 14%,#fff); color:#2f8a2c; }
+.badge-off{ background:var(--bg-3); color:var(--muted); }
 .badge-cancelled{ background:color-mix(in srgb,var(--live) 12%,#fff); color:var(--live); }
 .badge-draft{ background:var(--bg-3); color:var(--muted); }
 .badge-scheduled{ background:color-mix(in srgb,var(--blue) 10%,#fff); color:var(--blue); }
@@ -286,7 +292,11 @@ ul,ol{ margin:0; padding:0; list-style:none; }
 .hcard__foot .mc:hover{ color:var(--orange); }
 
 /* ============ SECTIONS ============ */
-section, .section{ padding:56px 0; }
+/* padding-block (not the `padding: 56px 0` shorthand) deliberately — the
+   shorthand also sets padding-left/right:0, which silently wins over
+   .wrap's padding-inline (same specificity, later in the cascade) on every
+   element carrying both classes, zeroing the side gutter on every page. */
+section, .section{ padding-block:56px; }
 .sec-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:28px; }
 .sec-head h2{ font-size:clamp(1.7rem,3.2vw,2.35rem); font-style:italic; font-weight:900; }
 .sec-head p{ color:var(--ink-2); margin-top:8px; font-size:15px; max-width:56ch; }
@@ -952,6 +962,72 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .bball-setup-switch:has(input:checked) .bball-setup-switch-thumb{ transform:translateX(19px); }
 .bball-setup-switch:has(input:focus-visible) .bball-setup-switch-track{ box-shadow:0 0 0 3px rgba(242,106,27,.25); }
 .bball-setup-start{ width:100%; margin-top:6px; }
+
+/* Badminton/pickleball set-scoring control panel (organizer/score.html
+   'elif is_racket' branches) — reuses the .bball-setup-card pre-match
+   screen as-is, and adds its own live-scoring board + sets table below. */
+.racket-board__teams{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.racket-board__team{ font-weight:800; font-size:16px; color:var(--navy); text-align:center; flex:1; }
+.racket-board__sep{ color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+.racket-board__live{ display:flex; align-items:center; justify-content:space-between; gap:14px;
+  margin-top:20px; }
+.racket-board__side{ flex:1; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.racket-board__score{ font-family:var(--font-score); font-weight:800; font-size:56px; color:var(--navy); }
+.racket-board__setlabel{ flex:none; font-size:12.5px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--muted); }
+.racket-board__pts{ display:flex; gap:8px; }
+.racket-pt{ width:56px; height:56px; border-radius:50%; font-size:18px; font-weight:800; padding:0; }
+.racket-pt--minus{ width:40px; height:40px; font-size:14px; align-self:center; }
+.racket-board__setctl{ display:flex; gap:10px; margin-top:20px; }
+.racket-board__setctl form{ flex:1; }
+.racket-board__setctl .btn{ width:100%; }
+.racket-sets{ width:100%; border-collapse:collapse; font-size:13.5px; }
+.racket-sets th, .racket-sets td{ padding:8px 10px; text-align:center; border-bottom:1px solid var(--line-2); }
+.racket-sets th{ color:var(--muted); font-weight:700; text-transform:uppercase; font-size:11px; letter-spacing:.04em; }
+.racket-sets tr.is-live td{ color:var(--orange); font-weight:700; }
+.racket-sets tr.a-won td:nth-child(2), .racket-sets tr.b-won td:nth-child(3){ font-weight:800; color:var(--navy); }
+.racket-sets__edit{ border:none; background:transparent; cursor:pointer; font-size:14px; padding:2px 6px;
+  border-radius:var(--r-sm); transition:background .15s var(--ease); }
+.racket-sets__edit:hover{ background:var(--bg-2); }
+
+/* Chess control panel (organizer/score.html 'elif is_chess' branch). */
+.chess-board__table{ font-weight:800; font-size:15px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--navy); }
+.chess-board__players{ display:flex; align-items:center; justify-content:center; gap:24px;
+  margin-top:20px; flex-wrap:wrap; }
+.chess-board__side{ display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;
+  min-width:140px; }
+.chess-board__side .fxc__crest{ width:72px; height:72px; font-size:26px; border-radius:var(--r-lg); }
+.chess-board__name{ font-family:var(--font-display); font-weight:800; font-size:17px; color:var(--navy);
+  text-align:center; }
+.chess-board__name.is-win{ color:var(--green); }
+.chess-board__vs{ flex:none; padding:6px 14px; border-radius:var(--r-pill); background:var(--bg-2);
+  color:var(--muted); font-weight:700; font-size:12px; letter-spacing:.06em; }
+.chess-board__score{ margin-top:20px; text-align:center; font-family:var(--font-score); font-weight:800;
+  font-size:44px; color:var(--navy); }
+.chess-board__acts{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
+.chess-board__acts form{ display:contents; }
+.chess-board__acts .btn{ flex:1 1 auto; min-width:120px; }
+.chess-pick{ display:flex; flex-direction:column; gap:8px; }
+.chess-pick__opt{ padding:12px 16px; border-radius:var(--r-md); border:1.6px solid var(--line-2);
+  background:#fff; font-family:var(--font-body); font-weight:700; font-size:14px; color:var(--ink-2);
+  text-align:left; cursor:pointer; transition:all .18s var(--ease); }
+.chess-pick__opt:hover{ border-color:var(--navy); }
+.chess-pick__opt.is-selected{ border-color:var(--navy); background:var(--navy); color:#fff; }
+
+/* Searchable entrant picker (organizer/_entrant_picker.html). */
+.entrant-picker{ position:relative; flex:1; min-width:180px; }
+.entrant-picker__input{ width:100%; }
+.entrant-picker__list{ position:absolute; z-index:20; top:calc(100% + 4px); left:0; right:0;
+  max-height:220px; overflow-y:auto; background:#fff; border:1px solid var(--line-2);
+  border-radius:var(--r-md); box-shadow:var(--shadow); padding:6px; }
+.entrant-picker__opt{ display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+  width:100%; padding:8px 10px; border:none; background:transparent; border-radius:var(--r-sm);
+  cursor:pointer; text-align:left; font-family:var(--font-body); }
+.entrant-picker__opt:hover{ background:var(--bg-2); }
+.entrant-picker__name{ font-weight:600; font-size:13.5px; color:var(--ink); }
+.entrant-picker__sub{ font-size:11.5px; color:var(--muted); }
+.entrant-picker__empty{ padding:8px 10px; font-size:13px; color:var(--muted); margin:0; }
 
 /* Basketball individual-scoring panel (organizer/score.html #individual-scoring) —
    team switcher + per-team stat cards. `--team-accent` is set inline per team
@@ -1811,8 +1887,8 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 
 /* ---------- round / pool section ---------- */
 /* A round block is a <section>, so it inherits the page-level
-   `section,.section{padding:56px 0}` rule and would otherwise open a 112px
-   hole around every round. The gap between rounds is set here instead. */
+   `section,.section{padding-block:56px}` rule and would otherwise open a
+   112px hole around every round. The gap between rounds is set here instead. */
 .fxsec{ padding:0; }
 .fxsecs>*+*{ margin-top:28px; }
 .fxsec__head{ position:relative; overflow:hidden; display:flex; align-items:center; gap:14px;
@@ -1850,6 +1926,15 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
   display:grid; place-items:center; transition:background .18s var(--ease), transform .18s var(--ease); }
 .fxsec__edit:hover{ background:rgba(255,255,255,.22); transform:translateY(-1px); }
 .fxsec__edit:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.fxsec__dl{ flex:none; width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,255,255,.34);
+  background:rgba(255,255,255,.12); color:#fff; font-size:14px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; text-decoration:none; transition:background .18s var(--ease), transform .18s var(--ease); }
+.fxsec__dl:hover{ background:rgba(255,255,255,.22); transform:translateY(-1px); text-decoration:none; }
+.fxsec__dl:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.fxsec__drag{ flex:none; cursor:grab; color:#b3bcd6; font-size:18px; line-height:1;
+  padding:2px 2px 2px 0; touch-action:none; }
+.fxsec--pool .fxsec__head{ cursor:grab; }
+.fxsec--pool.is-dragging{ opacity:.45; }
 .fxsec__none{ padding:18px; text-align:center; font-size:13.5px; color:var(--muted);
   background:var(--bg-2); border-radius:var(--r-md); }
 .fxsec__empty{ grid-column:1/-1; padding:22px; text-align:center; font-size:13.5px; color:var(--muted);
@@ -1913,6 +1998,11 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .fxc__crest--tbd{ background:var(--bg-3); color:var(--muted); box-shadow:none;
   border:1.5px dashed var(--line-2); }
 .fxc__name--tbd{ color:var(--muted); font-weight:600; letter-spacing:.06em; }
+/* Chess only — which side of the board a competitor is playing. */
+.fxc__color-badge{ display:inline-block; margin-top:4px; padding:2px 9px; border-radius:var(--r-pill);
+  font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  background:#fff; color:var(--ink-2); border:1px solid var(--line-2); }
+.fxc__color-badge--black{ background:var(--navy); color:#fff; border-color:var(--navy); }
 
 .fxc__mid{ display:grid; place-items:center; min-width:72px; padding-top:11px; }
 .fxc__score{ display:inline-flex; align-items:baseline; gap:7px; font-family:var(--font-score);
@@ -1941,11 +2031,21 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .fxc__acts{ display:flex; align-items:center; gap:8px; margin-top:auto; padding:12px 14px;
   background:var(--bg-2); border-top:1px solid var(--line); }
 .fxc__act{ flex:1 1 0; min-width:0; padding:10px 8px; font-size:13px; }
-.fxc__acts form{ flex:none; display:flex; }
+.fxc__acts > form{ flex:none; display:flex; }
 .fxc__del{ flex:none; width:40px; height:40px; padding:0; border-radius:var(--r-md); background:#fff;
   border:1.6px solid var(--line-2); color:var(--muted); }
 .fxc__del:hover{ background:var(--live); border-color:var(--live); color:#fff; transform:none; }
 .fxc__del .ico{ width:17px; height:17px; }
+
+/* Chess tile actions — icon-only buttons (Save/Draw/Edit), same 40x40
+   footprint as .fxc__del so the whole action row reads as one consistent
+   icon strip instead of mixing text buttons with an icon button. */
+.fxc__chessact{ flex:none; width:40px; height:40px; padding:0; border-radius:var(--r-md);
+  font-size:17px; line-height:1; display:grid; place-items:center;
+  background:#fff; border:1.6px solid var(--line-2); color:var(--ink-2); transform:none; }
+.fxc__chessact:hover{ background:var(--bg-3); transform:none; }
+.fxc__chessact--primary{ background:var(--orange); border-color:var(--orange); color:#fff; }
+.fxc__chessact--primary:hover{ background:var(--orange-d); border-color:var(--orange-d); }
 
 /* ---------- status badges ---------- */
 .fxs{ display:inline-flex; align-items:center; gap:6px; flex:none; font-family:var(--font-body);
@@ -2077,8 +2177,9 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 
 /* ---------- section cards ---------- */
 .tcform{ margin-top:20px; display:grid; gap:16px; }
-/* `padding:0` undoes the global `section{ padding:56px 0 }` — these cards are
-   <section> elements and would otherwise open with 56px of dead space. */
+/* `padding:0` undoes the global `section{ padding-block:56px }` — these
+   cards are <section> elements and would otherwise open with 56px of dead
+   space. */
 .tccard{ padding:0; background:#fff; border:1px solid var(--line); border-radius:var(--r-xl);
   box-shadow:var(--shadow-sm); overflow:hidden; scroll-margin-top:96px;
   transition:box-shadow .25s var(--ease), border-color .25s; }

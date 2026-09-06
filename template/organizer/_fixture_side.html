@@ -11,6 +11,9 @@ Context: tournament, fx, p (may be empty — an unfilled bracket slot), side
       {% if p.team.logo %}<img src="{{ p.team.logo.url }}" alt="" onerror="this.remove()">{% endif %}{{ p.initials }}
     </span>
     <span class="fxc__name{% if fx.status == 'COMPLETED' %}{% if p.is_winner %} is-win{% elif p.result_chip == 'l' %} is-lose{% endif %}{% endif %}">{{ p.name }}</span>
+    {% if tournament.sport.slug == 'chess' %}
+      <span class="fxc__color-badge{% if side == 'r' %} fxc__color-badge--black{% endif %}">{% if side == 'l' %}White{% else %}Black{% endif %}</span>
+    {% endif %}
   {% else %}
     <span class="fxc__crest fxc__crest--tbd" aria-hidden="true">?</span>
     <span class="fxc__name fxc__name--tbd">TBD</span>

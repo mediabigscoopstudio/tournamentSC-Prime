@@ -1,0 +1,30 @@
+{% comment %}
+Searchable entrant picker — replaces a plain <select> so an organizer can
+filter by name and see rating/phone under each option. Submits the exact
+same hidden value (a 'reg:<id>'/'team:<id>' key) a <select> with this `name`
+always did, so no view or JS reading that field needs to change.
+
+Context: name (form field name), choices ((key, label, payload) list),
+placeholder (optional)
+{% endcomment %}
+<div class="entrant-picker" data-entrant-picker>
+  <input type="hidden" name="{{ name }}" data-entrant-picker-value value="">
+  <input type="text" class="input entrant-picker__input" autocomplete="off"
+         placeholder="{{ placeholder|default:'Search entrants…' }}" data-entrant-picker-search>
+  <div class="entrant-picker__list" data-entrant-picker-list hidden>
+    {% for key, label, payload in choices %}
+      <button type="button" class="entrant-picker__opt" data-value="{{ key }}" data-label="{{ label }}">
+        <span class="entrant-picker__name">{{ label }}</span>
+        {% if payload.stats.rating %}
+          <span class="entrant-picker__sub">Rating: {{ payload.stats.rating }}</span>
+        {% elif payload.stats.phone %}
+          <span class="entrant-picker__sub">{{ payload.stats.phone }}</span>
+        {% elif payload.stats.bib %}
+          <span class="entrant-picker__sub">Bib {{ payload.stats.bib }}</span>
+        {% endif %}
+      </button>
+    {% empty %}
+      <p class="entrant-picker__empty">No entrants yet.</p>
+    {% endfor %}
+  </div>
+</div>

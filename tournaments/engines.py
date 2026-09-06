@@ -57,8 +57,10 @@ def _entrants_for(tournament):
             stats = {}
             if r.bib_number:
                 stats['bib'] = r.bib_number
-            if r.player and r.player.rating:
-                stats['rating'] = r.player.rating
+            if r.effective_rating:
+                stats['rating'] = r.effective_rating
+            if r.phone_number:
+                stats['phone'] = r.phone_number
             out.append({'key': f'reg:{r.id}', 'team': None, 'player': r.player,
                         'label': r.name, 'seed': r.seed or 9999, 'stats': stats})
     out.sort(key=lambda d: (d['seed'], d['label'].lower()))
@@ -360,13 +362,17 @@ class BracketEngine(FormatEngine):
             self._advance(fixture, best)
 
 
-def _points_standings(tournament, fixtures):
+def _points_standings(tournament, fixtures, sort_key=None):
     """Compute a points/Buchholz standings table from an iterable of
     COMPLETED, head-to-head (2-participant) fixtures, and write it to
     Standing rows. Shared by PointsTableEngine (non-lobby round-robin) and
     SwissEngine — both are "everyone accumulates points across pairwise
     matches" formats, just scheduled differently (round-robin upfront vs.
     Swiss round-by-round). Returns the sorted rows (position order).
+
+    `sort_key`, when given, overrides the default points-then-Buchholz
+    ranking (e.g. SwissEngine ranks chess standings by rating instead —
+    see chess_sort in SwissEngine.compute_standings).
     """
     cfg = tournament.points_config
     table = {}
@@ -424,8 +430,12 @@ def _points_standings(tournament, fixtures):
     for k, r in table.items():
         r['buchholz'] = round(sum(table[o]['points'] for o in r['opponents'] if o in table), 1)
 
-    rows = sorted(table.values(),
-                  key=lambda r: (-r['points'], -r['buchholz'], -r['won'], r['label'].lower()))
+    # Rating-first, like SwissEngine's chess_sort: for sports without a
+    # rating (rating is always None), the first two components are the same
+    # for every row, so this reduces to the plain points-then-Buchholz order.
+    rows = sorted(table.values(), key=sort_key or (
+        lambda r: (r['rating'] is None, -(r['rating'] or 0),
+                   -r['points'], -r['buchholz'], -r['won'], r['label'].lower())))
 
     tournament.standings.all().delete()
     for pos, r in enumerate(rows, start=1):
@@ -706,20 +716,41 @@ class SwissEngine(FormatEngine):
 
     @transaction.atomic
     def record_result(self, fixture, data):
-        for p in fixture.participants.all():
+        parts = list(fixture.participants.all())
+        for p in parts:
             entry = data.get(str(p.id), {})
             score = _num(entry.get('score'))
             if score is not None:
                 p.score = score
+            p.is_winner = False
             p.save()
+
         if data.get('finalize'):
+            # A level result (chess draw, or an unusual tie) has no winner —
+            # every FixtureParticipant above already defaulted to False.
+            scores = [(_num(p.score), p) for p in parts]
+            if all(s is not None for s, _ in scores) and scores:
+                top = max(s for s, _ in scores)
+                leaders = [p for s, p in scores if s == top]
+                if len(leaders) == 1:
+                    leaders[0].is_winner = True
+                    leaders[0].save(update_fields=['is_winner'])
             fixture.status = 'COMPLETED'
             fixture.save(update_fields=['status'])
         self.compute_standings()
 
     def compute_standings(self):
+        """Chess standings rank by rating alone, highest first — not the
+        usual points-then-Buchholz Swiss ranking — per explicit organizer
+        request. No-rating entrants sort last; points/Buchholz/name only
+        break ties among equal or missing ratings."""
         t = self.tournament
-        _points_standings(t, t.fixtures.filter(status='COMPLETED', is_removed=False))
+
+        def chess_sort(r):
+            rating = r['rating']
+            return (rating is None, -(rating or 0), -r['points'], -r['buchholz'], r['label'].lower())
+
+        _points_standings(t, t.fixtures.filter(status='COMPLETED', is_removed=False), sort_key=chess_sort)
 
     # -- pairing helpers --------------------------------------------------
     def _round1_order(self, entrants):

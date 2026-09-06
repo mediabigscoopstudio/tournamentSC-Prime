@@ -342,6 +342,145 @@
         <button class="btn btn-primary btn--lg bball-setup-start">▶ Start Match</button>
       </form>
     </div>
+  {% elif is_racket and fixture.status != 'SCHEDULED' %}
+    {% with team_a=participants.0 team_b=participants.1 %}
+    <a href="{% url 'fixtures_manage' tournament.slug %}" class="dim">← All fixtures</a>
+    <div class="spread" style="margin-top:12px">
+      <h1>{{ fixture.round_name|default:'Fixture' }}</h1>
+      {% if fixture.status == 'LIVE' %}<span class="badge badge-live"><span class="badge-dot"></span>Live</span>
+      {% elif fixture.status == 'COMPLETED' %}<span class="badge badge-completed">Final</span>
+      {% else %}<span class="badge badge-upcoming">{{ fixture.get_status_display }}</span>{% endif %}
+    </div>
+
+    <div class="panel tblcard racket-board" id="racket-board" style="margin-top:16px">
+      <div class="racket-board__teams">
+        <div class="racket-board__team">{{ team_a.name }}</div>
+        <div class="racket-board__sep">vs</div>
+        <div class="racket-board__team">{{ team_b.name }}</div>
+      </div>
+
+      {% if fixture.status == 'LIVE' %}
+        {% with live=fixture.set_scores|last %}
+        <div class="racket-board__live">
+          <div class="racket-board__side">
+            <div class="racket-board__score">{{ live.a|default:0 }}</div>
+            <div class="racket-board__pts">
+              <form method="post"><input type="hidden" name="action" value="racket_point">
+                {% csrf_token %}<input type="hidden" name="side" value="a">
+                <input type="hidden" name="delta" value="1">
+                <button class="btn btn-primary racket-pt" type="submit">+1</button></form>
+              <form method="post"><input type="hidden" name="action" value="racket_point">
+                {% csrf_token %}<input type="hidden" name="side" value="a">
+                <input type="hidden" name="delta" value="-1">
+                <button class="btn btn-secondary racket-pt racket-pt--minus" type="submit">-1</button></form>
+            </div>
+          </div>
+          <div class="racket-board__setlabel">Set {{ fixture.set_scores|length }}</div>
+          <div class="racket-board__side">
+            <div class="racket-board__score">{{ live.b|default:0 }}</div>
+            <div class="racket-board__pts">
+              <form method="post"><input type="hidden" name="action" value="racket_point">
+                {% csrf_token %}<input type="hidden" name="side" value="b">
+                <input type="hidden" name="delta" value="1">
+                <button class="btn btn-primary racket-pt" type="submit">+1</button></form>
+              <form method="post"><input type="hidden" name="action" value="racket_point">
+                {% csrf_token %}<input type="hidden" name="side" value="b">
+                <input type="hidden" name="delta" value="-1">
+                <button class="btn btn-secondary racket-pt racket-pt--minus" type="submit">-1</button></form>
+            </div>
+          </div>
+        </div>
+        {% endwith %}
+
+        <div class="racket-board__setctl">
+          <form method="post"><input type="hidden" name="action" value="finish_set">{% csrf_token %}
+            <button class="btn btn-primary">Finish Set</button></form>
+          <form method="post"><input type="hidden" name="action" value="add_set">{% csrf_token %}
+            <button class="btn btn-secondary">+ Add Set</button></form>
+        </div>
+      {% else %}
+        <p class="dim center" style="margin-top:16px">Match ended.</p>
+      {% endif %}
+
+      <table class="racket-sets" style="margin-top:18px">
+        <thead><tr><th>Set</th><th>{{ team_a.name }}</th><th>{{ team_b.name }}</th>{% if fixture.status == 'LIVE' %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for s in fixture.set_scores %}
+            <tr class="{% if forloop.last and fixture.status == 'LIVE' %}is-live{% elif s.a > s.b %}a-won{% elif s.b > s.a %}b-won{% endif %}">
+              <td>Set {{ forloop.counter }}{% if forloop.last and fixture.status == 'LIVE' %} <span class="dim">(live)</span>{% endif %}</td>
+              <td>{{ s.a|default:0 }}</td>
+              <td>{{ s.b|default:0 }}</td>
+              {% if fixture.status == 'LIVE' %}
+                <td>
+                  <button type="button" class="racket-sets__edit" data-edit-set="{{ forloop.counter0 }}"
+                          data-edit-a="{{ s.a|default:0 }}" data-edit-b="{{ s.b|default:0 }}"
+                          title="Edit Set {{ forloop.counter }}" aria-label="Edit Set {{ forloop.counter }}">✏️</button>
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if fixture.status == 'LIVE' %}
+        <dialog id="edit-set-dialog" class="poolassign-dialog" style="max-width:340px">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="set_index" id="edit-set-index" value="">
+            <h3 class="fxpanel__h" style="margin-top:0">Edit <span id="edit-set-title">set</span></h3>
+            <div class="row-flex" style="margin-top:12px; flex-wrap:wrap">
+              <label class="poolcfg__f" style="flex:1; min-width:100px">
+                <span>{{ team_a.name }}</span>
+                <input class="input" type="number" name="score_a" id="edit-set-a" min="0" required>
+              </label>
+              <label class="poolcfg__f" style="flex:1; min-width:100px">
+                <span>{{ team_b.name }}</span>
+                <input class="input" type="number" name="score_b" id="edit-set-b" min="0" required>
+              </label>
+            </div>
+            <div class="row-flex" style="margin-top:14px">
+              <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+              <button type="submit" name="action" value="delete_set" class="btn btn-danger btn-sm">Delete set</button>
+              <button type="submit" name="action" value="edit_set" class="btn btn-primary btn-sm">Save</button>
+            </div>
+          </form>
+        </dialog>
+      {% endif %}
+    </div>
+    {% endwith %}
+  {% elif is_racket %}
+    <a href="{% url 'fixtures_manage' tournament.slug %}" class="dim">← All fixtures</a>
+    <div class="spread" style="margin-top:12px">
+      <h1>{{ fixture.round_name|default:'Fixture' }}</h1>
+      <span class="badge badge-upcoming">{{ fixture.get_status_display }}</span>
+    </div>
+
+    <div class="panel bball-setup-card">
+      <div class="bball-setup-header">
+        <span class="bball-setup-icon" aria-hidden="true">🏸</span>
+        <div>
+          <h3>Match Setup</h3>
+          <p>Choose the number of sets before starting live scoring.</p>
+        </div>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="start">
+
+        <div class="bball-setup-section">
+          <label class="bball-setup-label">Match length</label>
+          <div class="bball-setup-options">
+            <label class="bball-setup-option">
+              <input type="radio" name="best_of" value="3" checked> Best of 3</label>
+            <label class="bball-setup-option">
+              <input type="radio" name="best_of" value="5"> Best of 5</label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn--lg bball-setup-start">▶ Start Match</button>
+      </form>
+    </div>
   {% else %}
     <a href="{% url 'fixtures_manage' tournament.slug %}" class="dim">← All fixtures</a>
     <div class="spread" style="margin-top:12px">
@@ -572,7 +711,7 @@
   </div>
 </section>
 {% endblock %}
-{% block scripts %}{% if is_basketball %}<script src="{% static 'js/match-clock.js' %}?v=4"></script><script src="{% static 'js/basketball-score.js' %}?v=5"></script>{% endif %}
+{% block scripts %}{% if is_basketball %}<script src="{% static 'js/match-clock.js' %}?v=4"></script><script src="{% static 'js/basketball-score.js' %}?v=5"></script>{% endif %}{% if is_racket %}<script src="{% static 'js/racket-score.js' %}?v=1"></script>{% endif %}
 <script>
 /* Match Control Center — presentation only. The chips type into the existing
    commentary box (they never post on their own) and the busy state only paints
