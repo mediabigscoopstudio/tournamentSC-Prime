@@ -4,21 +4,10 @@
 
 <div class="dash-head">
   <a class="dim" href="/dashboard/{{ res.key }}/">← {{ res.label }}</a>
-  <h1>{% if is_create %}New {{ res.singular|lower }}{% else %}Edit {{ res.singular|lower }}{% endif %}</h1>
-  {% if not is_create %}<p class="muted">{{ instance }}</p>{% endif %}
 </div>
 
-<form method="post" enctype="multipart/form-data" class="panel tblcard dform">
-  {% csrf_token %}
-  {% include 'partials/form.html' %}
-  <div class="row-flex" style="margin-top:20px">
-    <button class="btn btn-primary" type="submit">{% if is_create %}Create{% else %}Save changes{% endif %}</button>
-    <a class="btn btn-ghost" href="/dashboard/{{ res.key }}/">Cancel</a>
-    {% if not is_create and res.can_delete %}
-      <a class="btn btn-ghost" style="margin-left:auto;color:var(--live)"
-         href="/dashboard/{{ res.key }}/{{ instance.pk }}/delete">Delete</a>
-    {% endif %}
-  </div>
-</form>
+<div class="panel tblcard dform-page">
+  {% include 'dash/_resource_form_inner.html' %}
+</div>
 
 {% endblock %}

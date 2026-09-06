@@ -49,6 +49,57 @@
 /* .dtable / .rowacts / .ta-r / .pager now live in base.css — the organizer
    templates use them on the public shell, which never loads dash.css. */
 
+/* Admin console tables: slightly denser than the organizer/public ones, and
+   row actions are icon-only buttons (see resource_list.html) so a row with
+   several lifecycle actions plus edit/delete stays on one line instead of
+   wrapping and stretching the row's height. Scoped to `.dash-main` — the
+   admin shell's content area — so it never touches the shared `.dtable`
+   look on organizer/public pages. */
+.dash-main .dtable th,
+.dash-main .dtable td{ padding:11px 14px; }
+/* Keep a row's icon actions on one line — flex-wrap would otherwise stack
+   them into multiple rows inside a narrow Actions column, which is exactly
+   the vertical-stretch problem the icon buttons were meant to fix. If a row
+   has many actions the table scrolls horizontally (.table-wrap) instead. */
+.dash-main .rowacts{ gap:5px; flex-wrap:nowrap; }
+.dash-main .rowacts > *{ flex:none; }
+.dash-main .dtable td.rowacts-cell{ white-space:nowrap; }
+/* The Feature/Unfeature toggle shares one star icon — fill it when the
+   action is "Unfeature" (i.e. the row is currently featured) so the state
+   reads at a glance instead of only through the button's tooltip. The same
+   fill trick marks the Verified/Suspended state on the Users list, where
+   one button both shows the state and performs the toggle. */
+.ico--filled{ fill:currentColor; }
+.ico--ok{ color:#2f8a2c; }
+.ico--danger{ color:var(--live); }
+/* A resource's status, shown as a small colored icon chip in the actions
+   cell (Resource.show_status_in_actions) instead of taking its own list
+   column. Reuses the existing `badge-{{ status|slugify }}` classes for
+   color so it stays in sync with the text badges used elsewhere. */
+.status-ico{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:30px; height:30px; border-radius:50%; flex:none;
+}
+.status-ico .ico{ width:15px; height:15px; }
+.rowacts__sep{ width:1px; align-self:stretch; background:var(--line); margin:0 1px; flex:none; }
+/* Pin the actions column (not just whichever column happens to come last —
+   audit.html and permissions.html have no actions column at all) to the
+   right of the scroll area, desktop/tablet only; on mobile the table
+   becomes stacked cards (see the breakpoint below), where a sticky column
+   makes no sense. A resource can have several lifecycle actions plus
+   edit/delete — rather than let a wide data table push edit/delete out of
+   view (or wrap them into a tall stack), the actions stay one line tall and
+   always on screen while the data columns scroll underneath. */
+@media (min-width:768px){
+  .dash-main .dtable th.rowacts-head,
+  .dash-main .dtable td.rowacts-cell{
+    position:sticky; right:0; background:#fff;
+    box-shadow:-8px 0 10px -8px rgba(20,26,48,.12);
+  }
+  .dash-main .dtable thead th.rowacts-head{ background:var(--bg-2); }
+  .dash-main .dtable tbody tr:hover td.rowacts-cell{ background:var(--bg-2); }
+}
+
 /* List filter bar */
 .dfilters{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
 .dfilters .input{ width:auto; min-width:170px; }
@@ -61,6 +112,92 @@
 .field-check:last-of-type{ border-bottom:none; }
 .field-check input[type=checkbox]{ margin-top:3px; width:17px; height:17px; flex-shrink:0; }
 .field-check .helptext{ display:block; margin-top:2px; }
+
+/* Create/edit popup — every resource form opens in this modal instead of
+   its own page (dash-modal.js fetches dash/_resource_form_inner.html and
+   injects it here). The same partial also renders standalone on
+   dform-page for a direct link / JS-disabled visit. */
+.modal-backdrop{
+  position:fixed; inset:0; background:rgba(12,17,32,.55); z-index:200;
+  display:flex; align-items:center; justify-content:center; padding:24px;
+  opacity:0; pointer-events:none; transition:opacity .22s var(--ease);
+}
+.modal-backdrop.open{ opacity:1; pointer-events:auto; }
+.modal-backdrop[hidden]{ display:none; }
+.modal-box{
+  background:#fff; border-radius:var(--r-xl); width:100%; max-width:560px;
+  max-height:88vh; display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:var(--shadow-lg); position:relative;
+  transform:translateY(16px) scale(.98); opacity:0;
+  transition:transform .24s var(--ease), opacity .24s var(--ease);
+}
+.modal-backdrop.open .modal-box{ transform:translateY(0) scale(1); opacity:1; }
+.modal-box__x{
+  position:absolute; top:14px; right:14px; width:36px; height:36px; z-index:2;
+  border-radius:50%; border:none; cursor:pointer; background:var(--bg-2); color:var(--ink-2);
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.modal-box__x:hover{ background:var(--bg-3); }
+.modal-box__content{ display:flex; flex-direction:column; min-height:0; flex:1; }
+.modal-box__content .empty{ margin:24px; }
+/* The fetched form's own <form> wraps rform__body + rform__foot, so IT has
+   to be the flex column that actually constrains the body's height —
+   without this the body only "flex:1"s against a parent that never
+   established flex, sizes to its full content height instead, and pushes
+   the footer (Save/Cancel) far below the fold instead of pinning it. */
+.modal-box__content > form{ display:flex; flex-direction:column; flex:1; min-height:0; }
+
+.rform__head{ padding:24px 52px 4px 24px; flex:none; }
+.rform__head h2{ font-family:var(--font-display); font-size:20px; font-style:italic; margin:0; }
+.rform__body{ padding:14px 24px 4px; overflow-y:auto; flex:1; min-height:0; }
+.rform__foot{
+  padding:14px 24px; border-top:1px solid var(--line); flex:none; background:#fff;
+  display:flex; align-items:center; gap:10px;
+}
+.rform__foot-main{ display:flex; gap:10px; margin-left:auto; }
+.rform__delete{ color:var(--live); }
+.rform__delete:hover{ color:#b81f13; }
+
+/* The standalone page fallback isn't boxed in a fixed-height dialog, so let
+   the same head/body/foot breathe instead of scrolling internally. */
+.dform-page .rform__head{ padding:0 0 4px; }
+.dform-page .rform__body{ overflow:visible; padding:18px 0 0; }
+.dform-page .rform__foot{ border-top:none; padding:20px 0 0; background:transparent; }
+
+@media (max-width:767px){
+  /* Bottom sheet: the primary Save action sits pinned at the bottom edge
+     of the screen, inside one-thumb reach, instead of at the end of a
+     form the user has to scroll all the way down to reach. */
+  .modal-backdrop{ align-items:flex-end; padding:0; }
+  .modal-box{ max-width:100%; max-height:92vh; border-radius:20px 20px 0 0; transform:translateY(100%); }
+  .modal-backdrop.open .modal-box{ transform:translateY(0); }
+  .modal-box::before{
+    content:''; flex:none; display:block; width:36px; height:4px; border-radius:2px;
+    background:var(--line-2); margin:10px auto 0;
+  }
+  .rform__foot{ padding-bottom:calc(14px + env(safe-area-inset-bottom)); }
+  .rform__foot-main{ flex:1; }
+  .rform__foot-main .btn{ flex:1; }
+}
+
+/* Save/create confirmation toast — a quiet checkmark pill, not a full
+   message banner, since the popup already told the admin what happened. */
+.dash-toast{
+  position:fixed; left:50%; bottom:28px; z-index:300;
+  transform:translate(-50%,16px); opacity:0;
+  transition:opacity .25s var(--ease), transform .25s var(--ease);
+  background:var(--navy); color:#fff; font-weight:700; font-size:14px;
+  padding:13px 20px 13px 14px; border-radius:var(--r-pill);
+  display:flex; align-items:center; gap:10px; box-shadow:var(--shadow-lg);
+  max-width:calc(100vw - 32px);
+}
+.dash-toast.show{ opacity:1; transform:translate(-50%,0); }
+.dash-toast[hidden]{ display:none; }
+.dash-toast__ic{
+  width:22px; height:22px; border-radius:50%; background:var(--green); flex:none;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.dash-toast__ic .ico{ width:13px; height:13px; color:#fff; stroke-width:2.4; }
 
 /* Analytics sparkline — 12 columns of week labels. On a narrow screen the labels
    cannot shrink below their text width, so the row is given its own scroller
@@ -82,4 +219,31 @@
     font-weight:700; font-size:14px; }
   .dfilters .input{ width:100%; }
   .rowacts{ justify-content:flex-start; }
+
+  /* Card-ify every admin table instead of letting it scroll sideways: each
+     <tr> becomes a bordered card, each <td> stacks its column label (from
+     data-label, set per-row in the dash templates) above its value. Reads
+     at a glance on a phone and needs no horizontal scrolling. */
+  .dash-main .tblcard{ background:transparent; border:none; box-shadow:none; border-radius:0; overflow:visible; }
+  .dash-main .table-wrap{ overflow-x:visible; }
+  .dash-main .dtable thead{ display:none; }
+  .dash-main .dtable, .dash-main .dtable tbody{ display:block; width:100%; }
+  .dash-main .dtable tr{
+    display:block; background:#fff; border:1px solid var(--line);
+    border-radius:var(--r-md); padding:14px 16px; margin-bottom:12px;
+  }
+  .dash-main .dtable tbody tr:last-child{ margin-bottom:0; }
+  .dash-main .dtable tbody tr:hover{ background:#fff; }
+  .dash-main .dtable td{
+    display:block; padding:8px 0 8px; border-bottom:1px dashed var(--line);
+    text-align:left; white-space:normal;
+  }
+  .dash-main .dtable td:first-child{ padding-top:0; }
+  .dash-main .dtable td:last-child{ border-bottom:none; padding-bottom:0; }
+  .dash-main .dtable td::before{
+    content:attr(data-label); display:block; font-size:10.5px; font-weight:800;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:4px;
+  }
+  .dash-main .dtable td.rowacts-cell{ border-bottom:none; padding-top:12px; }
+  .dash-main .dtable td.rowacts-cell::before{ display:none; }
 }

@@ -8,7 +8,7 @@
     <p class="muted">Every permission on the platform and which roles hold it.
       Assign permissions by editing a <a href="/dashboard/roles/">role</a>.</p>
   </div>
-  <a class="btn btn-primary btn-sm" href="/dashboard/roles/new">+ New role</a>
+  <a class="btn btn-primary btn-sm" href="/dashboard/roles/new" data-modal-trigger>+ New role</a>
 </div>
 
 <form method="get" class="dfilters">
@@ -26,11 +26,11 @@
         <tbody>
           {% for e in entries %}
             <tr>
-              <td>{{ e.perm.name }}</td>
-              <td><code class="mono">{{ e.perm.codename }}</code></td>
-              <td>
+              <td data-label="Permission">{{ e.perm.name }}</td>
+              <td data-label="Codename"><code class="mono">{{ e.perm.codename }}</code></td>
+              <td data-label="Held by roles">
                 {% for r in e.roles %}
-                  <a class="badge badge-upcoming" href="/dashboard/roles/{{ r.id }}/edit">{{ r.name }}</a>
+                  <a class="badge badge-upcoming" href="/dashboard/roles/{{ r.id }}/edit" data-modal-trigger>{{ r.name }}</a>
                 {% empty %}<span class="muted">—</span>{% endfor %}
               </td>
             </tr>

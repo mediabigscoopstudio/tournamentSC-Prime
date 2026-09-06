@@ -46,7 +46,11 @@ from .models import Announcement, MediaAsset, News
 class Column:
     label: str
     value: Callable[[Any], Any]
-    kind: str = 'text'          # text | badge | bool | link
+    kind: str = 'text'          # text | badge | bool | link | icon
+    # False keeps a column out of the list table (and its mobile card) while
+    # still exporting it in the CSV report — used for fields a resource
+    # surfaces some other way in the list, e.g. status as an action icon.
+    in_list: bool = True
 
 
 @dataclass(frozen=True)
@@ -83,6 +87,10 @@ class Resource:
     # Applies a row action. Returns a human message. Raises ValueError to refuse.
     apply_action: Optional[Callable] = None
     help_text: str = ''
+    # Show the row's status (from the model's get_status_display()) as a
+    # colored icon chip alongside the action buttons instead of its own
+    # list column — used where the status column was crowding the table.
+    show_status_in_actions: bool = False
 
     def __post_init__(self):
         if not self.singular:
@@ -114,6 +122,16 @@ def _dt(value):
 
 def _date(value):
     return value.strftime('%d %b %Y') if value else '—'
+
+
+def _dmy(value):
+    """Numeric day/month/year — used where a column asks for that format
+    specifically, as opposed to the '17 Aug 2026' style _date()/_dt() give."""
+    if not value:
+        return '—'
+    if hasattr(value, 'hour'):  # a datetime, not a plain date — localize first
+        value = timezone.localtime(value)
+    return value.strftime('%d/%m/%Y')
 
 
 def _yes(value):
@@ -444,17 +462,18 @@ register(Resource(
              ('archived', 'Archived', [('1', 'Archived only')], 'is_removed')],
     columns=[
         Column('Tournament', lambda o: o.name),
-        Column('Sport', lambda o: o.sport.name),
-        Column('Organizer', lambda o: o.organizer.user.display_name),
-        Column('Status', lambda o: o.get_status_display(), kind='badge'),
-        Column('Starts', lambda o: _date(o.start_date)),
-        Column('Venue', lambda o: o.venue.name if o.venue else (o.city or '—')),
-        Column('Prize pool', lambda o: o.prize_pool if o.prize_pool is not None else '—'),
-        Column('Entrants', lambda o: o.participant_count()),
-        Column('Followers', lambda o: o.followers.count()),
-        Column('Featured', lambda o: o.is_featured, kind='bool'),
-        Column('Archived', lambda o: o.is_removed, kind='bool'),
+        Column('Sport', lambda o: o.sport.icon_symbol, kind='icon'),
+        Column('Organizer', lambda o: o.organizer.user.display_name, in_list=False),
+        Column('Status', lambda o: o.get_status_display(), kind='badge', in_list=False),
+        Column('Starts', lambda o: _dmy(o.start_date)),
+        Column('Venue', lambda o: o.venue.name if o.venue else (o.city or '—'), in_list=False),
+        Column('Prize pool', lambda o: o.prize_pool if o.prize_pool is not None else '—', in_list=False),
+        Column('Entrants', lambda o: o.participant_count(), in_list=False),
+        Column('Followers', lambda o: o.followers.count(), in_list=False),
+        Column('Featured', lambda o: o.is_featured, kind='bool', in_list=False),
+        Column('Archived', lambda o: o.is_removed, kind='bool', in_list=False),
     ],
+    show_status_in_actions=True,
     actions=[
         Action('publish', 'Publish', 'primary', visible=lambda o: o.status == 'DRAFT'),
         Action('unpublish', 'Unpublish', 'ghost', visible=lambda o: o.status == 'PUBLISHED'),
@@ -484,10 +503,11 @@ register(Resource(
         Column('Match', lambda o: ' vs '.join(p.name for p in o.participants.all()[:4]) or '—'),
         Column('Tournament', lambda o: o.tournament.name),
         Column('Round', lambda o: o.round_name or f'Round {o.round_no}'),
-        Column('Kick-off', lambda o: _dt(o.scheduled_time)),
-        Column('Status', lambda o: o.get_status_display(), kind='badge'),
-        Column('Archived', lambda o: o.is_removed, kind='bool'),
+        Column('Kick-off', lambda o: _dt(o.scheduled_time), in_list=False),
+        Column('Status', lambda o: o.get_status_display(), kind='badge', in_list=False),
+        Column('Archived', lambda o: o.is_removed, kind='bool', in_list=False),
     ],
+    show_status_in_actions=True,
     actions=[
         Action('archive', 'Archive', 'danger', visible=lambda o: not o.is_removed),
         Action('restore', 'Restore', 'primary', visible=lambda o: o.is_removed),
@@ -502,7 +522,7 @@ register(Resource(
     columns=[
         Column('Team', lambda o: o.name),
         Column('Sport', lambda o: o.sport.name),
-        Column('Captain', lambda o: o.captain.user.display_name if o.captain else '—'),
+        Column('Captain', lambda o: o.captain.user.display_name if o.captain else '—', in_list=False),
         Column('Roster', lambda o: o.memberships.count()),
         Column('Tournaments', lambda o: o.entries.count()),
     ],
@@ -517,7 +537,7 @@ register(Resource(
     columns=[
         Column('Member', lambda o: o.name),
         Column('Team', lambda o: o.team.name),
-        Column('Role', lambda o: o.get_role_display(), kind='badge'),
+        Column('Role', lambda o: o.get_role_display(), kind='badge', in_list=False),
         Column('Jersey', lambda o: o.jersey_number or '—'),
         Column('Approved', lambda o: o.is_approved, kind='bool'),
     ],
@@ -538,9 +558,9 @@ register(Resource(
     columns=[
         Column('Team', lambda o: o.team.name),
         Column('Tournament', lambda o: o.tournament.name),
-        Column('Seed', lambda o: o.seed or '—'),
+        Column('Seed', lambda o: o.seed or '—', in_list=False),
         Column('Status', lambda o: o.get_status_display(), kind='badge'),
-        Column('Registered', lambda o: _dt(o.registered_at)),
+        Column('Registered', lambda o: _dmy(o.registered_at)),
     ],
     actions=[
         Action('approve', 'Approve', 'primary', visible=lambda o: o.status != 'APPROVED'),
@@ -560,10 +580,11 @@ register(Resource(
     columns=[
         Column('Entrant', lambda o: o.name),
         Column('Tournament', lambda o: o.tournament.name),
-        Column('Bib', lambda o: o.bib_number or '—'),
-        Column('Status', lambda o: o.get_status_display(), kind='badge'),
-        Column('Registered', lambda o: _dt(o.registered_at)),
+        Column('Bib', lambda o: o.bib_number or '—', in_list=False),
+        Column('Status', lambda o: o.get_status_display(), kind='badge', in_list=False),
+        Column('Registered', lambda o: _dmy(o.registered_at)),
     ],
+    show_status_in_actions=True,
     actions=[
         Action('approve', 'Approve', 'primary', visible=lambda o: o.status != 'APPROVED'),
         Action('reject', 'Reject', 'danger', visible=lambda o: o.status != 'REJECTED'),
@@ -581,12 +602,12 @@ register(Resource(
              ('suspended', 'State', [('1', 'Suspended only')], 'is_suspended')],
     columns=[
         Column('Name', lambda o: o.display_name),
-        Column('Email', lambda o: o.email),
+        Column('Email', lambda o: o.email, in_list=False),
         Column('Role', lambda o: ('Admin' if o.is_staff else
                                   'Organizer' if o.has_organizer_profile else 'Player'),
                kind='badge'),
-        Column('Verified', lambda o: o.is_verified, kind='bool'),
-        Column('Suspended', lambda o: o.is_suspended, kind='bool'),
+        Column('Verified', lambda o: o.is_verified, kind='bool', in_list=False),
+        Column('Suspended', lambda o: o.is_suspended, kind='bool', in_list=False),
         Column('Joined', lambda o: _date(o.date_joined)),
     ],
     actions=[

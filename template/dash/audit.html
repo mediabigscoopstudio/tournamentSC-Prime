@@ -23,11 +23,11 @@
     <tbody>
       {% for e in page.object_list %}
         <tr>
-          <td class="mono">{{ e.created_at|date:'d M Y, H:i' }}</td>
-          <td>{{ e.actor.display_name|default:'system' }}</td>
-          <td><span class="badge badge-upcoming">{{ e.action }}</span></td>
-          <td>{{ e.target|default:'—' }}</td>
-          <td class="muted">{{ e.detail|default:'—'|truncatechars:80 }}</td>
+          <td class="mono" data-label="When">{{ e.created_at|date:'d M Y, H:i' }}</td>
+          <td data-label="Admin">{{ e.actor.display_name|default:'system' }}</td>
+          <td data-label="Action"><span class="badge badge-upcoming">{{ e.action }}</span></td>
+          <td data-label="Target">{{ e.target|default:'—' }}</td>
+          <td class="muted" data-label="Detail">{{ e.detail|default:'—'|truncatechars:80 }}</td>
         </tr>
       {% endfor %}
     </tbody>

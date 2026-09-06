@@ -1,0 +1,22 @@
+{% load formtags %}
+<div class="rform__head">
+  <h2>{% if is_create %}New {{ res.singular|lower }}{% else %}Edit {{ res.singular|lower }}{% endif %}</h2>
+  {% if not is_create %}<p class="muted">{{ instance }}</p>{% endif %}
+</div>
+<form method="post" enctype="multipart/form-data" class="dform" data-modal-form action="{{ form_action }}">
+  {% csrf_token %}
+  <div class="rform__body">
+    {% include 'partials/form.html' %}
+  </div>
+  <div class="rform__foot">
+    {% if not is_create and res.can_delete %}
+      <a class="btn btn-ghost rform__delete" href="/dashboard/{{ res.key }}/{{ instance.pk }}/delete">
+        <svg class="ico" aria-hidden="true"><use href="#i-trash"></use></svg> Delete
+      </a>
+    {% endif %}
+    <div class="rform__foot-main">
+      <a class="btn btn-secondary" href="/dashboard/{{ res.key }}/" data-modal-close>Cancel</a>
+      <button class="btn btn-primary" type="submit">{% if is_create %}Create{% else %}Save changes{% endif %}</button>
+    </div>
+  </div>
+</form>

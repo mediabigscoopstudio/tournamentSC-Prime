@@ -10,13 +10,13 @@
 
 <div class="table-wrap tblcard">
   <table class="dtable">
-    <thead><tr><th>Report</th><th>Records</th><th class="ta-r">Export</th></tr></thead>
+    <thead><tr><th>Report</th><th>Records</th><th class="ta-r rowacts-head">Export</th></tr></thead>
     <tbody>
       {% for r in exportable %}
         <tr>
-          <td><span class="ic">{{ r.icon }}</span> {{ r.label }}</td>
-          <td>{{ r.count }}</td>
-          <td class="ta-r">
+          <td data-label="Report"><span class="ic">{{ r.icon }}</span> {{ r.label }}</td>
+          <td data-label="Records">{{ r.count }}</td>
+          <td class="ta-r rowacts-cell" data-label="Export">
             <div class="rowacts">
               <a class="btn btn-secondary btn-sm" href="/dashboard/{{ r.key }}/">Open</a>
               <a class="btn btn-primary btn-sm" href="/dashboard/reports/{{ r.key }}.csv">Download CSV</a>

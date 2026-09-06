@@ -19,7 +19,7 @@ from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -242,6 +242,15 @@ def resource_form(request, key, pk=None):
     elif not res.can_create:
         raise PermissionDenied('This resource cannot be created here.')
 
+    # The admin console opens every create/edit form in a popup. JS fetches
+    # this same URL with this header and gets back just the form markup (no
+    # page chrome) to inject into the dialog; a save either returns a small
+    # JSON ack or, on validation failure, the form again with errors baked
+    # in. A direct visit (no JS, or a bookmarked/shared link) still gets a
+    # full working page — the popup is progressive enhancement, not the only
+    # way in.
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     form = _build_form(res, request, instance)
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
@@ -252,13 +261,27 @@ def resource_form(request, key, pk=None):
                 obj.save(update_fields=[attr])
         AuditLog.record(request.user,
                         f'{"create" if instance is None else "update"}_{res.key}', str(obj))
-        messages.success(request,
-                         f'{res.singular} {"created" if instance is None else "updated"}.')
+        message = f'{res.singular} {"created" if instance is None else "updated"}.'
+        if is_ajax:
+            # The page the popup reloads to shows its own confirmation
+            # toast, so skip the normal message banner — one confirmation,
+            # not two.
+            return JsonResponse({'ok': True, 'message': message})
+        messages.success(request, message)
         return redirect('dash_resource_list', key=res.key)
 
     ctx = _base_ctx(request, key)
-    ctx.update({'res': res, 'form': form, 'instance': instance,
-                'is_create': instance is None})
+    ctx.update({
+        'res': res, 'form': form, 'instance': instance, 'is_create': instance is None,
+        'form_action': (f'/dashboard/{res.key}/new' if instance is None
+                        else f'/dashboard/{res.key}/{instance.pk}/edit'),
+    })
+    if is_ajax:
+        # Invalid AJAX POST gets a non-200 so the popup script can tell
+        # "here's the fresh form" (GET) apart from "here's your form back
+        # with errors" (POST) without inspecting the body.
+        status = 422 if request.method == 'POST' else 200
+        return render(request, 'dash/_resource_form_inner.html', ctx, status=status)
     return render(request, 'dash/resource_form.html', ctx)
 
 

@@ -11,7 +11,7 @@
   <div class="row-flex">
     <a class="btn btn-secondary btn-sm" href="/dashboard/reports/{{ res.key }}.csv?{{ querystring }}">Export CSV</a>
     {% if res.can_create and res.form %}
-      <a class="btn btn-primary btn-sm" href="/dashboard/{{ res.key }}/new">+ New {{ res.singular|lower }}</a>
+      <a class="btn btn-primary btn-sm" href="/dashboard/{{ res.key }}/new" data-modal-trigger>+ New {{ res.singular|lower }}</a>
     {% endif %}
   </div>
 </div>
@@ -37,28 +37,40 @@
   <table class="dtable">
     <thead>
       <tr>
-        {% for col in res.columns %}<th>{{ col.label }}</th>{% endfor %}
-        <th class="ta-r">Actions</th>
+        {% for col in res.columns %}{% if col.in_list %}<th>{{ col.label }}</th>{% endif %}{% endfor %}
+        <th class="ta-r rowacts-head">Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for row in rows %}
         <tr>
-          {% for cell in row.cells %}
-            <td>
+          {% for col, cell in res.columns|zip_with:row.cells %}
+            {% if col.in_list %}
+            <td data-label="{{ col.label }}">
               {% if cell.kind == 'bool' %}
                 {% if cell.value %}<span class="badge badge-completed">Yes</span>{% else %}<span class="badge badge-draft">No</span>{% endif %}
               {% elif cell.kind == 'badge' %}
                 <span class="badge badge-{{ cell.value|slugify }}">{{ cell.value }}</span>
               {% elif cell.kind == 'link' %}
                 {% if cell.value != '—' %}<a href="{{ cell.value }}" target="_blank" rel="noopener">View</a>{% else %}—{% endif %}
+              {% elif cell.kind == 'icon' %}
+                <svg class="ico" aria-hidden="true"><use href="#{{ cell.value }}"></use></svg>
               {% else %}
                 {{ cell.value }}
               {% endif %}
             </td>
+            {% endif %}
           {% endfor %}
-          <td class="ta-r">
+          <td class="ta-r rowacts-cell" data-label="Actions">
             <div class="rowacts">
+              {% if res.show_status_in_actions %}
+                <span class="status-ico badge-{{ row.obj.get_status_display|slugify }}"
+                      title="Status: {{ row.obj.get_status_display }}"
+                      aria-label="Status: {{ row.obj.get_status_display }}">
+                  <svg class="ico" aria-hidden="true"><use href="#{{ row.obj.get_status_display|status_icon }}"></use></svg>
+                </span>
+                <span class="rowacts__sep" aria-hidden="true"></span>
+              {% endif %}
               {% for a in row.actions %}
                 <form method="post" action="/dashboard/{{ res.key }}/{{ row.pk }}/{{ a.name }}"
                   {% if a.name == 'reject' or a.name == 'suspend' or a.name == 'close' %}
@@ -68,14 +80,34 @@
                   {% endif %}>
                   {% csrf_token %}
                   {% if a.name == 'reject' or a.name == 'suspend' or a.name == 'close' %}<input type="hidden" name="reason">{% endif %}
-                  <button class="btn btn-{{ a.style }} btn-sm" type="submit">{{ a.label }}</button>
+                  {% if a.name == 'suspend' or a.name == 'activate' %}
+                    <button class="btn btn--icon btn--sm btn-secondary" type="submit"
+                      title="{% if row.obj.is_suspended %}Suspended — click to reactivate{% else %}Active — click to suspend{% endif %}"
+                      aria-label="{{ a.label }}">
+                      <svg class="ico{% if row.obj.is_suspended %} ico--filled ico--danger{% endif %}" aria-hidden="true"><use href="#i-ban"></use></svg>
+                    </button>
+                  {% elif a.name == 'verify' %}
+                    <button class="btn btn--icon btn--sm btn-secondary" type="submit"
+                      title="{% if row.obj.is_verified %}Verified — click to unverify{% else %}Not verified — click to verify{% endif %}"
+                      aria-label="{{ a.label }}">
+                      <svg class="ico{% if row.obj.is_verified %} ico--filled ico--ok{% endif %}" aria-hidden="true"><use href="#i-shield"></use></svg>
+                    </button>
+                  {% else %}
+                    <button class="btn btn--icon btn--sm btn-{{ a.style }}" type="submit" title="{{ a.label }}" aria-label="{{ a.label }}">
+                      <svg class="ico{% if a.label == 'Unfeature' %} ico--filled{% endif %}" aria-hidden="true"><use href="#{{ a.name|action_icon }}"></use></svg>
+                    </button>
+                  {% endif %}
                 </form>
               {% endfor %}
               {% if res.can_edit and res.form %}
-                <a class="btn btn-secondary btn-sm" href="/dashboard/{{ res.key }}/{{ row.pk }}/edit">Edit</a>
+                <a class="btn btn--icon btn--sm btn-secondary" href="/dashboard/{{ res.key }}/{{ row.pk }}/edit" title="Edit" aria-label="Edit {{ res.singular|lower }}" data-modal-trigger>
+                  <svg class="ico" aria-hidden="true"><use href="#i-edit"></use></svg>
+                </a>
               {% endif %}
               {% if res.can_delete %}
-                <a class="btn btn-ghost btn-sm" href="/dashboard/{{ res.key }}/{{ row.pk }}/delete">Delete</a>
+                <a class="btn btn--icon btn--sm btn-ghost" href="/dashboard/{{ res.key }}/{{ row.pk }}/delete" title="Delete" aria-label="Delete {{ res.singular|lower }}">
+                  <svg class="ico" aria-hidden="true"><use href="#i-trash"></use></svg>
+                </a>
               {% endif %}
             </div>
           </td>
@@ -96,7 +128,7 @@
 {% else %}
   <div class="empty">
     No {{ res.label|lower }} found{% if q %} for “{{ q }}”{% endif %}.
-    {% if res.can_create and res.form %}<a href="/dashboard/{{ res.key }}/new">Create one.</a>{% endif %}
+    {% if res.can_create and res.form %}<a href="/dashboard/{{ res.key }}/new" data-modal-trigger>Create one.</a>{% endif %}
   </div>
 {% endif %}
 

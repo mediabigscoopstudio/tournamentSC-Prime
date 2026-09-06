@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'css/dash.css' %}">
 </head>
 <body>
+{% include 'partials/icons.html' %}
 <div class="dash-shell">
   <aside class="dash-side" id="dash-side">
     <a href="/dashboard/" class="brand-logo" style="margin-bottom:8px">
@@ -48,5 +49,21 @@
     {% block content %}{% endblock %}
   </main>
 </div>
+
+<div class="modal-backdrop" id="dash-modal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" tabindex="-1">
+    <button type="button" class="modal-box__x" data-modal-close aria-label="Close">
+      <svg class="ico" aria-hidden="true"><use href="#i-x"></use></svg>
+    </button>
+    <div class="modal-box__content" id="dash-modal-content"></div>
+  </div>
+</div>
+
+<div class="dash-toast" id="dash-toast" hidden aria-live="polite">
+  <span class="dash-toast__ic"><svg class="ico" aria-hidden="true"><use href="#i-check"></use></svg></span>
+  <span id="dash-toast-msg"></span>
+</div>
+
+<script src="{% static 'js/dash-modal.js' %}"></script>
 </body>
 </html>
