@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Customer support — {{ site_conf.site_name }}{% endblock %}
+{% block content %}
+<section class="section wrap">
+  <a class="dim" href="{% url 'player_dashboard' %}">← My dashboard</a>
+  <div class="eyebrow" style="margin-top:10px">🎧 Customer support</div>
+  <h1>How can we help?</h1>
+
+  <div class="two-col" style="margin-top:22px; grid-template-columns:1fr 1.4fr">
+    <div class="panel tblcard">
+      <h3>Frequently asked questions</h3>
+      <div class="stack" style="margin-top:12px">
+        <details><summary>My registration isn't showing up</summary>
+          <p class="dim">Registrations can take a few minutes to appear after payment/approval. If it's still missing after an hour, raise a "Registration not showing" ticket.</p></details>
+        <details><summary>I've been put in the wrong team or bracket</summary>
+          <p class="dim">Raise a "Wrong team assignment" or "Wrong opponent or bracket" ticket with the tournament name — the organizer will be asked to correct it.</p></details>
+        <details><summary>A match score or result looks wrong</summary>
+          <p class="dim">Use "Incorrect match score" or "Match result not updated" so we can flag it to the organizer running that fixture.</p></details>
+        <details><summary>Live score isn't updating</summary>
+          <p class="dim">Try refreshing the page first — live scores poll automatically. If it's stuck, raise a "Live score not updating" ticket with the match link.</p></details>
+        <details><summary>I'm not getting notifications</summary>
+          <p class="dim">Check your spam folder, then raise a "Notification not received" ticket so we can check delivery on our end.</p></details>
+        <details><summary>I have a payment or fee question</summary>
+          <p class="dim">Raise a "Payment/registration fee issue" ticket with the tournament name and we'll look into it.</p></details>
+      </div>
+      <p class="dim" style="margin-top:16px">
+        Still stuck? You can always email us directly at
+        <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+      </p>
+    </div>
+
+    <div class="panel tblcard">
+      <h3>Contact support</h3>
+      <form method="post" enctype="multipart/form-data" style="margin-top:12px">
+        {% csrf_token %}
+        {% include 'partials/form.html' %}
+        <div class="field">
+          <label for="id_attachments">Screenshots / images (optional)</label>
+          <input class="input" type="file" name="attachments" id="id_attachments"
+                accept="image/*" multiple>
+        </div>
+        <div class="row-flex" style="margin-top:16px">
+          <button class="btn btn-primary" type="submit">Submit request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

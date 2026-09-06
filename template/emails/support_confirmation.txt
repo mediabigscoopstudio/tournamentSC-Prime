@@ -1,0 +1,15 @@
+Hi {{ ticket.name }},
+
+We've received your support request and a member of the TournamentSC team will get back to you shortly.
+
+Reference: {{ ticket.ref }}
+Subject: {{ ticket.subject }}
+Submitted: {{ ticket.created_at|date:"d M Y, H:i" }}
+
+Your message:
+{{ ticket.message }}
+
+You'll get another email as soon as this request is closed.
+
+— TournamentSC Support
+{{ site_url }}

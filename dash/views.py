@@ -60,7 +60,7 @@ def dash_logout(request):
 # ======================================================================
 # Navigation (built once, from the registry)
 # ======================================================================
-GROUP_ORDER = ['Competition', 'People', 'Content', 'Catalogue', 'System']
+GROUP_ORDER = ['Competition', 'People', 'Support', 'Content', 'Catalogue', 'System']
 
 
 def _nav(user):

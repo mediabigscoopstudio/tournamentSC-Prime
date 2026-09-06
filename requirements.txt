@@ -1,5 +1,6 @@
 Django>=5.0,<5.3
 Pillow>=10.0
 openpyxl>=3.1  # basketball roster .xlsx import
+python-dotenv>=1.0  # loads .env into os.environ (SMTP creds, secrets)
 # Production database (optional — dev uses SQLite by default):
 # psycopg[binary]>=3.1

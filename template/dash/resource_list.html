@@ -61,13 +61,13 @@
             <div class="rowacts">
               {% for a in row.actions %}
                 <form method="post" action="/dashboard/{{ res.key }}/{{ row.pk }}/{{ a.name }}"
-                  {% if a.name == 'reject' or a.name == 'suspend' %}
+                  {% if a.name == 'reject' or a.name == 'suspend' or a.name == 'close' %}
                       data-ask-reason="1"
                   {% elif a.confirm %}
                       onsubmit="return confirm('{{ a.confirm|escapejs }}')"
                   {% endif %}>
                   {% csrf_token %}
-                  {% if a.name == 'reject' or a.name == 'suspend' %}<input type="hidden" name="reason">{% endif %}
+                  {% if a.name == 'reject' or a.name == 'suspend' or a.name == 'close' %}<input type="hidden" name="reason">{% endif %}
                   <button class="btn btn-{{ a.style }} btn-sm" type="submit">{{ a.label }}</button>
                 </form>
               {% endfor %}

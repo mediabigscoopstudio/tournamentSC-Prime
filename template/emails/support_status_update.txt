@@ -1,0 +1,16 @@
+Hi {{ ticket.name }},
+
+Your support request has been closed.
+
+Reference: {{ ticket.ref }}
+Subject: {{ ticket.subject }}
+Status: Closed
+Closed: {{ ticket.closed_at|date:"d M Y, H:i" }}
+
+{% if ticket.resolution_note %}Note from our team:
+{{ ticket.resolution_note }}
+
+{% endif %}If this didn't fully resolve your issue, just reply to this email or raise a new request from your dashboard.
+
+— TournamentSC Support
+{{ site_url }}

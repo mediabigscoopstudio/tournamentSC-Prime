@@ -23,6 +23,7 @@ from django.urls import include, path
 urlpatterns = [
     path('', include('accounts.urls')),        # login/signup doors, profiles, notifications
     path('', include('tournaments.urls')),     # /organizer/…, /player/join/…, live-score API
+    path('', include('support.urls')),         # /player/support, /organizer/support
     path('dashboard/', include('dash.urls')),  # the platform-admin application
     path('', include('main.urls')),            # public: home, browse, tournaments, matches
 ]

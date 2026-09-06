@@ -9,6 +9,7 @@
     </div>
     <div class="row-flex">
       <a class="btn btn-secondary btn-sm" href="{% url 'profile_edit' %}">Edit profile</a>
+      <a class="btn btn-ghost btn-sm" href="{% url 'player_support' %}">🎧 Customer support</a>
       {% if user.is_approved_organizer %}
         <a class="btn btn-primary btn-sm" href="{% url 'organizer_dashboard' %}">Organizer dashboard</a>
       {% elif user.has_organizer_profile %}

@@ -27,12 +27,14 @@ from tournaments.forms import (AdminFixtureForm, AdminHighlightForm,
                                AdminIndividualRegistrationForm, AdminTeamEntryForm,
                                AdminTeamForm, AdminTournamentForm, EventCategoryForm,
                                SportForm, TeamMemberForm, VenueForm)
+from support.emails import send_ticket_status_update
+from support.models import SupportTicket
 from tournaments.models import (EventCategory, Fixture, Highlight, IndividualRegistration,
                                 Sport, Team, TeamMembership, Tournament, TournamentTeamEntry,
                                 Venue)
 
-from .forms import (AdminUserForm, AnnouncementForm, MediaAssetForm, NewsForm,
-                    OrganizerProfileAdminForm, PlayerProfileAdminForm)
+from .forms import (AdminSupportTicketForm, AdminUserForm, AnnouncementForm, MediaAssetForm,
+                    NewsForm, OrganizerProfileAdminForm, PlayerProfileAdminForm)
 from .models import Announcement, MediaAsset, News
 
 
@@ -250,6 +252,20 @@ def _act_application(request, app, action):
         _audit(request, 'reject_organizer', app.user.email, reason)
         return 'Application rejected.'
     raise ValueError('Unknown action.')
+
+
+def _act_support_ticket(request, ticket, action):
+    if action != 'close':
+        raise ValueError('Unknown action.')
+    if ticket.status == SupportTicket.STATUS_CLOSED:
+        raise ValueError('This ticket is already closed.')
+    ticket.status = SupportTicket.STATUS_CLOSED
+    ticket.closed_at = timezone.now()
+    ticket.resolution_note = (request.POST.get('reason') or '').strip()
+    ticket.save(update_fields=['status', 'closed_at', 'resolution_note', 'updated_at'])
+    send_ticket_status_update(ticket)
+    _audit(request, 'close_support_ticket', ticket.ref, ticket.resolution_note)
+    return f'Closed {ticket.ref} and emailed {ticket.email}.'
 
 
 def _act_entry_status(request, entry, action):
@@ -663,6 +679,33 @@ register(Resource(
     ],
     can_create=False, can_edit=False,
     help_text='Who is following what. Followers are notified whenever a result is posted.',
+))
+
+# ---- Support -----------------------------------------------------------
+register(Resource(
+    key='support', label='Support tickets', singular='Support ticket',
+    model=SupportTicket, form=AdminSupportTicketForm,
+    group='Support', icon='🎧', ordering=('-created_at',),
+    select_related=('user',), search_fields=['name', 'email', 'subject'],
+    filters=[('status', 'Status', [('OPEN', 'Open'), ('CLOSED', 'Closed')], 'status'),
+             ('role', 'Raised by', [('PLAYER', 'Player'), ('ORGANIZER', 'Organizer')], 'role')],
+    columns=[
+        Column('Ref', lambda o: o.ref),
+        Column('From', lambda o: f'{o.name} ({o.email})'),
+        Column('Role', lambda o: o.get_role_display(), kind='badge'),
+        Column('Subject', lambda o: o.subject),
+        Column('Status', lambda o: o.get_status_display(), kind='badge'),
+        Column('Raised', lambda o: _dt(o.created_at)),
+        Column('Closed', lambda o: _dt(o.closed_at)),
+    ],
+    actions=[
+        Action('close', 'Close & notify', 'primary', visible=lambda o: o.status == 'OPEN',
+               confirm='Close this ticket and email the requester?'),
+    ],
+    apply_action=_act_support_ticket,
+    can_create=False,
+    help_text='Contact-form requests from player and organizer dashboards. Closing a ticket '
+              'emails the requester at the address they submitted.',
 ))
 
 # ---- Content ---------------------------------------------------------

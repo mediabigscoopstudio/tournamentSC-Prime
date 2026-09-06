@@ -1,0 +1,35 @@
+{% load static %}<!doctype html>
+<html>
+<body style="margin:0; padding:0; background:#f4f5f7; font-family:Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7; padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0"
+            style="background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
+        <tr><td style="background:#0f1533; padding:20px 28px;">
+          <img src="{{ site_url }}{% static 'images/logo.png' %}" alt="TournamentSC" height="28" style="display:block;">
+        </td></tr>
+        <tr><td style="padding:28px;">
+          <h2 style="margin:0 0 12px; color:#0f1533;">We've got your request</h2>
+          <p style="color:#444; line-height:1.5;">Hi {{ ticket.name }},</p>
+          <p style="color:#444; line-height:1.5;">
+            Thanks for reaching out — a member of the TournamentSC team will get back to you shortly.
+          </p>
+          <table role="presentation" width="100%" cellpadding="6" cellspacing="0"
+                style="background:#f8f9fb; border-radius:8px; margin:16px 0; font-size:14px; color:#333;">
+            <tr><td><strong>Reference</strong></td><td>{{ ticket.ref }}</td></tr>
+            <tr><td><strong>Subject</strong></td><td>{{ ticket.subject }}</td></tr>
+            <tr><td><strong>Submitted</strong></td><td>{{ ticket.created_at|date:"d M Y, H:i" }}</td></tr>
+          </table>
+          <p style="color:#444; line-height:1.5;"><strong>Your message:</strong><br>{{ ticket.message|linebreaksbr }}</p>
+          <p style="color:#888; font-size:13px; margin-top:24px;">
+            You'll get another email as soon as this request is closed.
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 28px; background:#f8f9fb; color:#888; font-size:12px;">
+          TournamentSC Support · <a href="{{ site_url }}" style="color:#888;">{{ site_url }}</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

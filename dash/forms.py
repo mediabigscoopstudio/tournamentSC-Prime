@@ -4,6 +4,8 @@ from django.contrib.auth.models import Group
 
 from accounts.models import OrganizerProfile, PlayerProfile, User
 
+from support.models import SupportTicket
+
 from .models import Announcement, MediaAsset, News, SiteSetting
 
 
@@ -188,6 +190,13 @@ class MediaAssetForm(forms.ModelForm):
         if not cleaned.get('file') and not cleaned.get('external_url'):
             raise forms.ValidationError('Upload a file or provide an external URL.')
         return cleaned
+
+
+class AdminSupportTicketForm(forms.ModelForm):
+    class Meta:
+        model = SupportTicket
+        fields = ['status', 'resolution_note']
+        widgets = {'resolution_note': forms.Textarea(attrs={'rows': 4})}
 
 
 class SiteSettingForm(forms.ModelForm):

@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Customer support — {{ site_conf.site_name }}{% endblock %}
+{% block content %}
+<section class="section wrap">
+  <a class="dim" href="{% url 'organizer_dashboard' %}">← Organizer dashboard</a>
+  <div class="eyebrow" style="margin-top:10px">🎧 Customer support</div>
+  <h1>How can we help?</h1>
+
+  <div class="two-col" style="margin-top:22px; grid-template-columns:1fr 1.4fr">
+    <div class="panel tblcard">
+      <h3>Frequently asked questions</h3>
+      <div class="stack" style="margin-top:12px">
+        <details><summary>I'm having trouble creating or setting up a tournament</summary>
+          <p class="dim">Raise a "Tournament creation issue" or "Tournament setup issue" ticket with the tournament name and what step failed.</p></details>
+        <details><summary>Registrations, players or teams aren't behaving as expected</summary>
+          <p class="dim">Use "Registration management", "Player management" or "Team management" depending on what's wrong.</p></details>
+        <details><summary>Fixtures, brackets or match assignments are wrong</summary>
+          <p class="dim">Raise a "Fixture scheduling issue", "Bracket management" or "Match assignment issue" ticket with round/match details.</p></details>
+        <details><summary>Scores, live updates or standings are off</summary>
+          <p class="dim">Use "Score/result management", "Live score issue" or "Tournament standings issue" and we'll take a look.</p></details>
+        <details><summary>I need to cancel or postpone a tournament</summary>
+          <p class="dim">Raise a "Tournament cancellation or postponement" ticket so we can help coordinate with entrants.</p></details>
+        <details><summary>I have a payout or venue question</summary>
+          <p class="dim">Raise a "Payment/payout issue" or "Venue management" ticket with the relevant tournament.</p></details>
+      </div>
+      <p class="dim" style="margin-top:16px">
+        Still stuck? You can always email us directly at
+        <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+      </p>
+    </div>
+
+    <div class="panel tblcard">
+      <h3>Contact support</h3>
+      <form method="post" enctype="multipart/form-data" style="margin-top:12px">
+        {% csrf_token %}
+        {% include 'partials/form.html' %}
+        <div class="field">
+          <label for="id_attachments">Screenshots / images (optional)</label>
+          <input class="input" type="file" name="attachments" id="id_attachments"
+                accept="image/*" multiple>
+        </div>
+        <div class="row-flex" style="margin-top:16px">
+          <button class="btn btn-primary" type="submit">Submit request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -165,7 +165,7 @@ class SiteSetting(models.Model):
     # --- Site settings ---
     site_name = models.CharField(max_length=80, default='TournamentSC')
     tagline = models.CharField(max_length=160, default='Play. Compete. Conquer.')
-    support_email = models.EmailField(default='support@tournamentsc.app')
+    support_email = models.EmailField(default='support@tournamentsc.com')
     contact_phone = models.CharField(max_length=32, blank=True)
     meta_description = models.CharField(
         max_length=300,

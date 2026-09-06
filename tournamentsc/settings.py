@@ -8,7 +8,10 @@ own login flow; Django's built-in admin disabled for the public).
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 
 def env_bool(key, default=False):
@@ -45,6 +48,7 @@ INSTALLED_APPS = [
     'tournaments',    # sports, tournaments, teams, fixtures, scoring, engines
     'dash',           # custom-branded platform admin dashboard
     'main',           # public audience site + organizer/player dashboards
+    'support',        # customer support tickets (player + organizer contact form)
 ]
 
 # django.contrib.admin only loaded when a developer explicitly enables it.
@@ -148,11 +152,20 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- Email (console in dev) --------------------------------------------
+# --- Email (console in dev, Hostinger SMTP for support@tournamentsc.com) ---
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend'
 )
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@tournamentsc.app')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.hostinger.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '465'))
+EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', True)
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', False)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'support@tournamentsc.com')
+
+# The live domain — used to build absolute links/images (e.g. the logo) in emails.
+SITE_URL = os.environ.get('SITE_URL', 'https://tournamentsc.com')
 
 # --- Messages -> CSS class map (matches style-guide semantic colors) ----
 from django.contrib.messages import constants as message_constants  # noqa: E402
