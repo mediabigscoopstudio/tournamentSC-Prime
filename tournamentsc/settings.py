@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
 
     # Project apps
     'accounts',       # custom User, profiles, auth, notifications, follows
@@ -143,12 +144,53 @@ TIME_ZONE = os.environ.get('TIME_ZONE', 'Asia/Kolkata')
 USE_I18N = True
 USE_TZ = True
 
+# --- S3 media storage (django-storages) ---------------------------------
+# Off by default — flip USE_S3_MEDIA=True in the environment only after
+# verifying bucket connectivity (see dash/tests/test_s3_storage.py).
+USE_S3_MEDIA = env_bool('USE_S3_MEDIA', False)
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', '')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', '')
+
 # --- Static & Media -----------------------------------------------------
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-MEDIA_URL = '/media/'
+MEDIA_URL = '/media/'  # only used while USE_S3_MEDIA is off — S3 generates its own URLs
 MEDIA_ROOT = BASE_DIR / 'media'
+
+if USE_S3_MEDIA:
+    # Bucket stays private (no ACLs — modern buckets have them disabled by
+    # default anyway) and every URL is presigned. That's needed regardless
+    # of the public-facing fields (banners, logos, news images) because
+    # SupportAttachment.file holds user support-ticket attachments that must
+    # never be permanently publicly fetchable, and there's one storage
+    # backend for every FileField/ImageField in this project. A ~1hr expiry
+    # is invisible to users since every page recomputes `.url` on render —
+    # nothing here caches rendered HTML.
+    _default_storage = {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "region_name": AWS_S3_REGION_NAME,
+            "access_key": AWS_ACCESS_KEY_ID,
+            "secret_key": AWS_SECRET_ACCESS_KEY,
+            "location": "media",  # mirrors today's MEDIA_ROOT/media layout inside the bucket
+            "default_acl": None,
+            "querystring_auth": True,
+            "querystring_expire": 3600,
+            "file_overwrite": False,
+        },
+    }
+else:
+    _default_storage = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+
+STORAGES = {
+    "default": _default_storage,
+    # Untouched — static files are not part of this migration.
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
