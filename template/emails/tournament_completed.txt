@@ -1,0 +1,13 @@
+Hi {{ t.organizer.user.display_name }},
+
+"{{ t.name }}" has wrapped up — the final match has been played and all results are in.
+
+Tournament: {{ t.name }}
+Sport: {{ t.sport.name }}
+
+View final standings: {{ site_url }}{{ t.get_absolute_url }}
+
+Thanks for running your tournament on TournamentSC.
+
+— Team TournamentSC
+{{ site_url }}

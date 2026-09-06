@@ -1,0 +1,12 @@
+Hi {{ t.organizer.user.display_name }},
+
+Great news — "{{ t.name }}" is now live and open to the public on TournamentSC.
+
+Tournament: {{ t.name }}
+Sport: {{ t.sport.name }}
+Starts: {{ t.start_date|date:"d M Y" }}
+
+View it here: {{ site_url }}{{ t.get_absolute_url }}
+
+— Team TournamentSC
+{{ site_url }}

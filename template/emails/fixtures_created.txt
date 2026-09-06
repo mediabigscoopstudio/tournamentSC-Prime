@@ -1,0 +1,11 @@
+Hi {{ t.organizer.user.display_name }},
+
+Fixtures have been generated for "{{ t.name }}". Take a look, make any manual adjustments you need, and you're ready to go.
+
+Tournament: {{ t.name }}
+Sport: {{ t.sport.name }}
+
+Manage fixtures: {{ site_url }}{{ t.get_absolute_url }}
+
+— Team TournamentSC
+{{ site_url }}

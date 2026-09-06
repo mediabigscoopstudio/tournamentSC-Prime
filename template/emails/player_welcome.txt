@@ -1,0 +1,18 @@
+Hi {{ player.user.display_name }},
+
+You're in! Welcome to {{ t.name }}.
+
+Tournament: {{ t.name }}
+Sport: {{ t.sport.name }}
+Dates: {{ t.start_date|date:"d M Y" }} – {{ t.end_date|date:"d M Y" }}
+{% if t.venue %}Venue: {{ t.venue.name }}, {{ t.venue.address }}, {{ t.venue.city }}
+{% elif t.city %}Location: {{ t.city }}
+{% else %}Location: to be announced
+{% endif %}Organizer: {{ t.organizer.user.display_name }}
+
+View the tournament and schedule: {{ site_url }}{{ t.get_absolute_url }}
+
+Good luck!
+
+— Team TournamentSC
+{{ site_url }}

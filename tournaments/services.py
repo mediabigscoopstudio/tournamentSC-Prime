@@ -3,6 +3,8 @@ firing notifications, and keeping tournament status in sync with its fixtures.
 """
 from accounts.models import Follow, Notification
 
+from .emails import send_tournament_completed
+
 
 def apply_result(fixture, data, actor=None):
     """Record a result through the tournament's engine, then run side effects
@@ -39,6 +41,8 @@ def sync_tournament_status(tournament):
     if new_status != tournament.status:
         tournament.status = new_status
         tournament.save(update_fields=['status'])
+        if new_status == 'COMPLETED':
+            send_tournament_completed(tournament)
 
 
 def _notify_participants(fixture):

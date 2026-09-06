@@ -164,6 +164,15 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'support@tournamentsc.com')
 
+# A second, separate mailbox for organizer/player lifecycle emails (tournament
+# published/fixtures-created/completed, player welcome) — same Hostinger
+# server, but a distinct identity from support@, sent over its own SMTP
+# connection so "From: team@..." is never spoofed while authenticated as
+# support@... (see tournaments/tasks.py).
+TEAM_EMAIL_HOST_USER = os.environ.get('TEAM_EMAIL_HOST_USER', '')
+TEAM_EMAIL_HOST_PASSWORD = os.environ.get('TEAM_EMAIL_HOST_PASSWORD', '')
+TEAM_FROM_EMAIL = os.environ.get('TEAM_FROM_EMAIL', 'team@tournamentsc.com')
+
 # The live domain — used to build absolute links/images (e.g. the logo) in emails.
 SITE_URL = os.environ.get('SITE_URL', 'https://tournamentsc.com')
 

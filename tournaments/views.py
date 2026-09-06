@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from accounts.decorators import approved_organizer_required, player_required
 from accounts.models import Follow, Notification, PlayerProfile
 from . import constants as C
+from .emails import send_fixtures_created, send_player_welcome, send_tournament_published
 from .forms import (FixtureScheduleForm, HighlightForm, IndividualEntryForm, TeamForm,
                     TournamentForm)
 from .models import (Fixture, FixtureParticipant, IndividualRegistration, ScoreEvent, Team,
@@ -118,6 +119,7 @@ def tournament_publish(request, slug):
     else:
         t.status = 'PUBLISHED'
         t.save(update_fields=['status', 'updated_at'])
+        send_tournament_published(t)
         messages.success(request, f'"{t.name}" is now public.')
     return redirect('tournament_manage', slug=slug)
 
@@ -433,6 +435,7 @@ def member_decide(request, slug, membership_id, decision):
         if m.player and m.player.user_id:
             Notification.push(m.player.user, f'You were added to {m.team.name} in {t.name}.',
                               url=t.get_absolute_url(), verb='team')
+            send_player_welcome(m.player, t)
         messages.success(request, 'Join request approved.')
     elif decision == 'reject':
         if m.player and m.player.user_id:
@@ -657,10 +660,13 @@ def fixtures_generate(request, slug):
     from .engines import _entrants_for
     entrants = _entrants_for(t)
     count = t.engine.generate_fixtures(entrants)
+    was_generated = t.fixtures_generated
     t.fixtures_generated = True
     if t.status == 'DRAFT':
         t.status = 'PUBLISHED'
     t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+    if not was_generated:
+        send_fixtures_created(t)
     messages.success(request, f'Generated {count} fixtures. The tournament is now public.')
     return redirect('fixtures_manage', slug=slug)
 
@@ -695,10 +701,13 @@ def fixtures_generate_bracket(request, slug):
     from .engines import _entrants_for
     entrants = _entrants_for(t)
     count = t.engine.generate_fixtures(entrants)
+    was_generated = t.fixtures_generated
     t.fixtures_generated = True
     if t.status == 'DRAFT':
         t.status = 'PUBLISHED'
     t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+    if not was_generated:
+        send_fixtures_created(t)
     messages.success(request, f'Generated a {len(entrants)}-team knockout bracket ({count} fixtures).')
     return redirect('fixtures_manage', slug=slug)
 
@@ -747,10 +756,13 @@ def bracket_seed_set(request, slug):
     entrants, final_keys = order_by_seed(choices, seeds, pairing_mode)
 
     count = t.engine.generate_fixtures(entrants)
+    was_generated = t.fixtures_generated
     t.fixtures_generated = True
     if t.status == 'DRAFT':
         t.status = 'PUBLISHED'
     t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+    if not was_generated:
+        send_fixtures_created(t)
 
     labels = {key: label for key, label, _ in choices}
     style_label = '1 v Last' if pairing_mode == 'standard' else '1 v 2'
@@ -806,10 +818,13 @@ def fixture_add_manual(request, slug):
     _make_participant(fx, a, 0)
     _make_participant(fx, b, 1)
 
+    was_generated = t.fixtures_generated
     t.fixtures_generated = True
     if t.status == 'DRAFT':
         t.status = 'PUBLISHED'
     t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+    if not was_generated:
+        send_fixtures_created(t)
     messages.success(request, f'Fixture created: {a["label"]} vs {b["label"]}.')
     return redirect('fixtures_manage', slug=slug)
 
@@ -859,10 +874,13 @@ def pool_fixture_add(request, slug):
     _make_participant(fx, a, 0)
     _make_participant(fx, b, 1)
 
+    was_generated = t.fixtures_generated
     t.fixtures_generated = True
     if t.status == 'DRAFT':
         t.status = 'PUBLISHED'
     t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+    if not was_generated:
+        send_fixtures_created(t)
     t.engine.compute_standings()
     messages.success(request, f'Fixture added to Pool {pool_name}: {a["label"]} vs {b["label"]}.')
     return redirect('fixtures_manage', slug=slug)
@@ -904,10 +922,13 @@ def pool_fixture_build(request, slug):
     moves = {key: pool_label_in for key in entrant_ids}
     affected = t.engine.rebuild_pool_membership(moves, pairing_mode=pairing_mode)
 
+    was_generated = t.fixtures_generated
     t.fixtures_generated = True
     if t.status == 'DRAFT':
         t.status = 'PUBLISHED'
     t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+    if not was_generated:
+        send_fixtures_created(t)
 
     others = sorted(affected - {pool_label_in})
     msg = f'Pool {pool_label_in} fixtures generated ({len(entrant_ids)} entrants).'
@@ -1090,10 +1111,13 @@ def knockout_round_fixture_add(request, slug):
     _make_participant(fx, a, 0)
     _make_participant(fx, b, 1)
 
+    was_generated = t.fixtures_generated
     t.fixtures_generated = True
     if t.status == 'DRAFT':
         t.status = 'PUBLISHED'
     t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+    if not was_generated:
+        send_fixtures_created(t)
     messages.success(request, f'Fixture added to {round_name}: {a["label"]} vs {b["label"]}.')
     return redirect('fixtures_manage', slug=slug)
 
@@ -1332,11 +1356,14 @@ def pool_setup(request, slug):
         return redirect('fixtures_manage', slug=slug)
     # A fresh generate wipes every fixture — any leftover manually-created
     # empty pool should reset along with it.
+    was_generated = t.fixtures_generated
     t.pool_config = {**t.pool_config, 'extra_labels': []}
     t.fixtures_generated = True
     if t.status == 'DRAFT':
         t.status = 'PUBLISHED'
     t.save(update_fields=['fixtures_generated', 'status', 'pool_config', 'updated_at'])
+    if not was_generated:
+        send_fixtures_created(t)
     messages.success(
         request, f'Generated {count} pool fixtures across {num_pools} pools. '
                  f'The knockout bracket appears automatically once every pool match is final.')
@@ -1424,10 +1451,13 @@ def swiss_setup(request, slug):
 
     count = t.engine.generate_fixtures()
     if count:
+        was_generated = t.fixtures_generated
         t.fixtures_generated = True
         if t.status == 'DRAFT':
             t.status = 'PUBLISHED'
         t.save(update_fields=['fixtures_generated', 'status', 'updated_at'])
+        if not was_generated:
+            send_fixtures_created(t)
         messages.success(request, f'Round 1 generated ({count} fixtures).')
     else:
         messages.error(request, 'Add at least two participants before generating Round 1.')
@@ -2288,6 +2318,7 @@ def tournament_join(request, slug):
                 Notification.push(t.organizer.user,
                                   f'{profile.user.display_name} registered for {t.name}.',
                                   url=f'/organizer/t/{t.slug}/participants', verb='registration')
+                send_player_welcome(profile, t)
             messages.success(request, 'You are registered!' if created else 'Already registered.')
         return redirect('tournament_detail', slug=slug)
 

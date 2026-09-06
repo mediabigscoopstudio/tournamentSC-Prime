@@ -29,6 +29,7 @@ from tournaments.forms import (AdminFixtureForm, AdminHighlightForm,
                                SportForm, TeamMemberForm, VenueForm)
 from support.emails import send_ticket_status_update
 from support.models import SupportTicket
+from tournaments.emails import send_tournament_published
 from tournaments.models import (EventCategory, Fixture, Highlight, IndividualRegistration,
                                 Sport, Team, TeamMembership, Tournament, TournamentTeamEntry,
                                 Venue)
@@ -132,6 +133,7 @@ def _act_tournament(request, t, action):
             raise ValueError(f'"{t.name}" is not a draft.')
         t.status = 'PUBLISHED'
         t.save(update_fields=['status', 'updated_at'])
+        send_tournament_published(t)
         Notification.push(t.organizer.user, f'An admin published "{t.name}".',
                           url=t.get_absolute_url(), verb='publish')
         _audit(request, 'publish_tournament', t.name)
