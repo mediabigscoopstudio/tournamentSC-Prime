@@ -1,27 +1,26 @@
-"""Transactional emails for support tickets.
+"""Public entry points for support-ticket emails.
 
-Sent synchronously from the view/admin action — the project has no task queue,
-and every other notification path in this codebase is request-synchronous too.
+Both just enqueue a Celery task (see tasks.py) — actual sending happens off
+the request thread. Enqueuing itself is wrapped so that even a broker outage
+can't take down ticket submission/closing; it only means the email is skipped
+and logged instead of queued.
 """
-from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
+import logging
 
+from .tasks import send_ticket_confirmation_task, send_ticket_status_update_task
 
-def _send(template_stem, subject, to_email, ctx):
-    ctx = {**ctx, 'site_url': settings.SITE_URL}
-    text_body = render_to_string(f'emails/{template_stem}.txt', ctx)
-    html_body = render_to_string(f'emails/{template_stem}.html', ctx)
-    msg = EmailMultiAlternatives(subject, text_body, settings.DEFAULT_FROM_EMAIL, [to_email])
-    msg.attach_alternative(html_body, 'text/html')
-    msg.send(fail_silently=False)
+logger = logging.getLogger(__name__)
 
 
 def send_ticket_confirmation(ticket):
-    _send('support_confirmation', f'We received your request ({ticket.ref})',
-         ticket.email, {'ticket': ticket})
+    try:
+        send_ticket_confirmation_task.delay(ticket.pk)
+    except Exception:
+        logger.exception('Could not enqueue confirmation email for %s', ticket.ref)
 
 
 def send_ticket_status_update(ticket):
-    _send('support_status_update', f'Your request {ticket.ref} has been closed',
-         ticket.email, {'ticket': ticket})
+    try:
+        send_ticket_status_update_task.delay(ticket.pk)
+    except Exception:
+        logger.exception('Could not enqueue status-update email for %s', ticket.ref)

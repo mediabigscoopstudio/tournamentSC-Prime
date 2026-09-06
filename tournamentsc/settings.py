@@ -167,6 +167,19 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'support@tournamentsc.
 # The live domain — used to build absolute links/images (e.g. the logo) in emails.
 SITE_URL = os.environ.get('SITE_URL', 'https://tournamentsc.com')
 
+# --- Celery (async email — a slow/unreachable SMTP server never blocks a
+# request, and sending many emails at once doesn't pile up on one thread) ---
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TIMEZONE = os.environ.get('TIME_ZONE', 'Asia/Kolkata')
+# Dev default: run tasks inline, no worker/Redis required locally. Production
+# must set this to False (and run `celery -A tournamentsc worker`) so email
+# sending actually happens off the request thread.
+CELERY_TASK_ALWAYS_EAGER = env_bool('CELERY_TASK_ALWAYS_EAGER', DEBUG)
+CELERY_TASK_EAGER_PROPAGATES = False
+
 # --- Messages -> CSS class map (matches style-guide semantic colors) ----
 from django.contrib.messages import constants as message_constants  # noqa: E402
 MESSAGE_TAGS = {
