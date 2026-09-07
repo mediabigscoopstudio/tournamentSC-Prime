@@ -23,6 +23,7 @@ from django.utils import timezone
 from accounts.forms import RoleForm
 from accounts.models import (AuditLog, Follow, Notification, OrganizerApplication,
                              OrganizerProfile, PlayerProfile, User)
+from content.models import Achievement, Content, ContentComment
 from tournaments.forms import (AdminFixtureForm, AdminHighlightForm,
                                AdminIndividualRegistrationForm, AdminTeamEntryForm,
                                AdminTeamForm, AdminTournamentForm, EventCategoryForm,
@@ -34,7 +35,8 @@ from tournaments.models import (EventCategory, Fixture, Highlight, IndividualReg
                                 Sport, Team, TeamMembership, Tournament, TournamentTeamEntry,
                                 Venue)
 
-from .forms import (AdminSupportTicketForm, AdminUserForm, AnnouncementForm, MediaAssetForm,
+from .forms import (AchievementForm, AdminContentCommentForm, AdminContentForm,
+                    AdminSupportTicketForm, AdminUserForm, AnnouncementForm, MediaAssetForm,
                     NewsForm, OrganizerProfileAdminForm, PlayerProfileAdminForm)
 from .models import Announcement, MediaAsset, News
 
@@ -376,6 +378,33 @@ def _act_media(request, m, action):
         m.save(update_fields=['is_archived', 'updated_at'])
         _audit(request, 'restore_media', m.title)
         return f'Restored "{m.title}".'
+
+
+def _act_content(request, c, action):
+    label = c.title or f'post #{c.pk}'
+    if action == 'remove':
+        c.is_removed = True
+        c.save(update_fields=['is_removed', 'updated_at'])
+        _audit(request, 'remove_content', label)
+        return f'Removed "{label}".'
+    if action == 'restore':
+        c.is_removed = False
+        c.save(update_fields=['is_removed', 'updated_at'])
+        _audit(request, 'restore_content', label)
+        return f'Restored "{label}".'
+
+
+def _act_content_comment(request, c, action):
+    if action == 'remove':
+        c.is_removed = True
+        c.save(update_fields=['is_removed', 'updated_at'])
+        _audit(request, 'remove_comment', str(c.pk))
+        return 'Comment removed.'
+    if action == 'restore':
+        c.is_removed = False
+        c.save(update_fields=['is_removed', 'updated_at'])
+        _audit(request, 'restore_comment', str(c.pk))
+        return 'Comment restored.'
     raise ValueError('Unknown action.')
 
 
@@ -704,6 +733,20 @@ register(Resource(
     help_text='Who is following what. Followers are notified whenever a result is posted.',
 ))
 
+register(Resource(
+    key='achievements', label='Achievements', singular='Achievement',
+    model=Achievement, form=AchievementForm,
+    group='People', icon='🏅', ordering=('name',), search_fields=['name'],
+    columns=[
+        Column('Achievement', lambda o: f'{o.icon} {o.name}'),
+        Column('Criteria', lambda o: o.criteria),
+        Column('Active', lambda o: o.is_active, kind='bool'),
+        Column('Earned by', lambda o: o.awarded_to.count()),
+    ],
+    help_text='Badges awarded automatically when a player\'s wins/tournaments meet the criteria '
+              '(e.g. {"wins": 10}). Checked whenever a fixture completes.',
+))
+
 # ---- Support -----------------------------------------------------------
 register(Resource(
     key='support', label='Support tickets', singular='Support ticket',
@@ -820,6 +863,53 @@ register(Resource(
         Action('restore', 'Restore', 'primary', visible=lambda o: o.is_archived),
     ],
     apply_action=_act_media,
+))
+
+register(Resource(
+    key='content', label='Content feed', singular='Post',
+    model=Content, form=AdminContentForm,
+    group='Content', icon='📱', ordering=('-created_at',),
+    select_related=('creator', 'tournament'), search_fields=['title', 'creator__email'],
+    filters=[('type', 'Type', [('photo', 'Photo'), ('video', 'Video'), ('post', 'Post')], 'content_type'),
+             ('removed', 'Removed', [('1', 'Removed only')], 'is_removed')],
+    columns=[
+        Column('Post', lambda o: o.title or f'#{o.pk}'),
+        Column('Creator', lambda o: o.creator.display_name),
+        Column('Type', lambda o: o.get_content_type_display(), kind='badge'),
+        Column('Tournament', lambda o: o.tournament.name if o.tournament else '—'),
+        Column('Likes', lambda o: o.like_count),
+        Column('Comments', lambda o: o.comment_count),
+        Column('Views', lambda o: o.view_count),
+        Column('Removed', lambda o: o.is_removed, kind='bool'),
+    ],
+    actions=[
+        Action('remove', 'Remove', 'danger', visible=lambda o: not o.is_removed,
+              confirm='Remove this post from the feed?'),
+        Action('restore', 'Restore', 'primary', visible=lambda o: o.is_removed),
+    ],
+    apply_action=_act_content,
+    can_create=False,
+    help_text='Player/organizer content posted to the public feed.',
+))
+
+register(Resource(
+    key='content_comments', label='Content comments', singular='Comment',
+    model=ContentComment, form=AdminContentCommentForm,
+    group='Content', icon='💬', ordering=('-created_at',),
+    select_related=('content', 'commenter'), search_fields=['text', 'commenter__email'],
+    filters=[('removed', 'Removed', [('1', 'Removed only')], 'is_removed')],
+    columns=[
+        Column('Comment', lambda o: o.text[:60]),
+        Column('By', lambda o: o.commenter.display_name),
+        Column('On', lambda o: o.content.title or f'#{o.content_id}'),
+        Column('Removed', lambda o: o.is_removed, kind='bool'),
+    ],
+    actions=[
+        Action('remove', 'Remove', 'danger', visible=lambda o: not o.is_removed),
+        Action('restore', 'Restore', 'primary', visible=lambda o: o.is_removed),
+    ],
+    apply_action=_act_content_comment,
+    can_create=False,
 ))
 
 # ---- System ----------------------------------------------------------

@@ -1,0 +1,26 @@
+{% if profile and not profile.is_profile_complete %}
+<div class="panel tblcard profile-completion-banner" data-dismiss-key="profile-completion-{{ profile.pk }}"
+     style="margin-top:16px;display:flex;align-items:center;gap:16px;justify-content:space-between">
+  <div>
+    <strong>Your profile is {{ profile.completion_percentage }}% complete.</strong>
+    <span class="muted">Add a bio and photo so other players/organizers recognize you.</span>
+  </div>
+  <div class="row-flex" style="flex-shrink:0">
+    <a class="btn btn-primary btn-sm" href="{{ edit_url }}">Complete profile</a>
+    <button type="button" class="btn btn-ghost btn-sm" data-dismiss-banner>Later</button>
+  </div>
+</div>
+<script>
+(function () {
+  var key = 'dismissed:profile-completion-{{ profile.pk }}';
+  try {
+    var el = document.currentScript.previousElementSibling;
+    if (localStorage.getItem(key)) { el.hidden = true; return; }
+    el.querySelector('[data-dismiss-banner]').addEventListener('click', function () {
+      try { localStorage.setItem(key, '1'); } catch (e) {}
+      el.hidden = true;
+    });
+  } catch (e) {}
+})();
+</script>
+{% endif %}

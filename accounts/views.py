@@ -11,17 +11,21 @@ another role's area:
 `/login` and `/signup` are *choosers*: plain public pages that point at the
 right door. They never authenticate anyone themselves.
 """
+import json
+
 from django.contrib import messages
 from django.contrib.auth import login, logout
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 
 from .decorators import login_required_msg, organizer_area_required, player_required
 from .forms import (OrganizerApplicationForm, OrganizerLoginForm, OrganizerProfileForm,
                     OrganizerSignupForm, PlayerLoginForm, PlayerProfileForm, PlayerSignupForm)
 from .models import (AuditLog, Notification, OrganizerApplication, OrganizerProfile,
-                     PlayerProfile, User)
+                     PlayerProfile, User, UserFCMToken)
 
 
 # ======================================================================
@@ -195,7 +199,7 @@ def organizer_status(request):
 @organizer_area_required
 def organizer_profile_edit(request):
     profile, _ = OrganizerProfile.objects.get_or_create(user=request.user)
-    form = OrganizerProfileForm(request.POST or None, instance=profile)
+    form = OrganizerProfileForm(request.POST or None, request.FILES or None, instance=profile)
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Organizer profile updated.')
@@ -214,6 +218,7 @@ def player_public(request, pk):
     return render(request, 'accounts/player_public.html', {
         'profile': profile,
         'history': player_history(profile),
+        'earned_achievements': profile.user.achievements.select_related('achievement'),
     })
 
 
@@ -224,3 +229,27 @@ def notifications_list(request):
     if unread_ids:
         Notification.objects.filter(id__in=unread_ids).update(is_read=True)
     return render(request, 'accounts/notifications.html', {'items': qs})
+
+
+@require_POST
+@login_required_msg
+def fcm_register_token(request):
+    """Register/refresh this browser's FCM token for push delivery."""
+    try:
+        body = json.loads(request.body)
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+
+    token = (body.get('token') or '').strip()
+    if not token:
+        return JsonResponse({'error': 'token is required.'}, status=400)
+    device_type = body.get('device_type', 'web')
+
+    # The same physical browser can re-register this token under a different
+    # account (shared device, sign-out/sign-in) — `token` is globally unique,
+    # so drop any stale ownership before attaching it to the current user.
+    UserFCMToken.objects.filter(token=token).exclude(user=request.user).delete()
+    UserFCMToken.objects.update_or_create(
+        user=request.user,
+        defaults={'token': token, 'device_type': device_type, 'is_active': True})
+    return JsonResponse({'status': 'registered'})

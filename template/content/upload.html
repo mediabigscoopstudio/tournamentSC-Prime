@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Post — {{ site_conf.site_name }}{% endblock %}
+{% block content %}
+<section class="section wrap" style="max-width:560px">
+  <a class="dim" href="{% url 'content_feed' %}">← Feed</a>
+  <h1 style="margin-top:8px">Share your moment</h1>
+
+  <form method="post" enctype="multipart/form-data" class="panel tblcard" style="margin-top:20px">
+    {% csrf_token %}
+    {% include 'partials/form.html' %}
+    <div class="row-flex" style="margin-top:16px">
+      <button class="btn btn-primary" type="submit">Post</button>
+      <a class="btn btn-ghost" href="{% url 'content_feed' %}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

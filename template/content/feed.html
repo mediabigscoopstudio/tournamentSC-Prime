@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Feed — {{ site_conf.site_name }}{% endblock %}
+{% block content %}
+<section class="section wrap">
+  <div class="sec-head">
+    <div><h2>Feed</h2><p>Photos, clips and updates from players and organizers.</p></div>
+    {% if user.is_authenticated %}
+      <a class="btn btn-primary" href="{% url 'content_upload' %}">+ Post</a>
+    {% endif %}
+  </div>
+
+  {% if page.object_list %}
+    <div class="card-grid" style="margin-top:20px">
+      {% for post in page.object_list %}
+        <div class="card" id="content-{{ post.pk }}">
+          <a href="{{ post.get_absolute_url }}">
+            {% if post.content_type == 'photo' and post.media_file %}
+              <div class="card-cover"><img src="{{ post.media_file.url }}" alt=""></div>
+            {% elif post.content_type == 'video' and post.media_file %}
+              <div class="card-cover"><video src="{{ post.media_file.url }}" muted></video></div>
+            {% endif %}
+          </a>
+          <div class="card-body">
+            {% if post.tournament %}<span class="tag">{{ post.tournament.name }}</span>{% endif %}
+            <div class="card-title"><a href="{{ post.get_absolute_url }}">{{ post.title|default:post.get_content_type_display }}</a></div>
+            <div class="card-meta">{{ post.creator.display_name }} · {{ post.created_at|timesince }} ago</div>
+            <div class="row-flex" style="margin-top:12px" data-content-actions data-pk="{{ post.pk }}">
+              <button type="button" class="btn btn-ghost btn-sm" data-like-btn>
+                {% if post.pk in liked_ids %}♥{% else %}♡{% endif %} <span data-like-count>{{ post.like_count }}</span>
+              </button>
+              <a class="btn btn-ghost btn-sm" href="{{ post.get_absolute_url }}#comments">💬 {{ post.comment_count }}</a>
+              <button type="button" class="btn btn-ghost btn-sm" data-share-btn>↗ {{ post.share_count }}</button>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if page.has_other_pages %}
+      <div class="pager" style="margin-top:24px">
+        {% if page.has_previous %}<a class="btn btn-secondary btn-sm" href="?page={{ page.previous_page_number }}">← Previous</a>{% endif %}
+        <span class="dim">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ page.next_page_number }}">Next →</a>{% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="empty">Nothing posted yet{% if user.is_authenticated %} — be the first.{% endif %}</div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  function getCookie(name) {
+    var match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? match.pop() : '';
+  }
+  document.querySelectorAll('[data-content-actions]').forEach(function (row) {
+    var pk = row.dataset.pk;
+    var likeBtn = row.querySelector('[data-like-btn]');
+    if (likeBtn) {
+      likeBtn.addEventListener('click', function () {
+        fetch('/content/' + pk + '/like', {
+          method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          likeBtn.querySelector('[data-like-count]').textContent = data.like_count;
+          likeBtn.firstChild.textContent = data.liked ? '♥ ' : '♡ ';
+        });
+      });
+    }
+    var shareBtn = row.querySelector('[data-share-btn]');
+    if (shareBtn) {
+      shareBtn.addEventListener('click', function () {
+        fetch('/content/' + pk + '/share', {
+          method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          if (navigator.share) { navigator.share({ url: data.url }).catch(function () {}); }
+          else { navigator.clipboard && navigator.clipboard.writeText(data.url); }
+        });
+      });
+    }
+  });
+})();
+</script>
+{% endblock %}

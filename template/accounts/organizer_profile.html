@@ -6,7 +6,7 @@
   <h1 style="margin-top:8px">Organizer profile</h1>
   <p class="muted">This is what audiences see next to your tournaments.</p>
 
-  <form method="post" class="panel tblcard" style="margin-top:20px">
+  <form method="post" enctype="multipart/form-data" class="panel tblcard" style="margin-top:20px">
     {% csrf_token %}
     {% include 'partials/form.html' %}
     <div class="row-flex" style="margin-top:16px">

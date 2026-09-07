@@ -24,6 +24,22 @@
 {% include 'partials/footer.html' %}
 {% include 'partials/mobile_menu.html' %}
 <script src="{% static 'js/site.js' %}"></script>
+{% if use_fcm_push %}
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+  <script>
+    window.FIREBASE_CONFIG = {
+      apiKey: "{{ firebase_config.apiKey }}",
+      authDomain: "{{ firebase_config.authDomain }}",
+      projectId: "{{ firebase_config.projectId }}",
+      storageBucket: "{{ firebase_config.storageBucket }}",
+      messagingSenderId: "{{ firebase_config.messagingSenderId }}",
+      appId: "{{ firebase_config.appId }}",
+    };
+    window.FIREBASE_VAPID_KEY = "{{ firebase_config.vapidKey }}";
+  </script>
+  <script src="{% static 'js/push-notifications.js' %}"></script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

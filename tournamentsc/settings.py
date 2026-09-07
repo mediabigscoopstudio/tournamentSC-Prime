@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'dash',           # custom-branded platform admin dashboard
     'main',           # public audience site + organizer/player dashboards
     'support',        # customer support tickets (player + organizer contact form)
+    'content',        # player/organizer content feed, likes/comments, achievements
 ]
 
 # django.contrib.admin only loaded when a developer explicitly enables it.
@@ -239,6 +240,33 @@ CELERY_TIMEZONE = os.environ.get('TIME_ZONE', 'Asia/Kolkata')
 # sending actually happens off the request thread.
 CELERY_TASK_ALWAYS_EAGER = env_bool('CELERY_TASK_ALWAYS_EAGER', DEBUG)
 CELERY_TASK_EAGER_PROPAGATES = False
+
+# --- Firebase Cloud Messaging (push notifications) -----------------------
+# Off by default — flip USE_FCM_PUSH=True only after FIREBASE_CREDENTIALS_JSON
+# points at a real service-account key. Delivery itself runs through
+# accounts/tasks.py (Celery), fired by a post_save signal on Notification, so
+# every existing Notification.push() call site gets push for free once this
+# is enabled — no per-feature wiring needed.
+USE_FCM_PUSH = env_bool('USE_FCM_PUSH', False)
+FIREBASE_CREDENTIALS_JSON = os.environ.get('FIREBASE_CREDENTIALS_JSON', '')
+
+# Public web-app config for the browser SDK (safe to expose client-side —
+# these identify the Firebase project, they are not secrets). Separate from
+# FIREBASE_CREDENTIALS_JSON above, which is the private server-side key.
+FIREBASE_WEB_CONFIG = {
+    'apiKey': os.environ.get('FIREBASE_WEB_API_KEY', ''),
+    'authDomain': os.environ.get('FIREBASE_WEB_AUTH_DOMAIN', ''),
+    'projectId': os.environ.get('FIREBASE_WEB_PROJECT_ID', ''),
+    'storageBucket': os.environ.get('FIREBASE_WEB_STORAGE_BUCKET', ''),
+    'messagingSenderId': os.environ.get('FIREBASE_WEB_MESSAGING_SENDER_ID', ''),
+    'appId': os.environ.get('FIREBASE_WEB_APP_ID', ''),
+    'vapidKey': os.environ.get('FIREBASE_WEB_VAPID_KEY', ''),
+}
+
+if USE_FCM_PUSH:
+    import firebase_admin
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(firebase_admin.credentials.Certificate(FIREBASE_CREDENTIALS_JSON))
 
 # --- Messages -> CSS class map (matches style-guide semantic colors) ----
 from django.contrib.messages import constants as message_constants  # noqa: E402

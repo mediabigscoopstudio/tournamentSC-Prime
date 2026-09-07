@@ -14,6 +14,9 @@
     </div>
   </div>
 
+  {% url 'organizer_profile_edit' as organizer_profile_edit_url %}
+  {% include 'accounts/_profile_completion_banner.html' with profile=profile edit_url=organizer_profile_edit_url %}
+
   <div class="stat-grid" style="margin-top:22px">
     <div class="stat"><div class="n">{{ counts.total }}</div><div class="l">Tournaments</div></div>
     <div class="stat"><div class="n brand">{{ counts.live }}</div><div class="l">Live now</div></div>

@@ -3,6 +3,7 @@ from django import forms
 from django.contrib.auth.models import Group
 
 from accounts.models import OrganizerProfile, PlayerProfile, User
+from content.models import Achievement, Content, ContentComment
 
 from support.models import SupportTicket
 
@@ -197,6 +198,28 @@ class AdminSupportTicketForm(forms.ModelForm):
         model = SupportTicket
         fields = ['status', 'resolution_note']
         widgets = {'resolution_note': forms.Textarea(attrs={'rows': 4})}
+
+
+class AdminContentForm(forms.ModelForm):
+    class Meta:
+        model = Content
+        fields = ['creator', 'tournament', 'content_type', 'title', 'description', 'media_file',
+                  'is_published', 'is_removed', 'removal_reason']
+        widgets = {'description': forms.Textarea(attrs={'rows': 3})}
+
+
+class AdminContentCommentForm(forms.ModelForm):
+    class Meta:
+        model = ContentComment
+        fields = ['text', 'is_removed']
+        widgets = {'text': forms.Textarea(attrs={'rows': 3})}
+
+
+class AchievementForm(forms.ModelForm):
+    class Meta:
+        model = Achievement
+        fields = ['name', 'description', 'icon', 'criteria', 'is_active']
+        widgets = {'description': forms.Textarea(attrs={'rows': 2})}
 
 
 class SiteSettingForm(forms.ModelForm):

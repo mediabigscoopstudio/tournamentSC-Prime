@@ -16,6 +16,14 @@
     {% for s in profile.sports.all %}<span class="tag {{ s.tag_class }}">{{ s.icon }} {{ s.name }}</span>{% endfor %}
   </div>
 
+  {% if earned_achievements %}
+    <div class="pill-row" style="margin-top:8px">
+      {% for ua in earned_achievements %}
+        <span class="tag" title="{{ ua.achievement.description }}">{{ ua.achievement.icon }} {{ ua.achievement.name }}</span>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   <div class="divider"></div>
   <h3>Tournaments played ({{ history.count }})</h3>
   <div class="stack" style="margin-top:12px">

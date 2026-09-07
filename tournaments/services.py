@@ -57,13 +57,20 @@ def _notify_participants(fixture):
             seen.add(user.id)
             Notification.push(user, message, url=url, verb='result')
 
+    participant_user_ids = set()
     for p in fixture.participants.select_related('team', 'player__user'):
         if p.player and p.player.user_id:
             push(p.player.user)
+            participant_user_ids.add(p.player.user_id)
         elif p.team_id:
             for m in p.team.memberships.select_related('player__user'):
                 if m.player and m.player.user_id:
                     push(m.player.user)
+                    participant_user_ids.add(m.player.user_id)
+
+    from content.tasks import check_and_award_achievements_task
+    for user_id in participant_user_ids:
+        check_and_award_achievements_task.delay(user_id)
 
     # Followers are the audience — neither playing nor organizing, but they asked.
     for follow in Follow.objects.filter(

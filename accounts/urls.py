@@ -34,6 +34,7 @@ urlpatterns = [
 
     # --- Shared, authenticated ---
     path('notifications', views.notifications_list, name='notifications'),
+    path('notifications/fcm-register', views.fcm_register_token, name='fcm_register_token'),
 
     # --- Password reset (Django built-ins, custom templates) ---
     path('password-reset', auth_views.PasswordResetView.as_view(

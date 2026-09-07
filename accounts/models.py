@@ -34,6 +34,8 @@ class User(AbstractUser):
     is_verified = models.BooleanField(default=False, help_text='Admin-toggled verification badge.')
     is_suspended = models.BooleanField(default=False)
     suspended_reason = models.TextField(blank=True)
+    fcm_notifications = models.BooleanField(
+        default=True, help_text='Deliver notifications as a push notification, not just in-app.')
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []  # email + password only
@@ -66,6 +68,8 @@ class OrganizerProfile(TimeStamped):
                                 related_name='organizer_profile')
     organization_name = models.CharField(max_length=255, blank=True)
     bio = models.TextField(blank=True)
+    profile_photo = models.ImageField(upload_to='organizers/', null=True, blank=True)
+    cover_photo = models.ImageField(upload_to='organizers/covers/', null=True, blank=True)
     is_approved = models.BooleanField(default=False)
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                     null=True, blank=True, related_name='organizers_approved')
@@ -74,6 +78,21 @@ class OrganizerProfile(TimeStamped):
 
     def __str__(self):
         return f'Organizer: {self.user.display_name}'
+
+    @property
+    def completion_percentage(self):
+        checks = [
+            bool(self.user.email),
+            bool(self.user.first_name),
+            bool(self.bio),
+            bool(self.profile_photo),
+            bool(self.organization_name),
+        ]
+        return round(sum(checks) / len(checks) * 100)
+
+    @property
+    def is_profile_complete(self):
+        return self.completion_percentage >= 80
 
 
 class PlayerProfile(TimeStamped):
@@ -85,6 +104,7 @@ class PlayerProfile(TimeStamped):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='U')
     city = models.CharField(max_length=120, blank=True)
     profile_photo = models.ImageField(upload_to='players/', null=True, blank=True)
+    cover_photo = models.ImageField(upload_to='players/covers/', null=True, blank=True)
     bio = models.TextField(blank=True)
     rating = models.PositiveIntegerField(
         null=True, blank=True,
@@ -98,6 +118,21 @@ class PlayerProfile(TimeStamped):
 
     def get_absolute_url(self):
         return reverse('player_public', args=[self.pk])
+
+    @property
+    def completion_percentage(self):
+        checks = [
+            bool(self.user.email),
+            bool(self.user.first_name),
+            bool(self.bio),
+            bool(self.profile_photo),
+            self.sports.exists(),
+        ]
+        return round(sum(checks) / len(checks) * 100)
+
+    @property
+    def is_profile_complete(self):
+        return self.completion_percentage >= 80
 
 
 class OrganizerApplication(TimeStamped):
@@ -167,6 +202,22 @@ class Notification(TimeStamped):
     @classmethod
     def push(cls, recipient, message, url='', verb='update'):
         return cls.objects.create(recipient=recipient, message=message, url=url, verb=verb)
+
+
+class UserFCMToken(TimeStamped):
+    """A browser/device's Firebase Cloud Messaging token, for push delivery of
+    Notification rows. One token per user — the most recently registered
+    device wins, matching how a single browser session re-registers itself."""
+    DEVICE_CHOICES = [('web', 'Web'), ('mobile', 'Mobile'), ('desktop', 'Desktop')]
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name='fcm_token')
+    token = models.TextField(unique=True)
+    device_type = models.CharField(max_length=10, choices=DEVICE_CHOICES, default='web')
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f'{self.user.display_name} ({self.device_type})'
 
 
 class AuditLog(TimeStamped):

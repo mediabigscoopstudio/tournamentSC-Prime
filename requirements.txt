@@ -5,3 +5,4 @@ python-dotenv>=1.0  # loads .env into os.environ (SMTP creds, secrets)
 celery[redis]>=5.3   # async email sending (support tickets)
 psycopg[binary]>=3.1  # PostgreSQL driver (used whenever DATABASE_URL is set)
 django-storages[boto3]>=1.14,<2.0  # S3 media storage, on when USE_S3_MEDIA=True
+firebase-admin>=6.5  # FCM push delivery, on when USE_FCM_PUSH=True

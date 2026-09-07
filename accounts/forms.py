@@ -160,7 +160,7 @@ class OrganizerProfileForm(forms.ModelForm):
 
     class Meta:
         model = OrganizerProfile
-        fields = ['organization_name', 'bio']
+        fields = ['organization_name', 'bio', 'profile_photo', 'cover_photo']
         widgets = {'bio': forms.Textarea(attrs={'rows': 3})}
 
     def __init__(self, *args, **kwargs):
@@ -182,8 +182,8 @@ class PlayerProfileForm(forms.ModelForm):
 
     class Meta:
         model = PlayerProfile
-        fields = ['city', 'date_of_birth', 'gender', 'profile_photo', 'bio', 'rating', 'sports',
-                  'emergency_contact_name', 'emergency_contact_phone']
+        fields = ['city', 'date_of_birth', 'gender', 'profile_photo', 'cover_photo', 'bio', 'rating',
+                  'sports', 'emergency_contact_name', 'emergency_contact_phone']
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
             'bio': forms.Textarea(attrs={'rows': 3}),

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}{{ post.title|default:post.get_content_type_display }} — {{ site_conf.site_name }}{% endblock %}
+{% block content %}
+<section class="section wrap two-col">
+  <div>
+    <a class="dim" href="{% url 'content_feed' %}">← Feed</a>
+    <div class="panel tblcard" style="margin-top:12px">
+      {% if post.media_file %}
+        {% if post.content_type == 'video' %}
+          <video src="{{ post.media_file.url }}" controls style="width:100%;border-radius:var(--r-lg)"></video>
+        {% else %}
+          <img src="{{ post.media_file.url }}" alt="" style="width:100%;border-radius:var(--r-lg)">
+        {% endif %}
+      {% endif %}
+      <div class="card-body">
+        {% if post.tournament %}<a class="tag" href="{{ post.tournament.get_absolute_url }}">{{ post.tournament.name }}</a>{% endif %}
+        <h1 style="margin:10px 0 4px">{{ post.title }}</h1>
+        <p class="muted">{{ post.description }}</p>
+        <div class="card-meta">{{ post.creator.display_name }} · {{ post.created_at|timesince }} ago · {{ post.view_count }} views</div>
+        <div class="row-flex" style="margin-top:14px" data-content-actions data-pk="{{ post.pk }}">
+          <button type="button" class="btn btn-ghost btn-sm" data-like-btn>
+            {% if liked %}♥{% else %}♡{% endif %} <span data-like-count>{{ post.like_count }}</span>
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" data-share-btn>↗ {{ post.share_count }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel tblcard" id="comments" style="margin-top:16px">
+      <h3>Comments ({{ post.comment_count }})</h3>
+      {% if user.is_authenticated %}
+        <form data-comment-form data-pk="{{ post.pk }}" class="row-flex" style="margin-top:10px;align-items:flex-start">
+          {{ comment_form.text }}
+          <button class="btn btn-primary btn-sm" type="submit">Post</button>
+        </form>
+      {% endif %}
+      <ul class="kv" style="margin-top:14px" data-comment-list>
+        {% for c in comments %}
+          <li style="grid-column:1/-1;list-style:none;border-bottom:1px solid var(--line);padding:8px 0">
+            <strong>{{ c.commenter.display_name }}</strong> <span class="muted">{{ c.created_at|timesince }} ago</span>
+            <div>{{ c.text }}</div>
+          </li>
+        {% empty %}
+          <li style="grid-column:1/-1;list-style:none" class="muted">No comments yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  function getCookie(name) {
+    var match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? match.pop() : '';
+  }
+  var pk = {{ post.pk }};
+  fetch('/content/' + pk + '/view', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+
+  var likeBtn = document.querySelector('[data-like-btn]');
+  if (likeBtn) {
+    likeBtn.addEventListener('click', function () {
+      fetch('/content/' + pk + '/like', {
+        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        likeBtn.querySelector('[data-like-count]').textContent = data.like_count;
+        likeBtn.firstChild.textContent = data.liked ? '♥ ' : '♡ ';
+      });
+    });
+  }
+
+  var shareBtn = document.querySelector('[data-share-btn]');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', function () {
+      fetch('/content/' + pk + '/share', {
+        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (navigator.share) { navigator.share({ url: data.url }).catch(function () {}); }
+        else { navigator.clipboard && navigator.clipboard.writeText(data.url); }
+      });
+    });
+  }
+
+  var commentForm = document.querySelector('[data-comment-form]');
+  if (commentForm) {
+    commentForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var formData = new FormData(commentForm);
+      fetch('/content/' + pk + '/comment', {
+        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: formData,
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (data.errors) return;
+        var list = document.querySelector('[data-comment-list]');
+        var li = document.createElement('li');
+        li.style.cssText = 'grid-column:1/-1;list-style:none;border-bottom:1px solid var(--line);padding:8px 0';
+        li.innerHTML = '<strong></strong> <span class="muted"></span><div></div>';
+        li.querySelector('strong').textContent = data.comment.commenter;
+        li.querySelector('.muted').textContent = 'just now';
+        li.querySelector('div').textContent = data.comment.text;
+        list.prepend(li);
+        commentForm.reset();
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

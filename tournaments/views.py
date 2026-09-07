@@ -58,6 +58,7 @@ def organizer_dashboard(request):
         tournament__organizer=request.user.organizer_profile, status='PENDING').count()
     return render(request, 'organizer/dashboard.html', {
         'tournaments': tournaments,
+        'profile': request.user.organizer_profile,
         'counts': {
             'total': tournaments.count(),
             'live': tournaments.filter(status='ONGOING').count(),

@@ -20,6 +20,9 @@
     </div>
   </div>
 
+  {% url 'profile_edit' as profile_edit_url %}
+  {% include 'accounts/_profile_completion_banner.html' with profile=profile edit_url=profile_edit_url %}
+
   <div class="stat-grid" style="margin-top:22px">
     <a class="stat" href="{% url 'my_tournaments' %}"><div class="n brand">{{ joined_count }}</div><div class="l">Tournaments joined</div></a>
     <a class="stat" href="{% url 'my_schedule' %}"><div class="n">{{ schedule|length }}</div><div class="l">Upcoming matches</div></a>
