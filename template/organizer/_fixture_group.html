@@ -39,10 +39,10 @@ Context: tournament
           <a class="btn btn-secondary btn-sm" href="#pool-standings">Standings</a>
           <button type="button" class="btn btn-ghost btn-sm" data-fx-only="{{ sec_key }}">Fixtures</button>
           <button type="button" class="fxsec__edit" data-pool-rename="{{ sec_pool_label }}"
-                  title="Rename pool" aria-label="Rename Pool {{ sec_pool_label }}">✏️</button>
+                  title="Rename pool" aria-label="Rename {{ sec_pool_label }}">✏️</button>
           <button type="button" class="fxsec__add" data-open-dialog="pool-add-fixture-dialog"
                   data-pool-add="{{ sec_pool_label }}" title="Add a fixture to this pool"
-                  aria-label="Add a fixture to Pool {{ sec_pool_label }}">+</button>
+                  aria-label="Add a fixture to {{ sec_pool_label }}">+</button>
         {% endif %}
         {% if sec_round_no %}
           <button type="button" class="fxsec__edit" data-round-rename="{{ sec_round_no }}"

@@ -1,20 +1,55 @@
 {% comment %}
-Pool Stage standings — one table per pool. Shared by the organizer's fixtures
-page, the public tournament tab and the standalone standings page, so the three
-can never drift apart.
-Context: pools, qualifiers_per_pool, has_pool_draws
+Pool Stage standings — a combined table across every pool, then one table per
+pool. Shared by the organizer's fixtures page, the public tournament tab and
+the standalone standings page, so the three can never drift apart.
+Context: pools, combined_standings, qualifiers_per_pool, has_pool_draws
   pool_names_editable  organizer-only flag — shows a rename (✏️) button next
                         to each pool heading; never set on the public pages.
 {% endcomment %}
+{% if combined_standings %}
+  <div class="tblcard poolcard" style="margin-bottom:16px">
+    <h4><span>Combined standings</span></h4>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Entrant</th>
+        <th>Pool</th>
+        <th class="n" title="Matches played">P</th>
+        <th class="n" title="Wins">W</th>
+        {% if has_pool_draws %}<th class="n" title="Draws">D</th>{% endif %}
+        <th class="n" title="Losses">L</th>
+        <th class="n" title="Points for">PF</th>
+        <th class="n" title="Points against">PA</th>
+        <th class="n" title="Point difference">PD</th>
+        <th class="n" title="Tournament points">Pts</th>
+      </tr></thead>
+      <tbody>
+        {% for s in combined_standings %}
+          <tr class="{% if s.qualified %}qual{% endif %}">
+            <td><div class="tcell"><span class="rk">{{ s.position }}</span> <span class="poolteam">{{ s.label }}</span></div></td>
+            <td>{{ s.pool }}</td>
+            <td class="n">{{ s.played }}</td>
+            <td class="n">{{ s.won }}</td>
+            {% if has_pool_draws %}<td class="n">{{ s.drawn }}</td>{% endif %}
+            <td class="n">{{ s.lost }}</td>
+            <td class="n">{{ s.pf }}</td>
+            <td class="n">{{ s.pa }}</td>
+            <td class="n">{% if s.pd > 0 %}+{% endif %}{{ s.pd }}</td>
+            <td class="pts">{{ s.points|floatformat:'-1' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+{% endif %}
 <div class="poolgrid">
   {% for pool in pools %}
     <div class="tblcard poolcard">
       <h4>
         <span>
-          Pool {{ pool.label }}
+          {{ pool.label }}
           {% if pool_names_editable %}
             <button type="button" class="pool-rename-btn" data-pool-rename="{{ pool.label }}"
-                    title="Rename pool" aria-label="Rename Pool {{ pool.label }}">✏️</button>
+                    title="Rename pool" aria-label="Rename {{ pool.label }}">✏️</button>
           {% endif %}
         </span>
         <span class="poolcard__count">{{ pool.played }}/{{ pool.total }} played</span>

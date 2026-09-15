@@ -1,0 +1,93 @@
+{% comment %}
+One match card for the public Fixtures tab — same design language as the
+organizer's own fixture card (organizer/_fixture_row.html), minus every
+organizer action (score/schedule/highlight/delete), plus a single "See
+match" CTA. Sport-aware details (chess table number + White/Black badge,
+basketball live period, racket-sport live set score) come free from the
+same fields the organizer card already reads.
+
+Context: tournament, fx  (optional: table_no — this card's position within
+                           its section, used for chess's "Table N" label)
+{% endcomment %}
+{% with ps=fx.ordered_participants %}
+<article class="fxc{% if fx.status == 'LIVE' %} is-live{% elif fx.status == 'COMPLETED' %} is-done{% elif fx.status == 'CANCELLED' %} is-off{% endif %}">
+
+  {# Status strip #}
+  <div class="fxc__top">
+    <span class="fxc__round">
+      {% if tournament.sport.slug == 'chess' %}Table {{ table_no|default:fx.sequence }}
+      {% else %}{{ fx.round_name|default:'Fixture' }}{% endif %}
+    </span>
+    {% if fx.status == 'LIVE' %}
+      <span class="fxs fxs--live"><span class="fxs__dot"></span>Live</span>
+    {% elif fx.status == 'COMPLETED' %}
+      <span class="fxs fxs--done">Final</span>
+    {% elif fx.status == 'CANCELLED' %}
+      <span class="fxs fxs--off">Cancelled</span>
+    {% elif fx.status == 'POSTPONED' %}
+      <span class="fxs fxs--warn">Postponed</span>
+    {% elif fx.scheduled_time %}
+      <span class="fxs fxs--sched">Scheduled</span>
+    {% else %}
+      <span class="fxs fxs--up">Upcoming</span>
+    {% endif %}
+  </div>
+
+  {% if ps|length <= 2 %}
+    <div class="fxc__body">
+      {% include 'organizer/_fixture_side.html' with p=ps.0 side='l' %}
+
+      <div class="fxc__mid">
+        {% if ps|length == 2 and fx.status != 'SCHEDULED' and fx.status != 'POSTPONED' %}
+          <span class="fxc__score">
+            <b class="{% if fx.status == 'COMPLETED' and ps.0.is_winner %}is-win{% endif %}">{{ ps.0.score|default_if_none:'–'|floatformat:'-2' }}</b>
+            <i>-</i>
+            <b class="{% if fx.status == 'COMPLETED' and ps.1.is_winner %}is-win{% endif %}">{{ ps.1.score|default_if_none:'–'|floatformat:'-2' }}</b>
+          </span>
+        {% else %}
+          <span class="fxc__vs">VS</span>
+        {% endif %}
+      </div>
+
+      {% include 'organizer/_fixture_side.html' with p=ps.1 side='r' %}
+    </div>
+  {% else %}
+    <div class="fxc__field">
+      {% for p in ps %}
+        <span class="fxc__ent">
+          <span class="fxc__crest fxc__crest--sm" style="background:var(--{{ tournament.sport.sp_class }})">
+            {% if p.team.logo %}<img src="{{ p.team.logo.url }}" alt="" onerror="this.remove()">{% endif %}{{ p.initials }}
+          </span>
+          <span class="fxc__ent-n{% if fx.status == 'COMPLETED' and p.is_winner %} is-win{% endif %}">{{ p.name }}</span>
+          {% if p.score is not None %}<span class="fxc__ent-s">{{ p.score|floatformat:'-2' }}</span>
+          {% elif p.time_display %}<span class="fxc__ent-s">{{ p.time_display }}</span>{% endif %}
+        </span>
+      {% empty %}
+        <span class="fxc__ent-n dim">No competitors assigned yet.</span>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# When / where #}
+  <p class="fxc__meta">
+    {% if fx.status == 'LIVE' %}
+      <span class="fxc__meta-live">
+        {% if tournament.sport.slug == 'basketball' %}
+          {% if fx.current_period > 4 %}OT{% else %}Q{{ fx.current_period }}{% endif %} ·
+        {% elif tournament.sport.slug == 'badminton' or tournament.sport.slug == 'pickleball' %}
+          Sets {{ fx.sets_won.0 }}-{{ fx.sets_won.1 }} ·
+        {% endif %}In progress
+      </span>
+    {% elif fx.scheduled_time %}
+      {{ fx.scheduled_time|date:'D, d M' }} · {{ fx.scheduled_time|date:'H:i' }}
+    {% else %}
+      <em>Not scheduled yet</em>
+    {% endif %}
+    {% if fx.venue_detail %} · {{ fx.venue_detail }}{% endif %}
+  </p>
+
+  <div class="fxc__acts">
+    <a class="btn btn-primary btn-sm fxc__act" href="{{ fx.get_absolute_url }}">See match</a>
+  </div>
+</article>
+{% endwith %}

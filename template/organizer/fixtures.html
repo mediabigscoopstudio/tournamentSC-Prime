@@ -189,7 +189,7 @@
           {% if pool_labels %}
             <div class="row-flex" style="margin-top:8px; flex-wrap:wrap">
               {% for label in pool_labels %}
-                <button type="button" class="pool-build-chip" data-pool-pick="{{ label }}">Pool {{ label }}</button>
+                <button type="button" class="pool-build-chip" data-pool-pick="{{ label }}">{{ label }}</button>
               {% endfor %}
             </div>
           {% endif %}
@@ -208,7 +208,7 @@
                      data-entrant-id="{{ entrant.key }}" data-current-pool="{{ entrant.pool }}">
                   <span class="pooldnd__chip-name">{{ entrant.name }}</span>
                   <span class="pooldnd__chip-seed">
-                    Seed {{ entrant.seed|default:'—' }}{% if entrant.pool %} · currently in Pool {{ entrant.pool }}{% else %} · Unassigned{% endif %}
+                    Seed {{ entrant.seed|default:'—' }}{% if entrant.pool %} · currently in {{ entrant.pool }}{% else %} · Unassigned{% endif %}
                   </span>
                 </div>
               {% endfor %}
@@ -274,7 +274,7 @@
         {% csrf_token %}
         <input type="hidden" name="pool_name" id="pool-add-fixture-pool-name" value="">
         <h3 class="fxpanel__h" style="margin-top:0">
-          Add a fixture — <span id="pool-add-fixture-title">Pool</span>
+          Add a fixture — <span id="pool-add-fixture-title"></span>
         </h3>
         <div class="row-flex" style="margin-top:12px; flex-wrap:wrap">
           {% include 'organizer/_entrant_picker.html' with name='entrant_a' choices=entrant_choices placeholder='Entrant A…' %}
@@ -719,7 +719,7 @@
         {% if pool_mode %}
           {# Pool tournaments read pool by pool, then round by round. #}
           {% for pool in pools %}
-            {% include 'organizer/_fixture_group.html' with sec_key="pool-"|add:pool.label|slugify sec_title="Pool "|add:pool.label sec_fixtures=pool.fixtures sec_icon=tournament.sport.icon sec_pool=1 sec_played=pool.played sec_total=pool.total sec_pool_label=pool.label %}
+            {% include 'organizer/_fixture_group.html' with sec_key="pool-"|add:pool.label|slugify sec_title=pool.label sec_fixtures=pool.fixtures sec_icon=tournament.sport.icon sec_pool=1 sec_played=pool.played sec_total=pool.total sec_pool_label=pool.label %}
           {% endfor %}
           <button type="button" class="poolcreate-bar" data-open-dialog="create-pool-dialog">
             <span class="poolcreate-bar__ico">+</span> Create another pool
@@ -1014,7 +1014,7 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
     var head = document.createElement('div');
     head.className = 'pooldnd__colh';
     var title = document.createElement('span');
-    title.textContent = label ? 'Pool ' + label : 'Unassigned';
+    title.textContent = label || 'Unassigned';
     var badge = document.createElement('span');
     badge.className = 'pooldnd__count';
     badge.textContent = '0';
@@ -1083,7 +1083,7 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
       var n = label ? (tally[label] || 0) : unassigned;
       list.parentNode.querySelector('.pooldnd__count').textContent = n;
     });
-    var parts = Object.keys(tally).sort().map(function (label) { return 'Pool ' + label + ': ' + tally[label]; });
+    var parts = Object.keys(tally).sort().map(function (label) { return label + ': ' + tally[label]; });
     if (unassigned) parts.push(unassigned + ' unassigned');
     counts.textContent = parts.join(' · ') || 'No entrants assigned yet.';
   }
@@ -1192,7 +1192,7 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
     var label = (labelInput.value || '').trim();
     cols.innerHTML = '';
     var avail = makeColumn('Available', 'available');
-    var inPool = makeColumn(label ? 'In Pool ' + label : 'In this pool', 'in-pool');
+    var inPool = makeColumn(label ? 'In ' + label : 'In this pool', 'in-pool');
     cols.appendChild(avail.col);
     cols.appendChild(inPool.col);
     chips.forEach(function (chip) {
@@ -1293,7 +1293,7 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
         var label = btn.getAttribute('data-pool-add');
         addForm.reset();
         if (poolNameInput) poolNameInput.value = label;
-        if (poolTitle) poolTitle.textContent = 'Pool ' + label;
+        if (poolTitle) poolTitle.textContent = label;
         if (addError) addError.hidden = true;
       });
     });
@@ -1313,7 +1313,7 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
         var label = btn.getAttribute('data-pool-rename');
         renameOldLabel.value = label;
         renameInput.value = label;
-        if (renameTitle) renameTitle.textContent = 'Pool ' + label;
+        if (renameTitle) renameTitle.textContent = label;
         document.getElementById('pool-rename-dialog').showModal();
       });
     });

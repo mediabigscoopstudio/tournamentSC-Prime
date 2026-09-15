@@ -21,6 +21,8 @@ import math
 from itertools import groupby
 
 from django.db import transaction
+from django.db.models import CharField, Value
+from django.db.models.functions import Cast, Concat
 
 from . import constants as C
 from .engines import (BracketEngine, _entrants_for, _make_participant, _num, _round_name,
@@ -73,7 +75,10 @@ def rename_pool(tournament, old_label, new_label):
     manual-mode regenerate does keep the new name. `order` is updated in
     place (same index) so a rename never changes the pool's display position.
     """
-    tournament.fixtures.filter(stage=C.STAGE_POOL, pool_name=old_label, is_removed=False).update(pool_name=new_label)
+    tournament.fixtures.filter(stage=C.STAGE_POOL, pool_name=old_label, is_removed=False).update(
+        pool_name=new_label,
+        round_name=Concat(Value(new_label), Value(' · Round '),
+                          Cast('round_no', CharField()), output_field=CharField()))
     tournament.standings.filter(group_name=old_label).update(group_name=new_label)
     tournament.team_entries.filter(group_name=old_label).update(group_name=new_label)
     tournament.registrations.filter(group_name=old_label).update(group_name=new_label)
@@ -354,7 +359,7 @@ class PoolKnockoutEngine(BracketEngine):
                 for a, b in pairs:
                     fx = Fixture.objects.create(
                         tournament=t, round_no=rno, sequence=seq,
-                        round_name=f'Pool {label} · Round {rno}',
+                        round_name=f'{label} · Round {rno}',
                         stage=C.STAGE_POOL, pool_name=label, created_by_id=author)
                     _make_participant(fx, a, 0)
                     _make_participant(fx, b, 1)
@@ -450,7 +455,7 @@ class PoolKnockoutEngine(BracketEngine):
                 for a, b in pairs:
                     fx = Fixture.objects.create(
                         tournament=t, round_no=rno, sequence=seq,
-                        round_name=f'Pool {label} · Round {rno}',
+                        round_name=f'{label} · Round {rno}',
                         stage=C.STAGE_POOL, pool_name=label, created_by_id=author)
                     _make_participant(fx, a, 0)
                     _make_participant(fx, b, 1)
@@ -741,6 +746,22 @@ def pool_view_context(tournament):
     for s in standings:
         by_pool.setdefault(s.group_name, []).append(s)
 
+    # One merged ranking across every pool — entrants from different pools
+    # never played each other, so head_to_head is empty and ties fall
+    # straight through to the same stable random draw rank_pool_rows already
+    # uses for any other unresolved tie.
+    combined_rows = [{
+        'key': f'standing:{s.id}', 'team': s.team, 'player': s.player, 'label': s.name,
+        'played': s.played, 'won': s.won, 'lost': s.lost, 'drawn': s.drawn,
+        'points': s.points, 'pool': s.group_name,
+        'pf': s.extra_stats.get('pf', 0), 'pa': s.extra_stats.get('pa', 0),
+        'pd': s.extra_stats.get('pd', 0), 'qualified': s.extra_stats.get('qualified', False),
+    } for s in standings]
+    combined_standings = [
+        dict(r, position=pos) for pos, r in
+        enumerate(rank_pool_rows(combined_rows, {}, tournament.pk, 'combined'), start=1)
+    ]
+
     fixtures_by_pool = {}
     knockout = []
     for fx in fixtures:
@@ -781,6 +802,7 @@ def pool_view_context(tournament):
     pool_fixtures = [f for f in fixtures if f.stage == C.STAGE_POOL]
     return {
         'pools': pools,
+        'combined_standings': combined_standings,
         'knockout_rounds': knockout_rounds,
         'champion': champion,
         'qualifiers_per_pool': qualifiers_per_pool,

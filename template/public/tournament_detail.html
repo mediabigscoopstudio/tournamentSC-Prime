@@ -148,31 +148,31 @@
     <!-- FIXTURES -->
     <div class="tabpanel" data-panel="fixtures">
       {% if is_pool_stage %}
-        {% if fixtures %}
-          {% include 'public/_pool_fixtures.html' %}
-        {% else %}<div class="empty">Fixtures haven't been published yet.</div>{% endif %}
-      {% elif fixtures %}
-        <div class="flist">
-          {% for fx in fixtures %}
-            {% with ps=fx.ordered_participants %}
-            <a class="frow" href="{{ fx.get_absolute_url }}" style="text-decoration:none">
-              <span class="ft {% if ps.0.result_chip == 'l' %}lose{% endif %}">{{ ps.0.name|default:'TBD' }}</span>
-              <span class="fm">
-                {% if fx.status == 'SCHEDULED' or fx.status == 'POSTPONED' %}
-                  <span class="fw">{% if fx.scheduled_time %}{{ fx.scheduled_time|date:'d M · H:i' }}{% else %}Time TBD{% endif %}{% if fx.venue_detail %} · {{ fx.venue_detail }}{% endif %}</span><br>
-                  <span class="fchip up">{{ fx.round_name|default:'Up next' }}</span>
-                {% else %}
-                  <span class="fsc">{% for p in ps|slice:':2' %}{{ p.score|default_if_none:'–'|floatformat:'-2' }}{% if not forloop.last %}-{% endif %}{% endfor %}</span><br>
-                  {% if fx.status == 'LIVE' %}<span class="fchip live">Live</span>
-                  {% elif fx.status == 'CANCELLED' %}<span class="fchip done">Cancelled</span>
-                  {% else %}<span class="fchip done">{{ fx.round_name|default:'Full time' }}</span>{% endif %}
-                {% endif %}
-              </span>
-              <span class="ft r {% if ps.1.result_chip == 'l' %}lose{% endif %}">{{ ps.1.name|default:'—' }}</span>
-            </a>
-            {% endwith %}
+        {% if pools %}
+          {% for pool in pools %}
+            {% include 'public/_fixture_section.html' with sec_title=pool.label sec_fixtures=pool.fixtures sec_icon=tournament.sport.icon %}
           {% endfor %}
-        </div>
+          {% for rnd in knockout_rounds %}
+            {% include 'public/_fixture_section.html' with sec_title=rnd.title sec_fixtures=rnd.fixtures %}
+          {% endfor %}
+        {% else %}<div class="empty">Fixtures haven't been published yet.</div>{% endif %}
+      {% elif bracket_rounds %}
+        {% for rnd in bracket_rounds %}
+          {% if rnd.name == 'Quarterfinal' or rnd.name == 'Semifinal' %}
+            {% include 'public/_fixture_section.html' with sec_title=rnd.name|add:'s' sec_fixtures=rnd.fixtures %}
+          {% else %}
+            {% include 'public/_fixture_section.html' with sec_title=rnd.name sec_fixtures=rnd.fixtures %}
+          {% endif %}
+        {% endfor %}
+      {% elif fixtures %}
+        {% regroup fixtures by round_name as fx_groups %}
+        {% for g in fx_groups %}
+          {% if g.grouper %}
+            {% include 'public/_fixture_section.html' with sec_title=g.grouper sec_fixtures=g.list %}
+          {% else %}
+            {% include 'public/_fixture_section.html' with sec_title='Fixtures' sec_fixtures=g.list sec_icon=tournament.sport.icon %}
+          {% endif %}
+        {% endfor %}
       {% else %}<div class="empty">Fixtures haven't been published yet.</div>{% endif %}
     </div>
 

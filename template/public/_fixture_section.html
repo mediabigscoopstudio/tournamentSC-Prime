@@ -1,0 +1,26 @@
+{% comment %}
+One round/pool section on the public Fixtures tab: a heading plus its card
+grid — the presentational half of organizer/_fixture_group.html, without
+any of the organizer-only controls (drag handle, rename/add, filters).
+
+Context: tournament
+  sec_title     heading text ('Pool A', 'Quarterfinals', 'Final', 'Round 1')
+  sec_fixtures  the fixtures to render
+  sec_icon      optional leading glyph (defaults to the trophy)
+{% endcomment %}
+<section class="fxsec">
+  <header class="fxsec__head">
+    <span class="fxsec__ico">{{ sec_icon|default:'🏆' }}</span>
+    <div class="fxsec__txt">
+      <h3 class="fxsec__t">{{ sec_title }}</h3>
+      <p class="fxsec__s">{{ sec_fixtures|length }} match{{ sec_fixtures|length|pluralize:'es' }}</p>
+    </div>
+    <span class="fxsec__n" aria-hidden="true">{{ sec_fixtures|length }}</span>
+  </header>
+
+  <div class="fxgrid">
+    {% for fx in sec_fixtures %}
+      {% include 'public/_fixture_card.html' with table_no=forloop.counter %}
+    {% endfor %}
+  </div>
+</section>

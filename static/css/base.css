@@ -962,6 +962,14 @@ a.authcard:hover{ transform:translateY(-4px); box-shadow:var(--shadow); border-c
 .bball-setup-switch:has(input:checked) .bball-setup-switch-thumb{ transform:translateX(19px); }
 .bball-setup-switch:has(input:focus-visible) .bball-setup-switch-track{ box-shadow:0 0 0 3px rgba(242,106,27,.25); }
 .bball-setup-start{ width:100%; margin-top:6px; }
+.bball-live-toggle{ margin-top:16px; }
+/* Live mid-match toggle is a <button aria-pressed> (submits immediately),
+   not the pre-match <label><input> — same look, reset button chrome and
+   swap :has(input:checked)/:focus-visible for the aria-pressed equivalent. */
+button.bball-setup-switch{ border:none; background:none; padding:0; }
+button.bball-setup-switch[aria-pressed="true"] .bball-setup-switch-track{ background:var(--orange); }
+button.bball-setup-switch[aria-pressed="true"] .bball-setup-switch-thumb{ transform:translateX(19px); }
+button.bball-setup-switch:focus-visible .bball-setup-switch-track{ box-shadow:0 0 0 3px rgba(242,106,27,.25); }
 
 /* Badminton/pickleball set-scoring control panel (organizer/score.html
    'elif is_racket' branches) — reuses the .bball-setup-card pre-match

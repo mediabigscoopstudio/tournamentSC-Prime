@@ -170,7 +170,10 @@ def _detail_context(tournament):
     }
     fixtures = tournament.fixtures.filter(is_removed=False).prefetch_related(
         'participants__team', 'participants__player__user').select_related('event_category')
-    ctx['fixtures'] = fixtures
+    # Ordered so {% regroup fixtures by round_name %} (the Fixtures tab's
+    # generic fallback grouping) sees each round's fixtures contiguously —
+    # regroup silently fragments a group if it isn't already sorted.
+    ctx['fixtures'] = fixtures.order_by('round_no', 'sequence')
     if tournament.is_pool_stage:
         # Pool Stage + Knockout brings its own pool tables, pool-grouped
         # fixtures and bracket — see tournaments/pools.py. Every other

@@ -49,6 +49,25 @@
       </details>
     </div>
 
+    {% if fixture.status == 'LIVE' %}
+      <div class="bball-setup-toggle-row bball-live-toggle">
+        <div class="bball-setup-toggle-copy">
+          <div class="bball-setup-toggle-title">Individual scoring</div>
+          <p class="helptext">Track points and fouls for individual players. Off records team totals only.</p>
+        </div>
+        <form method="post"
+              data-bball-confirm="{% if fixture.individual_scoring_enabled %}Turn off individual scoring? New points won't be attributed to a player — points already recorded won't change.{% else %}Turn on individual scoring? You'll be asked who scored from now on — points already recorded before this won't have a player attached.{% endif %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="toggle_individual_scoring">
+          <button type="submit" class="bball-setup-switch"
+                  aria-pressed="{% if fixture.individual_scoring_enabled %}true{% else %}false{% endif %}"
+                  aria-label="{% if fixture.individual_scoring_enabled %}Turn off{% else %}Turn on{% endif %} individual scoring">
+            <span class="bball-setup-switch-track"><span class="bball-setup-switch-thumb"></span></span>
+          </button>
+        </form>
+      </div>
+    {% endif %}
+
     <div class="bball-dashboard">
       <div class="bball-board-row">
         <div class="bball-fouls-card">

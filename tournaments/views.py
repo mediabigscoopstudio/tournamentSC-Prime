@@ -870,7 +870,7 @@ def pool_fixture_add(request, slug):
     round_no = prev_round + 1
     fx = Fixture.objects.create(
         tournament=t, round_no=round_no, sequence=t.fixtures.count(),
-        round_name=f'Pool {pool_name} · Round {round_no}',
+        round_name=f'{pool_name} · Round {round_no}',
         stage=C.STAGE_POOL, pool_name=pool_name, created_by=request.user)
     _make_participant(fx, a, 0)
     _make_participant(fx, b, 1)
@@ -1930,6 +1930,19 @@ def score_fixture(request, slug, fixture_id):
                 fixture.save(update_fields=['live_started_at', 'clock_paused_at',
                                             'shot_clock_running_since', 'updated_at'])
                 messages.info(request, 'Match clock resumed.')
+            return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
+        if action == 'toggle_individual_scoring':
+            if not is_basketball:
+                messages.error(request, 'Individual scoring is only available for basketball matches.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            if fixture.status != 'LIVE':
+                messages.error(request, 'Start the match before changing the scoring mode.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            fixture.individual_scoring_enabled = not fixture.individual_scoring_enabled
+            fixture.save(update_fields=['individual_scoring_enabled', 'updated_at'])
+            messages.success(request, 'Individual scoring turned '
+                                      f'{"on" if fixture.individual_scoring_enabled else "off"}.')
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
         if action == 'reset_quarter_clock':
