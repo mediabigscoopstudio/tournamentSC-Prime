@@ -150,12 +150,12 @@
     <div class="tabpanel" data-panel="fixtures" data-poolnav-scope-for="fx">
       {% if is_pool_stage %}
         {% if pools %}
-          {% include 'public/_pool_nav.html' with nav_scope='fx' nav_pools=pools nav_id_prefix='fxsec-pool-' nav_count_field='fixtures' nav_icon=tournament.sport.icon %}
+          {% include 'public/_pool_nav.html' with nav_scope='fx' nav_pools=pools nav_id_prefix='fxsec-pool-' nav_count_field='fixtures' nav_rounds=knockout_rounds nav_icon=tournament.sport.icon %}
           {% for pool in pools %}
             {% include 'public/_fixture_section.html' with sec_title=pool.label sec_fixtures=pool.fixtures sec_icon=tournament.sport.icon sec_key="pool-"|add:pool.label|slugify %}
           {% endfor %}
           {% for rnd in knockout_rounds %}
-            {% include 'public/_fixture_section.html' with sec_title=rnd.title sec_fixtures=rnd.fixtures %}
+            {% include 'public/_fixture_section.html' with sec_title=rnd.title sec_fixtures=rnd.fixtures sec_key=rnd.title|slugify %}
           {% endfor %}
         {% else %}<div class="empty">Fixtures haven't been published yet.</div>{% endif %}
       {% elif bracket_rounds %}

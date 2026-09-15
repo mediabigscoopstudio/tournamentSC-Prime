@@ -1,9 +1,10 @@
-/* Pool navigation: sticky desktop tab bar + collapsible mobile rail, shared by
-   the fixtures-by-pool and standings-by-pool groupings (template/public/_pool_nav.html).
-   Auto-inits over every [data-poolnav] instance on the page — there can be more
-   than one (organizer/fixtures.html has both a fixtures nav and a standings nav
-   on the same continuously-scrolling page), so every bit of state (scroll-spy,
-   rail visibility, collapsed/expanded) is scoped per instance, never global. */
+/* Pool navigation: a floating rail, shared by the fixtures-by-pool and
+   standings-by-pool groupings (template/public/_pool_nav.html). Auto-inits
+   over every [data-poolnav] instance on the page — there can be more than
+   one (organizer/fixtures.html has both a fixtures nav and a standings nav
+   on the same continuously-scrolling page), so every bit of state
+   (scroll-spy, rail visibility, collapsed/expanded) is scoped per instance,
+   never global. */
 (function () {
   if (!('IntersectionObserver' in window)) return;
 
@@ -17,7 +18,6 @@
   }
 
   document.querySelectorAll('[data-poolnav]').forEach(function (root) {
-    var bar = root.querySelector('.poolnav__bar');
     var rail = root.querySelector('.poolnav__rail');
     var tabs = root.querySelectorAll('[data-poolnav-target]');
     if (!tabs.length) return;
@@ -31,8 +31,7 @@
       if (el && !seen[id]) { seen[id] = true; targets.push(el); }
       t.addEventListener('click', function () {
         if (!el) return;
-        var barH = bar ? bar.getBoundingClientRect().height : 0;
-        var y = el.getBoundingClientRect().top + window.pageYOffset - stackTop() - barH - 12;
+        var y = el.getBoundingClientRect().top + window.pageYOffset - stackTop() - 12;
         window.scrollTo({ top: y, behavior: 'smooth' });
       });
     });
@@ -49,12 +48,7 @@
     }, { rootMargin: '-45% 0px -50% 0px' });
     targets.forEach(function (el) { spy.observe(el); });
 
-    // ---- sticky bar offset, recomputed on resize (ticker/navbar can change height) ----
-    function syncTop() { if (bar) bar.style.setProperty('--poolnav-top', stackTop() + 'px'); }
-    syncTop();
-    window.addEventListener('resize', syncTop);
-
-    // ---- mobile rail: per-instance visibility + collapse toggle ----
+    // ---- per-instance rail visibility + collapse toggle ----
     if (!rail) return;
     var scopeName = root.getAttribute('data-poolnav-scope');
     var scopeEl = scopeName && document.querySelector('[data-poolnav-scope-for="' + scopeName + '"]');

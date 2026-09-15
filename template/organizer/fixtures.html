@@ -716,7 +716,7 @@
       </p>
 
       {% if pool_mode and pools %}
-        {% include 'public/_pool_nav.html' with nav_scope='fx' nav_pools=pools nav_id_prefix='fxsec-pool-' nav_count_field='fixtures' nav_icon=tournament.sport.icon %}
+        {% include 'public/_pool_nav.html' with nav_scope='fx' nav_pools=pools nav_id_prefix='fxsec-pool-' nav_count_field='fixtures' nav_rounds=knockout_rounds nav_icon=tournament.sport.icon %}
       {% endif %}
       <div class="fxsecs" data-fx-list data-poolnav-scope-for="fx">
         {% if pool_mode %}
