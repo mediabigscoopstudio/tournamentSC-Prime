@@ -41,9 +41,12 @@ Context: pools, combined_standings, qualifiers_per_pool, has_pool_draws
     </table></div>
   </div>
 {% endif %}
-<div class="poolgrid">
+{% if pools %}
+  {% include 'public/_pool_nav.html' with nav_scope='standings' nav_pools=pools nav_id_prefix='pool-standings-' nav_count_field='standings' nav_count_suffix='teams' nav_icon='📊' %}
+{% endif %}
+<div class="poolgrid" data-poolnav-scope-for="standings">
   {% for pool in pools %}
-    <div class="tblcard poolcard">
+    <div class="tblcard poolcard" id="pool-standings-{{ pool.label|slugify }}">
       <h4>
         <span>
           {{ pool.label }}

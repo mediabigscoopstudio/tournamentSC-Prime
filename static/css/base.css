@@ -18,7 +18,7 @@
   --shadow:0 14px 34px -14px rgba(27,35,64,.18);
   --shadow-lg:0 30px 60px -24px rgba(27,35,64,.28);
 
-  --z-nav:100; --z-ticker:80; --z-menu:150; --z-overlay:200;
+  --z-nav:100; --z-ticker:80; --z-poolnav:120; --z-menu:150; --z-overlay:200;
   --maxw:1200px;
   --font-display:'Montserrat', system-ui, sans-serif;
   --font-body:'Inter', system-ui, sans-serif;
@@ -1731,6 +1731,69 @@ button.bball-setup-switch:focus-visible .bball-setup-switch-track{ box-shadow:0 
 .poolcard th:last-child,.poolcard td:last-child{ padding-right:18px; }
 .poolcard .tcell{ gap:9px; }
 .poolteam{ min-width:0; }
+
+/* ---------- pool navigation (shared: fixtures-by-pool + standings-by-pool) ----------
+   Desktop: a sticky, horizontally-scrollable tab bar above the section it belongs
+   to — no floating rail. Mobile (<=720px, the site's nav breakpoint): the bar is
+   hidden and a translucent floating vertical rail takes over instead — no top bar.
+   Both share the same data-poolnav-target ids so one scroll-spy (static/js/
+   pool-nav.js) drives whichever is visible. Labels never truncate — the bar/rail
+   scroll their own overflow instead of shrinking, since a tournament can have
+   10-14 pools. */
+.poolnav{ position:relative; }
+
+.poolnav__bar{ position:sticky; top:var(--poolnav-top, 0px); z-index:var(--z-poolnav);
+  background:var(--bg); border-bottom:1px solid var(--line); margin-bottom:14px; }
+.poolnav__bar-scroll{ display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; padding:10px 2px; }
+.poolnav__bar-scroll::-webkit-scrollbar{ display:none; }
+.poolnav__tab{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; flex:none;
+  font-family:var(--font-body); font-weight:700; font-size:13px; padding:8px 15px;
+  border-radius:var(--r-pill); border:1.5px solid var(--line-2); background:#fff; color:var(--ink-2);
+  transition:background .18s, border-color .18s, color .18s; }
+.poolnav__tab:hover{ border-color:var(--orange); color:var(--navy); }
+.poolnav__tab.is-on{ background:var(--orange); border-color:var(--orange); color:#fff; }
+.poolnav__tab-count{ font-family:var(--font-score); font-size:11px; font-weight:700;
+  background:var(--bg-2); color:var(--ink-2); border-radius:var(--r-pill); padding:2px 8px;
+  white-space:nowrap; }
+.poolnav__tab.is-on .poolnav__tab-count{ background:#fff; color:var(--orange); }
+
+.poolnav__rail{ display:none; } /* no floating rail on desktop */
+
+@media (max-width:720px){
+  .poolnav__bar{ display:none; } /* no top tab bar on mobile */
+
+  .poolnav__rail{ display:flex; flex-direction:column; align-items:stretch;
+    position:fixed; top:50%; right:10px; transform:translateY(-50%);
+    z-index:var(--z-poolnav); max-height:70vh; width:76px; border-radius:var(--r-lg);
+    background:rgba(27,35,64,.92); backdrop-filter:blur(8px); box-shadow:var(--shadow);
+    padding:10px 0; opacity:0; pointer-events:none;
+    transition:opacity .25s var(--ease), width .25s var(--ease); }
+  .poolnav__rail.is-near{ opacity:1; pointer-events:auto; }
+
+  .poolnav__rail-head{ text-align:center; font-size:16px; color:#fff; padding-bottom:8px;
+    margin:0 10px 8px; border-bottom:1px solid rgba(255,255,255,.16); }
+  .poolnav__rail-list{ display:flex; flex-direction:column; gap:5px; overflow-y:auto;
+    scrollbar-width:none; padding:0 8px; max-height:50vh; }
+  .poolnav__rail-list::-webkit-scrollbar{ display:none; }
+  .poolnav__rail-item{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; padding:8px 4px; border-radius:var(--r-md); background:transparent;
+    transition:background .18s, color .18s; }
+  .poolnav__rail-label{ font-weight:800; font-size:13px; color:#fff; line-height:1; }
+  .poolnav__rail-count{ font-family:var(--font-score); font-size:10.5px; font-weight:600;
+    color:rgba(255,255,255,.7); line-height:1; }
+  .poolnav__rail-item.is-on{ background:var(--orange); }
+  .poolnav__rail-item.is-on .poolnav__rail-label,
+  .poolnav__rail-item.is-on .poolnav__rail-count{ color:#fff; }
+
+  .poolnav__rail-toggle{ align-self:center; margin-top:8px; width:26px; height:26px;
+    border-radius:50%; display:grid; place-items:center; color:#fff; font-size:13px;
+    background:rgba(255,255,255,.1); transition:transform .25s var(--ease); }
+  .poolnav__rail.is-collapsed{ width:40px; padding:8px 0; }
+  .poolnav__rail.is-collapsed .poolnav__rail-head,
+  .poolnav__rail.is-collapsed .poolnav__rail-list{ display:none; }
+  .poolnav__rail.is-collapsed .poolnav__rail-toggle{ transform:rotate(180deg); }
+}
 
 /* Grouped fixture sections: "Pool A Fixtures", "Quarterfinals", … */
 .poolsec+.poolsec{ margin-top:24px; }

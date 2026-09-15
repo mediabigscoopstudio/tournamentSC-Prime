@@ -1,0 +1,56 @@
+{% comment %}
+Shared pool navigation: a sticky horizontal tab bar (desktop) + a collapsible
+floating vertical rail (mobile), both driven by static/js/pool-nav.js's
+scroll-spy / smooth-scroll. Used for BOTH the fixtures-by-pool grouping and
+the standings-by-pool grouping, on organizer + public pages, so it must not
+know the word "fixture" or "standing" — only "pool" and "count".
+
+Context:
+  nav_scope         unique slug for this instance on the current page (e.g.
+                     'fx' or 'standings') — lets two instances coexist on one
+                     page (organizer/fixtures.html) without their mobile
+                     rails colliding. Should match a `data-poolnav-scope-for`
+                     element wrapping this instance's own section(s).
+  nav_pools         list of pool dicts (each needs .label) — the `pools`
+                     context var already available wherever this is included
+                     (tournaments/pools.py::pool_view_context).
+  nav_id_prefix     id prefix already used on this page's pool sections, e.g.
+                     'fxsec-pool-' or 'pool-standings-'. Target id = prefix +
+                     pool.label|slugify, matching the section's own id.
+  nav_count_field   which key on each pool dict to count: 'fixtures' or
+                     'standings'.
+  nav_count_suffix  optional word appended after the bar's count badge (e.g.
+                     'teams'). The rail's count stays a bare number either way
+                     — no room for a suffix in its compact tile.
+  nav_icon          optional glyph for the mobile rail's header (default 🏆).
+{% endcomment %}
+{% load formtags %}
+{% if nav_pools %}
+<div class="poolnav" data-poolnav data-poolnav-scope="{{ nav_scope }}">
+  <nav class="poolnav__bar" aria-label="Jump to pool">
+    <div class="poolnav__bar-scroll">
+      {% for pool in nav_pools %}
+        <button type="button" class="poolnav__tab"
+                data-poolnav-target="{{ nav_id_prefix }}{{ pool.label|slugify }}">
+          <span class="poolnav__tab-label">{{ pool.label }}</span>
+          <span class="poolnav__tab-count">{{ pool|lookup:nav_count_field|length }}{% if nav_count_suffix %} {{ nav_count_suffix }}{% endif %}</span>
+        </button>
+      {% endfor %}
+    </div>
+  </nav>
+  <aside class="poolnav__rail" data-poolnav-rail>
+    <div class="poolnav__rail-head" aria-hidden="true">{{ nav_icon|default:'🏆' }}</div>
+    <div class="poolnav__rail-list">
+      {% for pool in nav_pools %}
+        <button type="button" class="poolnav__rail-item"
+                data-poolnav-target="{{ nav_id_prefix }}{{ pool.label|slugify }}">
+          <span class="poolnav__rail-label">{{ pool.label }}</span>
+          <span class="poolnav__rail-count">{{ pool|lookup:nav_count_field|length }}</span>
+        </button>
+      {% endfor %}
+    </div>
+    <button type="button" class="poolnav__rail-toggle" data-poolnav-toggle
+            aria-label="Collapse pool list" aria-expanded="true"><span aria-hidden="true">‹</span></button>
+  </aside>
+</div>
+{% endif %}

@@ -715,7 +715,10 @@
         Nothing matches the filters you picked — try “All matches”.
       </p>
 
-      <div class="fxsecs" data-fx-list>
+      {% if pool_mode and pools %}
+        {% include 'public/_pool_nav.html' with nav_scope='fx' nav_pools=pools nav_id_prefix='fxsec-pool-' nav_count_field='fixtures' nav_icon=tournament.sport.icon %}
+      {% endif %}
+      <div class="fxsecs" data-fx-list data-poolnav-scope-for="fx">
         {% if pool_mode %}
           {# Pool tournaments read pool by pool, then round by round. #}
           {% for pool in pools %}
@@ -759,6 +762,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'js/pool-nav.js' %}"></script>
 <script src="{% static 'js/entrant-picker.js' %}?v=1"></script>
 <script>
 /* Fixtures & scoring — presentation only.

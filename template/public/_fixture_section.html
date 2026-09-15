@@ -7,8 +7,11 @@ Context: tournament
   sec_title     heading text ('Pool A', 'Quarterfinals', 'Final', 'Round 1')
   sec_fixtures  the fixtures to render
   sec_icon      optional leading glyph (defaults to the trophy)
+  sec_key       optional — when given, renders id="fxsec-<sec_key>" so the
+                pool nav (public/_pool_nav.html) can scroll to this section.
+                Only pool sections pass one; nav covers pools only.
 {% endcomment %}
-<section class="fxsec">
+<section class="fxsec"{% if sec_key %} id="fxsec-{{ sec_key }}"{% endif %}>
   <header class="fxsec__head">
     <span class="fxsec__ico">{{ sec_icon|default:'🏆' }}</span>
     <div class="fxsec__txt">

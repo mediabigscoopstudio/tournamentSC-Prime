@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Standings — {{ tournament.name }}{% endblock %}
 {% block content %}
 <section class="section wrap">
@@ -30,3 +31,4 @@
   </div>
 </section>
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/pool-nav.js' %}"></script>{% endblock %}
