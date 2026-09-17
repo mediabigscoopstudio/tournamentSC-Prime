@@ -1,0 +1,33 @@
+{% comment %}
+"Individual or Team scoring?" — shown automatically the moment a match
+first goes LIVE (score.html appends ?setup=1 to the post-start redirect;
+the page's own JS opens this dialog once, then strips the query param) and
+reopenable any time via a menu/button. Shared by basketball and racket
+(Doubles/Mixed Doubles only — Singles has no roster to attribute a point to,
+so it never includes this partial) so the two can't drift apart.
+
+Context: fixture
+{% endcomment %}
+<dialog id="scoring-mode-dialog" class="poolassign-dialog" style="max-width:380px">
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="set_scoring_mode">
+    <h3 class="fxpanel__h" style="margin-top:0">Scoring mode</h3>
+    <div class="bball-setup-section" style="margin-top:12px">
+      <div class="bball-setup-toggle-row">
+        <div class="bball-setup-toggle-copy">
+          <div class="bball-setup-toggle-title">Individual scoring</div>
+          <p class="helptext">Track points for individual players. Off records team totals only.</p>
+        </div>
+        <label class="bball-setup-switch">
+          <input type="checkbox" name="individual_scoring" value="on" {% if fixture.individual_scoring_enabled %}checked{% endif %}>
+          <span class="bball-setup-switch-track"><span class="bball-setup-switch-thumb"></span></span>
+        </label>
+      </div>
+    </div>
+    <div class="row-flex" style="margin-top:14px">
+      <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+      <button type="submit" class="btn btn-primary btn-sm">Confirm</button>
+    </div>
+  </form>
+</dialog>

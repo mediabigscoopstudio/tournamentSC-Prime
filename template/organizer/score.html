@@ -43,30 +43,14 @@
               </button>
             </form>
           {% endif %}
+          <button type="button" class="bball-menu-item" data-bball-open-dialog="scoring-mode-dialog">🔀 Change scoring mode</button>
           <button type="button" class="bball-menu-item" data-bball-view-summary>☰ View match summary</button>
           <button type="button" class="bball-menu-item bball-menu-item--danger" data-bball-end-match>■ End match</button>
         </div>
       </details>
     </div>
 
-    {% if fixture.status == 'LIVE' %}
-      <div class="bball-setup-toggle-row bball-live-toggle">
-        <div class="bball-setup-toggle-copy">
-          <div class="bball-setup-toggle-title">Individual scoring</div>
-          <p class="helptext">Track points and fouls for individual players. Off records team totals only.</p>
-        </div>
-        <form method="post"
-              data-bball-confirm="{% if fixture.individual_scoring_enabled %}Turn off individual scoring? New points won't be attributed to a player — points already recorded won't change.{% else %}Turn on individual scoring? You'll be asked who scored from now on — points already recorded before this won't have a player attached.{% endif %}">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="toggle_individual_scoring">
-          <button type="submit" class="bball-setup-switch"
-                  aria-pressed="{% if fixture.individual_scoring_enabled %}true{% else %}false{% endif %}"
-                  aria-label="{% if fixture.individual_scoring_enabled %}Turn off{% else %}Turn on{% endif %} individual scoring">
-            <span class="bball-setup-switch-track"><span class="bball-setup-switch-thumb"></span></span>
-          </button>
-        </form>
-      </div>
-    {% endif %}
+    {% include 'organizer/_scoring_mode_dialog.html' %}
 
     <div class="bball-dashboard">
       <div class="bball-board-row">
@@ -345,19 +329,6 @@
           </div>
         </div>
 
-        <div class="bball-setup-section">
-          <div class="bball-setup-toggle-row">
-            <div class="bball-setup-toggle-copy">
-              <div class="bball-setup-toggle-title">Individual scoring</div>
-              <p class="helptext">Track points and fouls for individual players. Off records team totals only.</p>
-            </div>
-            <label class="bball-setup-switch">
-              <input type="checkbox" name="individual_scoring" value="on" checked>
-              <span class="bball-setup-switch-track"><span class="bball-setup-switch-thumb"></span></span>
-            </label>
-          </div>
-        </div>
-
         <button class="btn btn-primary btn--lg bball-setup-start">▶ Start Match</button>
       </form>
     </div>
@@ -371,12 +342,20 @@
       {% else %}<span class="badge badge-upcoming">{{ fixture.get_status_display }}</span>{% endif %}
     </div>
 
-    <div class="panel tblcard racket-board" id="racket-board" style="margin-top:16px">
+    <div class="panel tblcard racket-board" id="racket-board" style="margin-top:16px"
+         data-individual-scoring="{% if fixture.individual_scoring_enabled and tournament.is_team_based %}1{% else %}0{% endif %}">
       <div class="racket-board__teams">
         <div class="racket-board__team">{{ team_a.name }}</div>
         <div class="racket-board__sep">vs</div>
         <div class="racket-board__team">{{ team_b.name }}</div>
       </div>
+
+      {% if tournament.is_team_based and fixture.status == 'LIVE' %}
+        <div class="row-flex" style="justify-content:center; margin:10px 0">
+          <button type="button" class="btn btn-secondary btn-sm" data-open-dialog="scoring-mode-dialog">⚙️ Scoring mode</button>
+        </div>
+        {% include 'organizer/_scoring_mode_dialog.html' %}
+      {% endif %}
 
       {% if fixture.status == 'LIVE' %}
         {% with live=fixture.set_scores|last %}
@@ -384,10 +363,12 @@
           <div class="racket-board__side">
             <div class="racket-board__score">{{ live.a|default:0 }}</div>
             <div class="racket-board__pts">
-              <form method="post"><input type="hidden" name="action" value="racket_point">
-                {% csrf_token %}<input type="hidden" name="side" value="a">
+              <form method="post" id="racket-point-form-a">
+                {% csrf_token %}<input type="hidden" name="action" value="racket_point">
+                <input type="hidden" name="side" value="a">
                 <input type="hidden" name="delta" value="1">
-                <button class="btn btn-primary racket-pt" type="submit">+1</button></form>
+                <input type="hidden" name="membership_id">
+                <button class="btn btn-primary racket-pt" type="button" data-racket-open="a">+1</button></form>
               <form method="post"><input type="hidden" name="action" value="racket_point">
                 {% csrf_token %}<input type="hidden" name="side" value="a">
                 <input type="hidden" name="delta" value="-1">
@@ -398,10 +379,12 @@
           <div class="racket-board__side">
             <div class="racket-board__score">{{ live.b|default:0 }}</div>
             <div class="racket-board__pts">
-              <form method="post"><input type="hidden" name="action" value="racket_point">
-                {% csrf_token %}<input type="hidden" name="side" value="b">
+              <form method="post" id="racket-point-form-b">
+                {% csrf_token %}<input type="hidden" name="action" value="racket_point">
+                <input type="hidden" name="side" value="b">
                 <input type="hidden" name="delta" value="1">
-                <button class="btn btn-primary racket-pt" type="submit">+1</button></form>
+                <input type="hidden" name="membership_id">
+                <button class="btn btn-primary racket-pt" type="button" data-racket-open="b">+1</button></form>
               <form method="post"><input type="hidden" name="action" value="racket_point">
                 {% csrf_token %}<input type="hidden" name="side" value="b">
                 <input type="hidden" name="delta" value="-1">
@@ -409,6 +392,35 @@
             </div>
           </div>
         </div>
+
+        {% if tournament.is_team_based %}
+          <dialog id="racket-player-dialog-a" class="bball-player-dialog racket-player-dialog" data-racket-side="a">
+            <h4>Who won that point? <span class="dim">{{ team_a.name }}</span></h4>
+            <div class="bball-roster-list">
+              {% for m in player_choices|lookup:team_a.id %}
+                <button type="button" class="bball-roster-btn" data-racket-membership="{{ m.id }}">
+                  #{{ m.jersey_number|default:'-' }} — {{ m.name }}
+                </button>
+              {% empty %}
+                <p class="dim">No approved roster players for this team.</p>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+          </dialog>
+          <dialog id="racket-player-dialog-b" class="bball-player-dialog racket-player-dialog" data-racket-side="b">
+            <h4>Who won that point? <span class="dim">{{ team_b.name }}</span></h4>
+            <div class="bball-roster-list">
+              {% for m in player_choices|lookup:team_b.id %}
+                <button type="button" class="bball-roster-btn" data-racket-membership="{{ m.id }}">
+                  #{{ m.jersey_number|default:'-' }} — {{ m.name }}
+                </button>
+              {% empty %}
+                <p class="dim">No approved roster players for this team.</p>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+          </dialog>
+        {% endif %}
         {% endwith %}
 
         <div class="racket-board__setctl">

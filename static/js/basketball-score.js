@@ -28,7 +28,15 @@
     PATCH_TARGET_IDS.forEach(function (id) {
       const target = document.getElementById(id);
       const fresh = doc.getElementById(id);
-      if (target && fresh) target.innerHTML = fresh.innerHTML;
+      if (!target || !fresh) return;
+      target.innerHTML = fresh.innerHTML;
+      // innerHTML only replaces children — data-individual-scoring lives on
+      // #bball-game-view *itself*, so without this copy it stays stuck at
+      // whatever the very first full page load rendered, forever, no matter
+      // how many times the scoring-mode dialog changes it.
+      if (id === 'bball-game-view') {
+        target.setAttribute('data-individual-scoring', fresh.getAttribute('data-individual-scoring'));
+      }
     });
     if (window.bballInitClocks) window.bballInitClocks();
     initDashboard();
@@ -260,4 +268,19 @@
   });
 
   initDashboard();
+
+  // One-time: right after "Start Match" redirects here with ?setup=1,
+  // auto-open the scoring-mode dialog so it's acknowledged before any point
+  // is recorded. Deliberately outside initDashboard() (which re-runs on
+  // every AJAX patch) — this must fire only once, off the real page load,
+  // and the URL is stripped immediately so a later manual refresh never
+  // reopens it.
+  const setupParams = new URLSearchParams(location.search);
+  if (setupParams.get('setup')) {
+    const scoringDialog = document.getElementById('scoring-mode-dialog');
+    if (scoringDialog && typeof scoringDialog.showModal === 'function') scoringDialog.showModal();
+    setupParams.delete('setup');
+    const qs = setupParams.toString();
+    history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+  }
 })();

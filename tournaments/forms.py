@@ -1,5 +1,7 @@
 from django import forms
+from django.core.files.uploadedfile import UploadedFile
 
+from .images import process_team_logo
 from .models import (EventCategory, Fixture, Highlight, IndividualRegistration, Sport, Team,
                      TeamMembership, Tournament, TournamentTeamEntry, Venue)
 from .utils import is_probable_google_form_url, is_probable_youtube_url
@@ -62,6 +64,16 @@ class TeamForm(forms.ModelForm):
     class Meta:
         model = Team
         fields = ['name', 'logo']
+
+    def clean_logo(self):
+        # Only a genuinely new upload needs processing — on an edit
+        # submission that didn't touch the logo, this is the existing
+        # FieldFile (already processed when it was first uploaded), so
+        # leave it untouched rather than reprocessing it.
+        logo = self.cleaned_data.get('logo')
+        if isinstance(logo, UploadedFile):
+            return process_team_logo(logo)
+        return logo
 
 
 class TeamMemberForm(forms.ModelForm):

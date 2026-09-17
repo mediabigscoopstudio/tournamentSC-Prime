@@ -23,15 +23,16 @@
           {% with roster=e.team.memberships.all %}
           <article class="trc {{ tournament.sport.tag_class }}">
             <header class="trc__head">
-              <span class="trc__crest">
+              <span class="trc__crest"{% if e.team.logo %} style="background:transparent"{% endif %}>
                 {% if e.team.logo %}<img src="{{ e.team.logo.url }}" alt="">{% else %}{{ e.team.initials }}{% endif %}
               </span>
               <div class="trc__id">
                 <h3 class="trc__name">
                   {{ e.team.name }}
-                  <button type="button" class="name-edit-btn" data-rename-url="{% url 'team_rename' tournament.slug e.team.id %}"
-                          data-rename-value="{{ e.team.name }}" data-rename-title="Rename team"
-                          aria-label="Rename {{ e.team.name }}">
+                  <button type="button" class="name-edit-btn" data-team-edit-url="{% url 'team_edit' tournament.slug e.team.id %}"
+                          data-team-edit-name="{{ e.team.name }}"
+                          data-team-edit-logo="{% if e.team.logo %}{{ e.team.logo.url }}{% endif %}"
+                          aria-label="Edit {{ e.team.name }}">
                     <svg class="ico" aria-hidden="true"><use href="#i-edit"></use></svg>
                   </button>
                 </h3>
@@ -523,6 +524,49 @@
     </form>
   </dialog>
 
+  {# --- Edit a team's name/logo together (opened from a ✏️ button) ------- #}
+  <dialog id="team-edit-dialog" class="poolassign-dialog" style="max-width:420px">
+    {# Plain full-page submit (not the fetch-patch technique the name-rename
+       dialog above uses) — that dialog's fetch only ever re-renders
+       #participants-list, and a validation error (e.g. "must be square")
+       is flashed via the messages framework outside that div, so it would
+       render invisibly off-screen. A real POST+redirect always shows it. #}
+    <form method="post" enctype="multipart/form-data" id="team-edit-form">
+      {% csrf_token %}
+      <h3 class="fxpanel__h" style="margin-top:0">Edit team</h3>
+      <label class="poolcfg__f" style="margin-top:12px">
+        <span>Team Name</span>
+        <input class="input" type="text" name="name" id="team-edit-name-input" required maxlength="120">
+      </label>
+      <div class="tmc-field" style="margin-top:12px">
+        <label class="tmc-label" for="team-edit-logo-input">
+          <svg class="ico" aria-hidden="true"><use href="#i-image"></use></svg>Team Logo
+        </label>
+        <div class="tmc-drop" data-tmc-drop data-tmc-accept="image/*">
+          <span class="tmc-drop__thumb">
+            <svg class="ico" aria-hidden="true"><use href="#i-image"></use></svg>
+            <img alt="" data-tmc-preview id="team-edit-logo-preview">
+          </span>
+          <span class="tmc-drop__copy">
+            <span class="tmc-drop__t" data-tmc-title>Drag &amp; drop logo</span>
+            <span class="tmc-drop__s" data-tmc-sub>or <span class="tmc-drop__browse">browse files</span> — square image only</span>
+          </span>
+          <span class="tmc-drop__file"><input type="file" name="logo" id="team-edit-logo-input" accept="image/*"></span>
+          <button type="button" class="tmc-drop__clear" data-tmc-clear hidden aria-label="Remove selected logo">
+            <svg class="ico" aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </div>
+        <p class="dim" style="font-size:12px; margin-top:4px">
+          Leave blank to keep the current logo. Must be a square image (equal width and height) — resized to 500×500 and saved as WebP.
+        </p>
+      </div>
+      <div class="row-flex" style="margin-top:14px">
+        <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+        <button class="btn btn-primary btn-sm">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   {# --- Remove all teams / participants (opened from the heading button) - #}
   <dialog id="remove-all-dialog" class="poolassign-dialog" style="max-width:400px">
     <form method="post" action="{% url 'participants_remove_all' tournament.slug %}">
@@ -696,6 +740,40 @@ document.querySelectorAll('[data-open-dialog]').forEach(function (btn) {
     if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
   });
 });
+</script>
+<script>
+/* Team "Edit" dialog: same per-click form.action/value wiring as the
+   name-rename dialog above, but its own dialog/form — this one carries a
+   file input (name/logo together) and submits as a real page navigation
+   (see the comment on #team-edit-dialog for why). */
+(function () {
+  var dialog = document.getElementById('team-edit-dialog');
+  var form = document.getElementById('team-edit-form');
+  var nameInput = document.getElementById('team-edit-name-input');
+  var logoInput = document.getElementById('team-edit-logo-input');
+  var logoPreview = document.getElementById('team-edit-logo-preview');
+  var dropZone = logoInput ? logoInput.closest('[data-tmc-drop]') : null;
+  if (!dialog || !form) return;
+
+  document.querySelectorAll('[data-team-edit-url]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      form.action = btn.getAttribute('data-team-edit-url');
+      nameInput.value = btn.getAttribute('data-team-edit-name') || '';
+      if (logoInput) logoInput.value = '';
+      var currentLogo = btn.getAttribute('data-team-edit-logo');
+      if (logoPreview) {
+        if (currentLogo) {
+          logoPreview.src = currentLogo;
+          if (dropZone) dropZone.classList.add('has-img');
+        } else {
+          logoPreview.removeAttribute('src');
+          if (dropZone) dropZone.classList.remove('has-img');
+        }
+      }
+      dialog.showModal();
+    });
+  });
+})();
 </script>
 {% if not tournament.is_team_based %}
 <script>

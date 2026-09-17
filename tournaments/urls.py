@@ -40,8 +40,8 @@ urlpatterns = [
     # Renames must be registered before entry_decide's <str:kind>/<int:entry_id>/<str:decision>
     # catch-all below, which would otherwise swallow /team/<id>/rename and
     # /individual/<id>/rename first (both match its 3-segment shape).
-    path('organizer/t/<slug:slug>/participants/team/<int:team_id>/rename',
-         views.team_rename, name='team_rename'),
+    path('organizer/t/<slug:slug>/participants/team/<int:team_id>/edit',
+         views.team_edit, name='team_edit'),
     path('organizer/t/<slug:slug>/participants/team/<int:team_id>/member/<int:membership_id>/rename',
          views.team_member_rename, name='team_member_rename'),
     path('organizer/t/<slug:slug>/participants/individual/<int:reg_id>/rename',

@@ -63,7 +63,7 @@ Context: tournament, fx  (optional: round_key — filter group this card sits in
     <div class="fxc__field">
       {% for p in ps %}
         <span class="fxc__ent">
-          <span class="fxc__crest fxc__crest--sm" style="background:var(--{{ tournament.sport.sp_class }})">
+          <span class="fxc__crest fxc__crest--sm" style="background:{% if p.team.logo %}transparent{% else %}var(--{{ tournament.sport.sp_class }}){% endif %}">
             {% if p.team.logo %}<img src="{{ p.team.logo.url }}" alt="" onerror="this.remove()">{% endif %}{{ p.initials }}
           </span>
           <span class="fxc__ent-n{% if fx.status == 'COMPLETED' and p.is_winner %} is-win{% endif %}">{{ p.name }}</span>

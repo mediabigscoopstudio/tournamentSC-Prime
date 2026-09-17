@@ -10,7 +10,7 @@ standalone standings page. Context: bracket_rounds, champion
         <a class="bm" href="{{ fx.get_absolute_url }}">
           {% for p in fx.participants.all %}
             <div class="bm__r {% if p.is_winner %}win{% endif %}">
-              <span class="nm">{{ p.name }}</span>
+              <span class="nm">{% include 'public/_entrant_name.html' with team=p.team player=p.player name=p.name %}</span>
               <span class="sc">{{ p.score|default_if_none:'–'|floatformat:'-2' }}</span>
             </div>
           {% endfor %}
@@ -23,6 +23,6 @@ standalone standings page. Context: bracket_rounds, champion
     <div class="round__h">Champion</div>
     <div class="champ__cup"><svg class="ico" style="width:28px;height:28px"><use href="#i-trophy"/></svg></div>
     <span class="champ__lbl">{% if champion %}Winner{% else %}To be decided{% endif %}</span>
-    <span class="champ__nm">{% if champion %}{{ champion.name }}{% else %}—{% endif %}</span>
+    <span class="champ__nm">{% if champion %}{% include 'public/_entrant_name.html' with team=champion.team player=champion.player name=champion.name %}{% else %}—{% endif %}</span>
   </div>
 </div></div>

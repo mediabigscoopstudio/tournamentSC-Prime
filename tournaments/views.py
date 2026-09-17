@@ -7,6 +7,7 @@ from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -243,18 +244,20 @@ def team_member_add(request, slug, team_id):
 
 @approved_organizer_required
 @require_POST
-def team_rename(request, slug, team_id):
+def team_edit(request, slug, team_id):
+    """Rename a team and/or replace its logo together — the logo goes
+    through the same square-only, 500x500 WebP processing as team_add's
+    TeamForm (see TeamForm.clean_logo / tournaments/images.py)."""
     t = _owned(request, slug)
     team = get_object_or_404(Team, id=team_id, entries__tournament=t)
-    new_name = (request.POST.get('new_name') or '').strip()
-    if not new_name:
-        messages.error(request, 'Enter a team name.')
-    elif len(new_name) > 120:
-        messages.error(request, 'Team name is too long (max 120 characters).')
+    form = TeamForm(request.POST, request.FILES, instance=team)
+    if form.is_valid():
+        form.save()
+        messages.success(request, f'Team "{team.name}" updated.')
     else:
-        team.name = new_name
-        team.save(update_fields=['name', 'updated_at'])
-        messages.success(request, f'Team renamed to "{new_name}".')
+        for field_errors in form.errors.values():
+            for error in field_errors:
+                messages.error(request, error)
     return redirect('participants_manage', slug=slug)
 
 
@@ -1629,6 +1632,18 @@ def fixture_schedule(request, slug, fixture_id):
 _BASKETBALL_POINT_VALUES = {'1', '2', '3'}
 
 
+def _roster_choices_for(participants):
+    """{participant.id: [TeamMembership,...]} — the team-side roster a
+    'who scored?' dialog picks from. Empty list for a player-only
+    participant (no team, e.g. a racket-sport Singles entrant), so the
+    dialog can render an empty state instead of erroring."""
+    return {
+        p.id: (list(p.team.memberships.filter(is_approved=True).order_by('jersey_number'))
+               if p.team_id else [])
+        for p in participants
+    }
+
+
 def _basketball_scoring_context(fixture):
     """Player choices per team-side and the individual scoring+fouls table —
     all derived from existing data (TeamMembership rosters, ScoreEvent rows),
@@ -1636,11 +1651,7 @@ def _basketball_scoring_context(fixture):
     persisted.
     """
     participants = list(fixture.participants.select_related('team').all())
-    player_choices = {
-        p.id: (list(p.team.memberships.filter(is_approved=True).order_by('jersey_number'))
-               if p.team_id else [])
-        for p in participants
-    }
+    player_choices = _roster_choices_for(participants)
 
     totals = {}
 
@@ -1714,8 +1725,10 @@ def score_fixture(request, slug, fixture_id):
                     fixture.shot_clock_duration_seconds = shot_seconds
                     update_fields.append('shot_clock_duration_seconds')
 
-                    fixture.individual_scoring_enabled = bool(request.POST.get('individual_scoring'))
-                    update_fields.append('individual_scoring_enabled')
+                    # individual_scoring_enabled keeps its model default here —
+                    # the organizer picks Individual/Team from the "Scoring
+                    # mode" popup that auto-opens once this redirect lands
+                    # back on the now-LIVE page (score.html, ?setup=1 below).
 
                     # The quarter clock (and the shot clock, which mirrors it)
                     # starts paused (frozen at the full quarter/shot length)
@@ -1737,7 +1750,10 @@ def score_fixture(request, slug, fixture_id):
             fixture.save(update_fields=update_fields)
             sync_tournament_status(t)
             messages.info(request, 'Match marked LIVE.')
-            return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            url = reverse('score_fixture', kwargs={'slug': slug, 'fixture_id': fixture_id})
+            if is_basketball or (is_racket and t.is_team_based):
+                url += '?setup=1'
+            return redirect(url)
 
         if action == 'youtube':
             fixture.youtube_url = (request.POST.get('youtube_url') or '').strip()
@@ -1932,17 +1948,18 @@ def score_fixture(request, slug, fixture_id):
                 messages.info(request, 'Match clock resumed.')
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
-        if action == 'toggle_individual_scoring':
-            if not is_basketball:
-                messages.error(request, 'Individual scoring is only available for basketball matches.')
+        if action == 'set_scoring_mode':
+            if not (is_basketball or (is_racket and t.is_team_based)):
+                messages.error(request, 'Scoring mode only applies to basketball, or doubles/mixed '
+                                        'doubles racket matches.')
                 return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
             if fixture.status != 'LIVE':
                 messages.error(request, 'Start the match before changing the scoring mode.')
                 return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
-            fixture.individual_scoring_enabled = not fixture.individual_scoring_enabled
+            fixture.individual_scoring_enabled = bool(request.POST.get('individual_scoring'))
             fixture.save(update_fields=['individual_scoring_enabled', 'updated_at'])
-            messages.success(request, 'Individual scoring turned '
-                                      f'{"on" if fixture.individual_scoring_enabled else "off"}.')
+            messages.success(request, 'Scoring mode set to '
+                                      f'{"individual" if fixture.individual_scoring_enabled else "team"}.')
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
         if action == 'reset_quarter_clock':
@@ -2004,12 +2021,44 @@ def score_fixture(request, slug, fixture_id):
                 messages.error(request, 'Unknown side.')
                 return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
             delta = 1 if request.POST.get('delta') != '-1' else -1
-            sets = list(fixture.set_scores)
-            current = dict(sets[-1])
-            current[side] = max(0, current.get(side, 0) + delta)
-            sets[-1] = current
-            fixture.set_scores = sets
-            fixture.save(update_fields=['set_scores', 'updated_at'])
+
+            # A point scored (not a -1 correction) is attributed to a player
+            # the same way basketball's score_point does, but only for a
+            # Doubles/Mixed Doubles pair with individual scoring on — a
+            # Singles side has no roster to pick from (see Fixture.
+            # individual_scoring_enabled's docstring), so this is always
+            # skipped there regardless of the stored flag.
+            participant = None
+            membership = None
+            if delta == 1:
+                idx = 0 if side == 'a' else 1
+                participant = participants[idx] if idx < len(participants) else None
+                if (participant and fixture.individual_scoring_enabled
+                        and t.is_team_based and participant.team_id):
+                    membership_id = request.POST.get('membership_id')
+                    if not membership_id:
+                        messages.error(request, 'Select which player won that point.')
+                        return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+                    membership = get_object_or_404(TeamMembership, id=membership_id,
+                                                   team_id=participant.team_id)
+
+            with transaction.atomic():
+                sets = list(fixture.set_scores)
+                current = dict(sets[-1])
+                current[side] = max(0, current.get(side, 0) + delta)
+                sets[-1] = current
+                fixture.set_scores = sets
+                fixture.save(update_fields=['set_scores', 'updated_at'])
+                if delta == 1 and participant:
+                    ScoreEvent.objects.create(
+                        fixture=fixture, participant=participant, event_type='score',
+                        description=(f'{participant.name} +1 — {membership.name}' if membership
+                                    else f'{participant.name} +1'),
+                        score_snapshot={'membership_id': membership.id if membership else None,
+                                        'player_name': membership.name if membership else '',
+                                        'jersey_number': membership.jersey_number if membership else '',
+                                        'points': 1, 'team_participant_id': participant.id},
+                        created_by=request.user)
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
         if action in ('edit_set', 'delete_set'):
@@ -2268,6 +2317,8 @@ def score_fixture(request, slug, fixture_id):
         ctx['individual_rows'] = individual_rows
         ctx['individual_rows_by_team'] = individual_rows_by_team
         ctx['can_undo_score'] = fixture.events.filter(event_type='score').exists()
+    elif is_racket and t.is_team_based:
+        ctx['player_choices'] = _roster_choices_for(participants)
     return render(request, 'organizer/score.html', ctx)
 
 

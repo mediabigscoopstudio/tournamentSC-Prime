@@ -532,7 +532,8 @@ a.bracket-match:hover{ text-decoration:none; box-shadow:var(--shadow); }
 .champ{ display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; }
 .champ__cup{ width:56px; height:56px; border-radius:16px; background:color-mix(in srgb,var(--gold) 16%,#fff); border:1px solid color-mix(in srgb,var(--gold) 40%,#fff); display:grid; place-items:center; color:#c88a09; }
 .champ__lbl{ font-family:var(--font-score); font-weight:600; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
-.champ__nm{ font-family:var(--font-display); font-weight:800; font-size:19px; color:var(--navy); }
+.champ__nm{ display:inline-flex; align-items:center; gap:8px; justify-content:center;
+  font-family:var(--font-display); font-weight:800; font-size:19px; color:var(--navy); }
 
 /* fixtures list */
 .flist{ display:flex; flex-direction:column; gap:10px; }
@@ -1730,7 +1731,13 @@ button.bball-setup-switch:focus-visible .bball-setup-switch-track{ box-shadow:0 
 .poolcard th:first-child,.poolcard td:first-child{ padding-left:18px; }
 .poolcard th:last-child,.poolcard td:last-child{ padding-right:18px; }
 .poolcard .tcell{ gap:9px; }
-.poolteam{ min-width:0; }
+.poolteam{ display:inline-flex; align-items:center; gap:6px; min-width:0; }
+
+/* Small circular logo/photo + name — pool standings and the bracket
+   (public/_entrant_name.html). Renders nothing but the name when the
+   entrant has no team.logo/player.profile_photo. */
+.entrant-avatar{ width:20px; height:20px; border-radius:50%; object-fit:cover; flex:none; }
+.entrant-name{ min-width:0; overflow-wrap:anywhere; }
 
 /* ---------- pool navigation (shared: fixtures-by-pool + standings-by-pool) ----------
    A translucent floating vertical rail, fixed to the right edge, at every

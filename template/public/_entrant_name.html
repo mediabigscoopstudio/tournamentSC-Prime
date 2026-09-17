@@ -1,0 +1,11 @@
+{% comment %}
+Small circular logo/photo + name — shared by pool standings (combined and
+per-pool tables) and the bracket, so a team/individual with an image shows
+it consistently everywhere outside the fixture cards (which already have
+their own bigger crest treatment, organizer/_fixture_side.html). Renders
+just the plain name when the entrant has neither.
+Context: team, player, name
+{% endcomment %}
+{% if team.logo %}<img class="entrant-avatar" src="{{ team.logo.url }}" alt="">
+{% elif player.profile_photo %}<img class="entrant-avatar" src="{{ player.profile_photo.url }}" alt="">
+{% endif %}<span class="entrant-name">{{ name }}</span>

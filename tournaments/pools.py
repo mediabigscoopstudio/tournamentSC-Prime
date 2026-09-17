@@ -750,16 +750,42 @@ def pool_view_context(tournament):
     # never played each other, so head_to_head is empty and ties fall
     # straight through to the same stable random draw rank_pool_rows already
     # uses for any other unresolved tie.
-    combined_rows = [{
-        'key': f'standing:{s.id}', 'team': s.team, 'player': s.player, 'label': s.name,
-        'played': s.played, 'won': s.won, 'lost': s.lost, 'drawn': s.drawn,
-        'points': s.points, 'pool': s.group_name,
-        'pf': s.extra_stats.get('pf', 0), 'pa': s.extra_stats.get('pa', 0),
-        'pd': s.extra_stats.get('pd', 0), 'qualified': s.extra_stats.get('qualified', False),
-    } for s in standings]
+    #
+    # An entrant normally has exactly one Standing row (one pool), but a
+    # manual "Fixture creation by pool" / "Add a fixture to this pool" can
+    # add them to a fixture in a different pool without moving them, giving
+    # them a second Standing row under a different group_name. Merge by
+    # entrant identity (same key scheme as qualified_entrants()) so the
+    # combined table shows one row with totals summed across every pool
+    # they appear in, not the same entrant listed twice with partial stats.
+    merged = {}
+    for s in standings:
+        if s.team_id:
+            key = f'team:{s.team_id}'
+        elif s.player_id:
+            key = f'player:{s.player_id}'
+        else:
+            key = f'label:{s.label}'
+        row = merged.get(key)
+        if row is None:
+            merged[key] = row = {
+                'key': key, 'team': s.team, 'player': s.player, 'label': s.name,
+                'played': 0, 'won': 0, 'lost': 0, 'drawn': 0,
+                'points': 0, 'pf': 0, 'pa': 0, 'pd': 0, 'qualified': False,
+            }
+        row['played'] += s.played
+        row['won'] += s.won
+        row['lost'] += s.lost
+        row['drawn'] += s.drawn
+        row['points'] += s.points
+        row['pf'] += s.extra_stats.get('pf', 0)
+        row['pa'] += s.extra_stats.get('pa', 0)
+        row['pd'] += s.extra_stats.get('pd', 0)
+        row['qualified'] = row['qualified'] or s.extra_stats.get('qualified', False)
+
     combined_standings = [
         dict(r, position=pos) for pos, r in
-        enumerate(rank_pool_rows(combined_rows, {}, tournament.pk, 'combined'), start=1)
+        enumerate(rank_pool_rows(list(merged.values()), {}, tournament.pk, 'combined'), start=1)
     ]
 
     fixtures_by_pool = {}

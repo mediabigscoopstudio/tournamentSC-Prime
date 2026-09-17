@@ -7,7 +7,7 @@ Context: tournament, fx, p (may be empty — an unfilled bracket slot), side
 {% endcomment %}
 <div class="fxc__side{% if side == 'r' %} fxc__side--r{% endif %}">
   {% if p %}
-    <span class="fxc__crest" style="background:var(--{{ tournament.sport.sp_class }})">
+    <span class="fxc__crest" style="background:{% if p.team.logo %}transparent{% else %}var(--{{ tournament.sport.sp_class }}){% endif %}">
       {% if p.team.logo %}<img src="{{ p.team.logo.url }}" alt="" onerror="this.remove()">{% endif %}{{ p.initials }}
     </span>
     <span class="fxc__name{% if fx.status == 'COMPLETED' %}{% if p.is_winner %} is-win{% elif p.result_chip == 'l' %} is-lose{% endif %}{% endif %}">{{ p.name }}</span>

@@ -12,7 +12,6 @@ Context: pools, combined_standings, qualifiers_per_pool, has_pool_draws
     <div class="table-wrap"><table>
       <thead><tr>
         <th>Entrant</th>
-        <th>Pool</th>
         <th class="n" title="Matches played">P</th>
         <th class="n" title="Wins">W</th>
         {% if has_pool_draws %}<th class="n" title="Draws">D</th>{% endif %}
@@ -25,8 +24,7 @@ Context: pools, combined_standings, qualifiers_per_pool, has_pool_draws
       <tbody>
         {% for s in combined_standings %}
           <tr class="{% if s.qualified %}qual{% endif %}">
-            <td><div class="tcell"><span class="rk">{{ s.position }}</span> <span class="poolteam">{{ s.label }}</span></div></td>
-            <td>{{ s.pool }}</td>
+            <td><div class="tcell"><span class="rk">{{ s.position }}</span> <span class="poolteam">{% include 'public/_entrant_name.html' with team=s.team player=s.player name=s.label %}</span></div></td>
             <td class="n">{{ s.played }}</td>
             <td class="n">{{ s.won }}</td>
             {% if has_pool_draws %}<td class="n">{{ s.drawn }}</td>{% endif %}
@@ -72,7 +70,7 @@ Context: pools, combined_standings, qualifiers_per_pool, has_pool_draws
         <tbody>
           {% for s in pool.standings %}
             <tr class="{% if s.extra_stats.qualified %}qual{% endif %}">
-              <td><div class="tcell"><span class="rk">{{ s.position }}</span> <span class="poolteam">{{ s.name }}</span></div></td>
+              <td><div class="tcell"><span class="rk">{{ s.position }}</span> <span class="poolteam">{% include 'public/_entrant_name.html' with team=s.team player=s.player name=s.name %}</span></div></td>
               <td class="n">{{ s.played }}</td>
               <td class="n">{{ s.won }}</td>
               {% if has_pool_draws %}<td class="n">{{ s.drawn }}</td>{% endif %}
