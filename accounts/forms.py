@@ -179,28 +179,42 @@ class OrganizerProfileForm(forms.ModelForm):
 
 class PlayerProfileForm(forms.ModelForm):
     first_name = forms.CharField(max_length=150, required=False, label='Display name')
+    username = forms.CharField(max_length=150, required=True, label='Username (@handle)')
 
     class Meta:
         model = PlayerProfile
         fields = ['city', 'date_of_birth', 'gender', 'profile_photo', 'cover_photo', 'bio', 'rating',
-                  'sports', 'emergency_contact_name', 'emergency_contact_phone']
+                  'sports', 'emergency_contact_name', 'emergency_contact_phone',
+                  'specialization', 'followed_sports']
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
             'bio': forms.Textarea(attrs={'rows': 3}),
             'sports': forms.CheckboxSelectMultiple,
+            'followed_sports': forms.CheckboxSelectMultiple,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.user_id:
             self.fields['first_name'].initial = self.instance.user.first_name
+            self.fields['username'].initial = self.instance.user.username
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if username:
+            # Check for uniqueness, excluding current user
+            User = self.instance.user.__class__
+            if User.objects.filter(username__iexact=username).exclude(pk=self.instance.user.pk).exists():
+                raise forms.ValidationError('This username is already taken.')
+        return username
 
     def save(self, commit=True):
         profile = super().save(commit=commit)
-        name = self.cleaned_data.get('first_name')
-        if name is not None and profile.user_id:
-            profile.user.first_name = name
-            profile.user.save(update_fields=['first_name'])
+        user = profile.user
+        user.first_name = self.cleaned_data.get('first_name')
+        user.username = self.cleaned_data.get('username')
+        if commit:
+            user.save(update_fields=['first_name', 'username'])
         return profile
 
 
@@ -220,3 +234,10 @@ class RoleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['permissions'].queryset = Permission.objects.select_related(
             'content_type').order_by('content_type__app_label', 'codename')
+
+from .models import UserSettings
+
+class UserSettingsForm(forms.ModelForm):
+    class Meta:
+        model = UserSettings
+        fields = ['email_marketing', 'sound_enabled', 'haptic_enabled']

@@ -10,25 +10,27 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # --- Choosers (public) ---
-    path('login', views.login_chooser, name='login'),
-    path('signup', views.signup_chooser, name='signup'),
+    # --- Unified Auth ---
+    path('login', views.unified_login, name='login'),
+    path('signup', views.unified_signup, name='signup'),
     path('logout', views.logout_view, name='logout'),
+    path('google-login', views.google_login, name='google_login'),
+    path('verify-otp', views.verify_otp, name='verify_otp'),
 
-    # --- Player authentication ---
-    path('player/login', views.player_login, name='player_login'),
-    path('player/register', views.player_signup, name='player_signup'),
-    path('player/logout', views.logout_view, name='player_logout'),
+    # --- Player profile ---
     path('player/profile', views.profile_edit, name='profile_edit'),
 
-    # --- Organizer authentication ---
-    path('organizer/login', views.organizer_login, name='organizer_login'),
-    path('organizer/register', views.organizer_signup, name='organizer_signup'),
-    path('organizer/logout', views.logout_view, name='organizer_logout'),
+    # --- Organizer capability ---
     path('organizer/apply', views.organizer_apply, name='organizer_apply'),
     path('organizer/status', views.organizer_status, name='organizer_status'),
     path('organizer/profile', views.organizer_profile_edit, name='organizer_profile_edit'),
 
+
+    # --- Settings ---
+    path('settings', views.settings_view, name='settings_view'),
+
+    # --- Social ---
+    path('users/<int:pk>/toggle-follow', views.toggle_follow_user, name='toggle_follow_user'),
     # --- Public player profile (audience, no login) ---
     path('players/<int:pk>', views.player_public, name='player_public'),
 

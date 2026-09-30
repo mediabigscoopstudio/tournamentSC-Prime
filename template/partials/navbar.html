@@ -15,21 +15,55 @@
     </nav>
     <div class="nav__cta">
       {% if user.is_authenticated %}
-        <a href="{% url 'notifications' %}" class="nav__bell" aria-label="Notifications">
+<a href="{% url 'notifications' %}" class="nav__bell" aria-label="Notifications" style="margin-right: 16px;">
           <svg class="ico" style="width:22px;height:22px"><use href="#i-bell"/></svg>
           {% if nav_unread_count %}<span class="count">{{ nav_unread_count }}</span>{% endif %}
         </a>
-        {% if user.is_approved_organizer %}
-          <a class="nav__login" href="{% url 'organizer_dashboard' %}">{{ user.display_name }}</a>
-        {% else %}
-          <a class="nav__login" href="{% url 'player_dashboard' %}">{{ user.display_name }}</a>
-        {% endif %}
-        <a class="btn btn--primary btn--sm" href="{% url 'logout' %}">Log out</a>
+        
+        <!-- User Dropdown (LinkedIn/Instagram style) -->
+        <div class="dropdown-container" style="position:relative; display:inline-block;">
+          <button class="nav__login" style="background:none; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px;" onclick="this.nextElementSibling.toggleAttribute('hidden')">
+            {{ user.display_name }}
+            <svg class="ico" style="width:16px;height:16px"><use href="#i-arrow"/></svg>
+          </button>
+          
+          <div hidden style="position:absolute; top:calc(100% + 8px); right:0; width:240px; background:var(--b-l1); border:1px solid var(--b-l3); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:100; padding:8px 0; display:flex; flex-direction:column; gap:4px;">
+            <a href="{% url 'player_public' user.player_profile.pk %}" style="padding:8px 16px; color:inherit; text-decoration:none;">My Profile</a>
+            <a href="{% url 'settings_view' %}" style="padding:8px 16px; color:inherit; text-decoration:none;">Settings</a>
+            <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">My Achievements</a>
+            
+            {% if user.is_approved_organizer %}
+            <a href="{% url 'organizer_dashboard' %}" style="padding:8px 16px; color:var(--orange); text-decoration:none; font-weight:600;">Organizer Dashboard</a>
+            {% endif %}
+            
+            <a href="{% url 'player_dashboard' %}" style="padding:8px 16px; color:inherit; text-decoration:none;">My Tournaments</a>
+            <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">My Teams</a>
+            <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">Referee Portal</a>
+            <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">Commentator Portal</a>
+            
+            <div style="height:1px; background:var(--b-l3); margin:4px 0;"></div>
+            <a href="{% url 'logout' %}" style="padding:8px 16px; color:var(--red); text-decoration:none;">Log out</a>
+          </div>
+        </div>
       {% else %}
         <a class="nav__login" href="{% url 'login' %}">Log in</a>
-        <a class="btn btn--primary btn--sm" href="{% url 'organizer_signup' %}">Start a tournament</a>
+        <a class="btn btn--primary btn--sm" href="{% url 'signup' %}">Start a tournament</a>
       {% endif %}
       <button class="nav__burger" aria-label="Open menu" data-menu-open><svg class="ico"><use href="#i-menu"/></svg></button>
     </div>
   </div>
+
+<script>
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('.dropdown-container').forEach(function(container) {
+    if (!container.contains(e.target)) {
+      var menu = container.querySelector('div[hidden]') || container.querySelector('div:not([hidden])');
+      if (menu && menu.tagName === 'DIV' && !menu.hasAttribute('hidden') && e.target !== container.querySelector('button')) {
+        menu.setAttribute('hidden', '');
+      }
+    }
+  });
+});
+</script>
 </header>
+

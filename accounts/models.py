@@ -37,6 +37,9 @@ class User(AbstractUser):
     fcm_notifications = models.BooleanField(
         default=True, help_text='Deliver notifications as a push notification, not just in-app.')
 
+    uid = models.IntegerField(unique=True, null=True, blank=True, help_text="6-digit unique permanent ID")
+    is_email_verified = models.BooleanField(default=False)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []  # email + password only
 
@@ -62,6 +65,16 @@ class User(AbstractUser):
     def has_organizer_profile(self):
         return hasattr(self, 'organizer_profile')
 
+
+
+class EmailOTP(TimeStamped):
+    email = models.EmailField()
+    otp = models.CharField(max_length=6)
+    expires_at = models.DateTimeField()
+    is_verified = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.email} - {self.otp}"
 
 class OrganizerProfile(TimeStamped):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
@@ -112,6 +125,11 @@ class PlayerProfile(TimeStamped):
     sports = models.ManyToManyField('tournaments.Sport', blank=True, related_name='interested_players')
     emergency_contact_name = models.CharField(max_length=120, blank=True)
     emergency_contact_phone = models.CharField(max_length=20, blank=True)
+    
+    # Social / Capability fields
+    specialization = models.CharField(max_length=120, blank=True, help_text="Position or specialization")
+    followed_sports = models.ManyToManyField('tournaments.Sport', blank=True, related_name='followers')
+    social_links = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f'Player: {self.user.display_name}'
@@ -237,3 +255,25 @@ class AuditLog(TimeStamped):
     @classmethod
     def record(cls, actor, action, target='', detail=''):
         return cls.objects.create(actor=actor, action=action, target=str(target), detail=detail)
+
+class UserFollow(TimeStamped):
+    follower = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='following_users')
+    following = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='followers_users')
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['follower', 'following'], name='uniq_user_user_follow'),
+        ]
+
+    def __str__(self):
+        return f'{self.follower.username} follows {self.following.username}'
+
+class UserSettings(TimeStamped):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='settings')
+    email_marketing = models.BooleanField(default=True)
+    sound_enabled = models.BooleanField(default=True)
+    haptic_enabled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f'Settings for {self.user.username}'

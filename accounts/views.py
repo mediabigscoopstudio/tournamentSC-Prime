@@ -65,16 +65,6 @@ def _do_login(request, form, fallback):
 # ======================================================================
 # Choosers (public, no authentication happens here)
 # ======================================================================
-def login_chooser(request):
-    if request.user.is_authenticated:
-        return redirect(_home_for(request.user))
-    return render(request, 'accounts/login_chooser.html', {'next': request.GET.get('next', '')})
-
-
-def signup_chooser(request):
-    if request.user.is_authenticated:
-        return redirect(_home_for(request.user))
-    return render(request, 'accounts/signup_chooser.html', {'settings_obj': _settings()})
 
 
 def logout_view(request):
@@ -82,35 +72,96 @@ def logout_view(request):
     messages.info(request, 'You have been logged out.')
     return redirect('home')
 
-
 # ======================================================================
-# Player flow
+# Unified Auth Flow
 # ======================================================================
-def player_login(request):
+def unified_login(request):
     if request.user.is_authenticated:
         return redirect(_home_for(request.user))
     form = PlayerLoginForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
+        user = form.cleaned_data.get('user')
+        if user and not user.is_email_verified:
+            # Need to verify OTP
+            otp_val = str(random.randint(100000, 999999))
+            EmailOTP.objects.create(email=user.email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
+            # In a real app, send email here. For now, we will print it or just show it in dev.
+            print(f"OTP for {user.email}: {otp_val}")
+            request.session['auth_email'] = user.email
+            return redirect('verify_otp')
         return _do_login(request, form, 'player_dashboard')
-    return render(request, 'accounts/player_login.html', {'form': form})
+    
+    return render(request, 'accounts/login.html', {'form': form, 'google_client_id': os.getenv('GOOGLE_CLIENT_ID', '')})
 
-
-def player_signup(request):
+def unified_signup(request):
     if request.user.is_authenticated:
         return redirect(_home_for(request.user))
     conf = _settings()
-    if not conf.allow_player_registration:
-        messages.warning(request, 'Player registration is currently closed.')
-        return redirect('home')
-
+    
     form = PlayerSignupForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        user = form.save()
+        user = form.save(commit=False)
+        user.is_email_verified = False
+        user.save()
         PlayerProfile.objects.get_or_create(user=user)
+        
+        # Generate OTP
+        otp_val = str(random.randint(100000, 999999))
+        EmailOTP.objects.create(email=user.email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
+        print(f"OTP for {user.email}: {otp_val}")
+        
+        request.session['auth_email'] = user.email
+        return redirect('verify_otp')
+        
+    return render(request, 'accounts/signup.html', {'form': form, 'google_client_id': os.getenv('GOOGLE_CLIENT_ID', '')})
+
+def verify_otp(request):
+    email = request.session.get('auth_email')
+    if not email:
+        return redirect('login')
+        
+    if request.method == 'POST':
+        otp_entered = request.POST.get('otp', '').strip()
+        otp_record = EmailOTP.objects.filter(email=email, is_verified=False, expires_at__gte=timezone.now()).order_by('-created_at').first()
+        
+        if otp_record and otp_record.otp == otp_entered:
+            otp_record.is_verified = True
+            otp_record.save()
+            
+            user = get_user_model().objects.get(email=email)
+            user.is_email_verified = True
+            user.save(update_fields=['is_email_verified'])
+            
+            login(request, user)
+            del request.session['auth_email']
+            messages.success(request, f'Welcome, {user.display_name}!')
+            return redirect('player_dashboard')
+        else:
+            messages.error(request, 'Invalid or expired OTP.')
+            
+    return render(request, 'accounts/verify_otp.html', {'email': email})
+
+@require_POST
+def google_login(request):
+    token = request.POST.get('credential')
+    try:
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), os.getenv('GOOGLE_CLIENT_ID'))
+        email = idinfo['email']
+        
+        User = get_user_model()
+        user, created = User.objects.get_or_create(email=email)
+        if created:
+            user.is_email_verified = True
+            user.save()
+            PlayerProfile.objects.get_or_create(user=user)
+        elif not user.is_email_verified:
+            user.is_email_verified = True
+            user.save(update_fields=['is_email_verified'])
+            
         login(request, user)
-        messages.success(request, f'Welcome to TournamentSC, {user.display_name}!')
-        return redirect(_safe_next(request, 'player_dashboard'))
-    return render(request, 'accounts/player_signup.html', {'form': form})
+        return JsonResponse({'status': 'success', 'redirect': '/dashboard'})
+    except ValueError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid token'}, status=400)
 
 
 @player_required
@@ -127,45 +178,6 @@ def profile_edit(request):
 # ======================================================================
 # Organizer flow
 # ======================================================================
-def organizer_login(request):
-    if request.user.is_authenticated:
-        return redirect(_home_for(request.user))
-    form = OrganizerLoginForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        user = form.cleaned_data['user']
-        # An account without organizer capability lands on the apply page rather
-        # than a dashboard it cannot use.
-        fallback = _home_for(user) if user.has_organizer_profile else 'organizer_apply'
-        return _do_login(request, form, fallback)
-    return render(request, 'accounts/organizer_login.html', {'form': form})
-
-
-def organizer_signup(request):
-    if request.user.is_authenticated:
-        return redirect(_home_for(request.user))
-    conf = _settings()
-    if not conf.allow_organizer_registration:
-        messages.warning(request, 'Organizer registration is currently closed.')
-        return redirect('home')
-
-    form = OrganizerSignupForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        user = form.save()
-        login(request, user)
-        if conf.auto_approve_organizers:
-            profile = user.organizer_profile
-            profile.is_approved = True
-            profile.approved_at = timezone.now()
-            profile.save(update_fields=['is_approved', 'approved_at', 'updated_at'])
-            AuditLog.record(None, 'auto_approve_organizer', user.email,
-                            'Auto-approved by application settings.')
-            messages.success(request, 'Your organizer account is ready. Create your first tournament!')
-            return redirect('organizer_dashboard')
-        messages.success(request, 'Account created. Tell us about the events you want to run.')
-        return redirect('organizer_apply')
-    return render(request, 'accounts/organizer_signup.html', {'form': form})
-
-
 @organizer_area_required
 def organizer_apply(request):
     OrganizerProfile.objects.get_or_create(user=request.user)
@@ -206,6 +218,62 @@ def organizer_profile_edit(request):
         return redirect('organizer_profile_edit')
     return render(request, 'accounts/organizer_profile.html', {'form': form, 'profile': profile})
 
+
+
+# ======================================================================
+# Settings
+# ======================================================================
+@login_required_msg
+def settings_view(request):
+    settings_obj, _ = UserSettings.objects.get_or_create(user=request.user)
+    
+    settings_form = UserSettingsForm(request.POST or None, instance=settings_obj, prefix='settings')
+    password_form = PasswordChangeForm(request.user, request.POST or None, prefix='password')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'update_settings' and settings_form.is_valid():
+            settings_form.save()
+            messages.success(request, 'Settings updated.')
+            return redirect('settings_view')
+        elif action == 'change_password' and password_form.is_valid():
+            user = password_form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Password changed successfully.')
+            return redirect('settings_view')
+        elif action == 'disable_account':
+            request.user.is_active = False
+            request.user.save()
+            logout(request)
+            messages.info(request, 'Your account has been disabled.')
+            return redirect('home')
+
+    return render(request, 'accounts/settings.html', {
+        'settings_form': settings_form,
+        'password_form': password_form,
+    })
+
+# ======================================================================
+# Social
+# ======================================================================
+@login_required_msg
+@require_POST
+def toggle_follow_user(request, pk):
+    target_user = get_object_or_404(get_user_model(), pk=pk, is_active=True, is_suspended=False)
+    if target_user == request.user:
+        return JsonResponse({'error': 'Cannot follow yourself'}, status=400)
+        
+    follow, created = UserFollow.objects.get_or_create(follower=request.user, following=target_user)
+    if not created:
+        follow.delete()
+        is_following = False
+    else:
+        is_following = True
+        
+    return JsonResponse({
+        'is_following': is_following,
+        'follower_count': target_user.followers_users.count()
+    })
 
 # ======================================================================
 # Public + shared

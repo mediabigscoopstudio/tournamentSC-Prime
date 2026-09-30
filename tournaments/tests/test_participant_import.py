@@ -154,7 +154,7 @@ class ParticipantsBulkImportViewTests(TestCase):
     def test_basketball_page_shows_combined_import_box(self):
         resp = self.client.get(reverse('participants_manage', args=[self.tournament.slug]))
         self.assertContains(resp, 'Bulk Import Roster')
-        self.assertContains(resp, 'name="participants_text"')
+        self.assertContains(resp, 'name="participants_file"')
         self.assertNotContains(resp, 'Import Team Roster')
 
     def test_non_basketball_page_keeps_original_team_only_box(self):

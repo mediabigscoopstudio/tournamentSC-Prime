@@ -1,4 +1,5 @@
 from django.contrib.auth.models import BaseUserManager
+import random
 
 
 class UserManager(BaseUserManager):
@@ -20,6 +21,14 @@ class UserManager(BaseUserManager):
             raise ValueError('Users must have an email address')
         email = self.normalize_email(email)
         extra.setdefault('username', self._make_username(email))
+        
+        if 'uid' not in extra:
+            while True:
+                uid = random.randint(100000, 999999)
+                if not self.model.objects.filter(uid=uid).exists():
+                    extra['uid'] = uid
+                    break
+                    
         user = self.model(email=email, **extra)
         user.set_password(password)
         user.save(using=self._db)
