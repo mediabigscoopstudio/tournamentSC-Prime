@@ -97,10 +97,7 @@ def unified_login(request):
             try:
                 send_mail('Your TournamentSC Login Code', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
             except Exception:
-                try:
-            send_mail('Verify your TournamentSC Account', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
-        except Exception:
-            print(f"OTP for {user.email}: {otp_val}")
+                print(f"OTP for {user.email}: {otp_val}")
             request.session['auth_email'] = user.email
             return redirect('verify_otp')
         return _do_login(request, form, 'player_dashboard')
