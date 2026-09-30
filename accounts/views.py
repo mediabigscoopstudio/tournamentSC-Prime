@@ -13,6 +13,7 @@ right door. They never authenticate anyone themselves.
 """
 import json
 from django.conf import settings
+from tournaments.tasks import _send
 import os
 import random
 
@@ -446,20 +447,9 @@ def onboarding_flow(request):
         user.save()
         profile.save()
         
-        # Dispatch welcome email
+        # Dispatch welcome email using the centralized _send helper
         try:
-            ctx = {'user': user, 'site_url': settings.SITE_URL}
-            text_body = render_to_string('emails/platform_welcome.txt', ctx)
-            html_body = render_to_string('emails/platform_welcome.html', ctx)
-            
-            msg = EmailMultiAlternatives(
-                subject='Welcome to TournamentSC! 🎉',
-                body=text_body,
-                from_email=settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else None,
-                to=[user.email]
-            )
-            msg.attach_alternative(html_body, 'text/html')
-            msg.send(fail_silently=True)
+            _send('platform_welcome', 'Welcome to TournamentSC! 🏆', user.email, {'user': user})
             print(f"Dispatched platform welcome email to {user.email}")
         except Exception as e:
             print(f"Failed to send welcome email: {e}")
