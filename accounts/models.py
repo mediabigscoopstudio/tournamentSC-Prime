@@ -39,6 +39,7 @@ class User(AbstractUser):
 
     uid = models.IntegerField(unique=True, null=True, blank=True, help_text="6-digit unique permanent ID")
     is_email_verified = models.BooleanField(default=False)
+    onboarding_complete = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []  # email + password only
@@ -113,9 +114,11 @@ class PlayerProfile(TimeStamped):
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
                                 related_name='player_profile')
+    middle_name = models.CharField(max_length=150, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='U')
-    city = models.CharField(max_length=120, blank=True)
+    home_city = models.CharField(max_length=120, blank=True)
+    current_city = models.CharField(max_length=120, blank=True)
     profile_photo = models.ImageField(upload_to='players/', null=True, blank=True)
     cover_photo = models.ImageField(upload_to='players/covers/', null=True, blank=True)
     bio = models.TextField(blank=True)
@@ -123,6 +126,9 @@ class PlayerProfile(TimeStamped):
         null=True, blank=True,
         help_text='Skill rating (e.g. a chess Elo). Shown on rating-based standings.')
     sports = models.ManyToManyField('tournaments.Sport', blank=True, related_name='interested_players')
+    school = models.JSONField(default=list, blank=True)
+    college = models.JSONField(default=list, blank=True)
+    workplace = models.JSONField(default=list, blank=True)
     emergency_contact_name = models.CharField(max_length=120, blank=True)
     emergency_contact_phone = models.CharField(max_length=20, blank=True)
     

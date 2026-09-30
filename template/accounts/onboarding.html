@@ -129,17 +129,35 @@
         <h2>Education & Work</h2>
         <p class="dim" style="margin-bottom:2rem;">Add your school, college or workplace. (All optional)</p>
         
-        <div class="field">
-          <label>My School</label>
-          <input type="text" name="school" class="input" placeholder="e.g. DAV Public School">
+        <div class="field" id="school-container">
+          <label style="font-weight:700; color:#1e293b; margin-bottom:8px; display:block;">My School</label>
+          <div class="dynamic-group" style="display:flex; flex-direction:column; gap:8px;">
+            <div class="dynamic-item" style="display:flex; gap:8px;">
+              <input type="text" name="school[]" class="input" placeholder="e.g. DAV Public School" style="flex:1;">
+            </div>
+          </div>
+          <button type="button" class="btn-ghost" style="color:var(--orange); font-size:0.9rem; padding:4px 0; margin-top:4px;" onclick="addDynamicField(this, 'school[]', 'e.g. DPS R.K. Puram')">+ Add another school</button>
         </div>
-        <div class="field">
-          <label>My College</label>
-          <input type="text" name="college" class="input" placeholder="e.g. KIIT University">
+        
+        <div class="field" id="college-container" style="margin-top:1.5rem;">
+          <label style="font-weight:700; color:#1e293b; margin-bottom:8px; display:block;">My College</label>
+          <div class="dynamic-group" style="display:flex; flex-direction:column; gap:8px;">
+            <div class="dynamic-item" style="display:flex; gap:8px;">
+              <input type="text" name="college[]" class="input" placeholder="e.g. KIIT University" style="flex:1;">
+            </div>
+          </div>
+          <button type="button" class="btn-ghost" style="color:var(--orange); font-size:0.9rem; padding:4px 0; margin-top:4px;" onclick="addDynamicField(this, 'college[]', 'e.g. IIT Delhi')">+ Add another college</button>
         </div>
-        <div class="field">
-          <label>My Business / Workplace</label>
-          <input type="text" name="workplace" class="input" placeholder="e.g. Pinecode Studio">
+        
+        <div class="field" id="workplace-container" style="margin-top:1.5rem;">
+          <label style="font-weight:700; color:#1e293b; margin-bottom:8px; display:block;">My Business / Workplace</label>
+          <div class="dynamic-group" style="display:flex; flex-direction:column; gap:12px;">
+            <div class="dynamic-item" style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
+              <input type="text" name="workplace_name[]" class="input" placeholder="e.g. Pinecode Studio" style="margin-bottom:8px;">
+              <input type="text" name="workplace_desc[]" class="input" placeholder="Current job description (e.g. Software Engineer)">
+            </div>
+          </div>
+          <button type="button" class="btn-ghost" style="color:var(--orange); font-size:0.9rem; padding:4px 0; margin-top:4px;" onclick="addWorkplaceField(this)">+ Add another workplace</button>
         </div>
         
         <div class="nav-btns">
@@ -200,5 +218,36 @@ function nextStep(step) {
   }
   document.getElementById('si-' + step).classList.add('active');
 }
+
+function addDynamicField(btn, name, placeholder) {
+  const group = btn.previousElementSibling;
+  const item = document.createElement('div');
+  item.className = 'dynamic-item';
+  item.style.display = 'flex';
+  item.style.gap = '8px';
+  item.innerHTML = `
+    <input type="text" name="${name}" class="input" placeholder="${placeholder}" style="flex:1;">
+    <button type="button" style="background:none; border:none; color:#ef4444; font-size:1.2rem; cursor:pointer; padding:0 8px;" onclick="this.parentElement.remove()">×</button>
+  `;
+  group.appendChild(item);
+}
+
+function addWorkplaceField(btn) {
+  const group = btn.previousElementSibling;
+  const item = document.createElement('div');
+  item.className = 'dynamic-item';
+  item.style.background = '#f8fafc';
+  item.style.padding = '12px';
+  item.style.borderRadius = '8px';
+  item.style.border = '1px solid #e2e8f0';
+  item.style.position = 'relative';
+  item.innerHTML = `
+    <button type="button" style="position:absolute; top:8px; right:8px; background:none; border:none; color:#ef4444; font-size:1.2rem; cursor:pointer;" onclick="this.parentElement.remove()">×</button>
+    <input type="text" name="workplace_name[]" class="input" placeholder="e.g. Google" style="margin-bottom:8px; padding-right:32px;">
+    <input type="text" name="workplace_desc[]" class="input" placeholder="Current job description (e.g. Product Manager)">
+  `;
+  group.appendChild(item);
+}
+
 </script>
 {% endblock %}

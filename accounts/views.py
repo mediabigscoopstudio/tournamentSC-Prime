@@ -422,9 +422,19 @@ def onboarding_flow(request):
         # (sports logic can be added later if multi-select is passed)
         
         # Step 3
-        profile.school = request.POST.get('school', '')
-        profile.college = request.POST.get('college', '')
-        profile.workplace = request.POST.get('workplace', '')
+        profile.school = [s.strip() for s in request.POST.getlist('school[]') if s.strip()]
+        profile.college = [c.strip() for c in request.POST.getlist('college[]') if c.strip()]
+        
+        workplaces = []
+        wp_names = request.POST.getlist('workplace_name[]')
+        wp_descs = request.POST.getlist('workplace_desc[]')
+        for i in range(len(wp_names)):
+            if wp_names[i].strip():
+                workplaces.append({
+                    'name': wp_names[i].strip(),
+                    'description': wp_descs[i].strip() if i < len(wp_descs) else ''
+                })
+        profile.workplace = workplaces
         
         # Step 4
         profile.home_city = request.POST.get('home_city', '')
