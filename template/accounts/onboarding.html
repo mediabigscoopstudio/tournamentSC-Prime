@@ -42,7 +42,22 @@
   .nav-btns { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--b-l3); }
   .btn-next { background: var(--orange); color: #fff; padding: 12px 32px; border-radius: 30px; font-weight: 600; border: none; cursor: pointer; }
   .btn-back { background: transparent; color: var(--fg); padding: 12px 24px; font-weight: 600; border: none; cursor: pointer; }
+
+  .combo-wrapper { position: relative; width: 100%; }
+  .combo-dropdown { 
+    display: none; position: absolute; top: 100%; left: 0; right: 0; 
+    max-height: 220px; overflow-y: auto; background: #fff; 
+    border: 1px solid #e2e8f0; border-radius: 8px; z-index: 50; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 4px;
+  }
+  .combo-option { 
+    padding: 12px 16px; cursor: pointer; color: #1e293b; 
+    border-bottom: 1px solid #f1f5f9; transition: background 0.2s;
+  }
+  .combo-option:hover, .combo-option.selected { background: #f8fafc; color: var(--orange); font-weight: 600; }
+  .combo-option.add-new { color: var(--orange); font-weight: 600; }
 </style>
+
 
 <div class="onb-layout">
   <div class="onb-hero">
@@ -171,13 +186,20 @@
         <h2>Location</h2>
         <p class="dim" style="margin-bottom:2rem;">Help others find and connect with you.</p>
         
-        <div class="field">
+        <div class="field" style="position:relative; overflow:visible;">
           <label>Home City or Town *</label>
-          <input type="text" name="home_city" class="input" placeholder="e.g. Bhubaneswar, Odisha" required>
+          <div class="combo-wrapper">
+            <input type="text" name="home_city" id="home_city_input" class="input city-input" placeholder="Search city or type your own..." required autocomplete="off">
+            <div class="combo-dropdown" id="home_city_dropdown"></div>
+          </div>
         </div>
-        <div class="field">
+        
+        <div class="field" style="position:relative; overflow:visible;">
           <label>Currently Living In *</label>
-          <input type="text" name="current_city" class="input" placeholder="e.g. Delhi, Delhi" required>
+          <div class="combo-wrapper">
+            <input type="text" name="current_city" id="current_city_input" class="input city-input" placeholder="Search city or type your own..." required autocomplete="off">
+            <div class="combo-dropdown" id="current_city_dropdown"></div>
+          </div>
         </div>
         
         <div class="nav-btns">
@@ -249,5 +271,92 @@ function addWorkplaceField(btn) {
   group.appendChild(item);
 }
 
+
+// City Autocomplete Logic
+const indianCities = [
+  "Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Ahmedabad", "Chennai", "Kolkata", "Surat", "Pune", "Jaipur", 
+  "Lucknow", "Kanpur", "Nagpur", "Indore", "Thane", "Bhopal", "Visakhapatnam", "Pimpri-Chinchwad", "Patna", 
+  "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik", "Faridabad", "Meerut", "Rajkot", "Kalyan-Dombivli", 
+  "Vasai-Virar", "Varanasi", "Srinagar", "Aurangabad", "Dhanbad", "Amritsar", "Navi Mumbai", "Allahabad", 
+  "Howrah", "Ranchi", "Gwalior", "Jabalpur", "Coimbatore", "Vijayawada", "Jodhpur", "Madurai", "Raipur", 
+  "Kota", "Guwahati", "Chandigarh", "Solapur", "Hubli-Dharwad", "Bareilly", "Moradabad", "Mysore", "Gurgaon", 
+  "Aligarh", "Jalandhar", "Tiruchirappalli", "Bhubaneswar", "Salem", "Mira-Bhayandar", "Warangal", 
+  "Thiruvananthapuram", "Guntur", "Bhiwandi", "Saharanpur", "Gorakhpur", "Bikaner", "Amravati", "Noida", 
+  "Jamshedpur", "Bhilai", "Cuttack", "Firozabad", "Kochi", "Nellore", "Bhavnagar", "Dehradun", "Durgapur", 
+  "Asansol", "Rourkela", "Nanded", "Kolhapur", "Ajmer", "Akola", "Gulbarga", "Jamnagar", "Ujjain", "Loni", 
+  "Siliguri", "Jhansi", "Ulhasnagar", "Jammu", "Sangli-Miraj & Kupwad", "Mangalore", "Erode", "Belgaum", 
+  "Ambattur", "Tirunelveli", "Malegaon", "Gaya", "Jalgaon", "Udaipur", "Maheshtala"
+].sort();
+
+function titleCase(str) {
+  return str.toLowerCase().split(' ').map(function(word) {
+    if(!word) return ''; return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join(' ');
+}
+
+function setupCityAutocomplete(inputId, dropdownId) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  
+  function renderOptions(query) {
+    dropdown.innerHTML = '';
+    const q = query.toLowerCase().trim();
+    let matches = indianCities;
+    
+    if (q) {
+      matches = indianCities.filter(c => c.toLowerCase().includes(q));
+    }
+    
+    // Add existing matches
+    matches.forEach(city => {
+      const div = document.createElement('div');
+      div.className = 'combo-option';
+      div.textContent = city;
+      div.onmousedown = (e) => { // mousedown fires before blur
+        e.preventDefault();
+        input.value = city;
+        dropdown.style.display = 'none';
+      };
+      dropdown.appendChild(div);
+    });
+    
+    // If query is typed and not exactly in the list, offer to add it
+    if (q && !indianCities.some(c => c.toLowerCase() === q)) {
+      const formattedQ = titleCase(q);
+      const div = document.createElement('div');
+      div.className = 'combo-option add-new';
+      div.innerHTML = `+ Add "<strong>${formattedQ}</strong>"`;
+      div.onmousedown = (e) => {
+        e.preventDefault();
+        input.value = formattedQ;
+        dropdown.style.display = 'none';
+      };
+      dropdown.appendChild(div);
+    }
+    
+    if (dropdown.children.length > 0) {
+      dropdown.style.display = 'block';
+    } else {
+      dropdown.style.display = 'none';
+    }
+  }
+
+  input.addEventListener('focus', () => renderOptions(input.value));
+  input.addEventListener('input', () => renderOptions(input.value));
+  
+  input.addEventListener('blur', () => {
+    // Hide dropdown
+    dropdown.style.display = 'none';
+    // Auto capitalize on blur
+    if (input.value.trim() !== '') {
+      input.value = titleCase(input.value.trim());
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupCityAutocomplete('home_city_input', 'home_city_dropdown');
+  setupCityAutocomplete('current_city_input', 'current_city_dropdown');
+});
 </script>
 {% endblock %}
