@@ -165,8 +165,9 @@ def google_login(request):
         email = idinfo['email']
         
         User = get_user_model()
-        user, created = User.objects.get_or_create(email=email)
-        if created:
+        user = User.objects.filter(email=email).first()
+        if not user:
+            user = User.objects.create_user(email=email, password=None)
             user.is_email_verified = True
             user.save()
             PlayerProfile.objects.get_or_create(user=user)
