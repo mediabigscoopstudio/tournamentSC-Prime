@@ -38,8 +38,8 @@
             
             <a href="{% url 'player_dashboard' %}" style="padding:8px 16px; color:inherit; text-decoration:none;">My Tournaments</a>
             <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">My Teams</a>
-            <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">Referee Portal</a>
-            <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">Commentator Portal</a>
+            <a href="{% url 'referee_dashboard' %}" style="padding:8px 16px; color:inherit; text-decoration:none;">Referee Portal</a>
+            <a href="{% url 'commentator_dashboard' %}" style="padding:8px 16px; color:inherit; text-decoration:none;">Commentator Portal</a>
             
             <div style="height:1px; background:var(--b-l3); margin:4px 0;"></div>
             <a href="{% url 'logout' %}" style="padding:8px 16px; color:var(--red); text-decoration:none;">Log out</a>

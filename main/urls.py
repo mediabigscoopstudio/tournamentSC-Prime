@@ -29,8 +29,12 @@ urlpatterns = [
     path('t/<slug:slug>/schedule', views.schedule, name='tournament_schedule'),
     path('t/<slug:slug>/m/<int:pk>', views.match_detail, name='match_detail'),
 
+
     # --- Player dashboard (authenticated) ---
     path('player/', views.player_dashboard, name='player_dashboard'),
+    path('referee/', views.referee_dashboard, name='referee_dashboard'),
+    path('commentator/', views.commentator_dashboard, name='commentator_dashboard'),
+
     path('player/tournaments', views.my_tournaments, name='my_tournaments'),
     path('player/schedule', views.my_schedule, name='my_schedule'),
     path('player/results', views.my_results, name='my_results'),

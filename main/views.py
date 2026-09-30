@@ -430,3 +430,18 @@ def my_results(request):
     profile, _ = PlayerProfile.objects.get_or_create(user=request.user)
     return render(request, 'players/results.html',
                   {'fixtures': player_results(profile), 'title': 'My Results'})
+
+
+@player_required
+def referee_dashboard(request):
+    assignments = request.user.referee_assignments.select_related(
+        'fixture__tournament', 'fixture__participant1', 'fixture__participant2', 'fixture__team1', 'fixture__team2'
+    ).order_by('fixture__scheduled_time')
+    return render(request, 'dash/referee_dashboard.html', {'assignments': assignments})
+
+@player_required
+def commentator_dashboard(request):
+    assignments = request.user.commentator_assignments.select_related(
+        'fixture__tournament', 'fixture__participant1', 'fixture__participant2', 'fixture__team1', 'fixture__team2'
+    ).order_by('fixture__scheduled_time')
+    return render(request, 'dash/commentator_dashboard.html', {'assignments': assignments})

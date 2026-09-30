@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Commentator Portal — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<main class="page-min-center wrap" style="max-width:800px; padding-top:40px;">
+  <h1 style="margin-bottom:24px;">Commentator Portal</h1>
+  
+  <div class="stack">
+    {% for a in assignments %}
+      <div class="panel tblcard" style="padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="dim" style="font-size:12px; font-weight:600;">{{ a.fixture.tournament.name }}</div>
+            <h3 style="margin:4px 0 8px;">
+                {% if a.fixture.tournament.is_team_based %}
+                    {{ a.fixture.team1.name|default:"TBD" }} vs {{ a.fixture.team2.name|default:"TBD" }}
+                {% else %}
+                    {{ a.fixture.participant1.name|default:"TBD" }} vs {{ a.fixture.participant2.name|default:"TBD" }}
+                {% endif %}
+            </h3>
+            <div class="muted">
+                <svg class="ico" style="width:14px;height:14px;"><use href="#i-cal"/></svg> 
+                {{ a.fixture.scheduled_time|default:"TBA" }}
+            </div>
+          </div>
+          <div>
+            {% if a.fixture.status == 'COMPLETED' %}
+              <span class="badge badge-completed">Completed</span>
+            {% else %}
+              <a href="{{ a.fixture.get_absolute_url }}" class="btn btn-primary btn-sm">Match Center</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="empty" style="padding:40px; text-align:center;">
+        You have no assigned matches to commentate.
+      </div>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}

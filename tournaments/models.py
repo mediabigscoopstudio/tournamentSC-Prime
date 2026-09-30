@@ -781,3 +781,31 @@ class Highlight(TimeStamped):
         if n >= 1_000:
             return f'{n / 1_000:.1f}k'.replace('.0k', 'k')
         return str(n)
+
+
+class FixtureRefereeAssignment(models.Model):
+    fixture = models.ForeignKey('Fixture', on_delete=models.CASCADE, related_name='referee_assignments')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='referee_assignments')
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['fixture', 'user'], name='uniq_referee_assignment')
+        ]
+
+    def __str__(self):
+        return f'{self.user.username} - {self.fixture}'
+
+
+class FixtureCommentatorAssignment(models.Model):
+    fixture = models.ForeignKey('Fixture', on_delete=models.CASCADE, related_name='commentator_assignments')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='commentator_assignments')
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['fixture', 'user'], name='uniq_commentator_assignment')
+        ]
+
+    def __str__(self):
+        return f'{self.user.username} - {self.fixture}'
