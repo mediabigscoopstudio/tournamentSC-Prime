@@ -292,3 +292,4 @@ if not DEBUG:
     # redirect loop. Requires the proxy to set `X-Forwarded-Proto` — e.g.
     # `proxy_set_header X-Forwarded-Proto $scheme;` in the Nginx server block.
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
