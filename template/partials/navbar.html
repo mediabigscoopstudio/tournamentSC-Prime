@@ -27,7 +27,43 @@
             <svg class="ico" style="width:16px;height:16px"><use href="#i-arrow"/></svg>
           </button>
           
-          <div class="js-dropdown-menu" hidden style="position:absolute; top:calc(100% + 8px); right:0; width:240px; background:var(--bg, #ffffff); border:1px solid var(--b-l3); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:999999; padding:8px 0; display:flex; flex-direction:column; gap:4px;">
+          
+        <style>
+          .nav-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 240px;
+            background: var(--bg, #ffffff);
+            border: 1px solid var(--b-l3);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            z-index: 999999;
+            padding: 8px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            
+            /* Animation */
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px) scale(0.98);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+            transform-origin: top right;
+          }
+          .nav-dropdown-menu.is-open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+          }
+          .nav-dropdown-menu a {
+            transition: background 0.1s ease;
+          }
+          .nav-dropdown-menu a:hover {
+            background: rgba(0,0,0,0.05);
+          }
+        </style>
+        <div class="nav-dropdown-menu">
             <a href="{% url 'player_public' user.player_profile.pk %}" style="padding:8px 16px; color:inherit; text-decoration:none;">My Profile</a>
             <a href="{% url 'settings_view' %}" style="padding:8px 16px; color:inherit; text-decoration:none;">Settings</a>
             <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">My Achievements</a>
@@ -54,18 +90,42 @@
   </div>
 
 <script>
-document.addEventListener('click', function(e) {
-  const isDropdownBtn = e.target.closest('.js-dropdown-btn');
-  if (isDropdownBtn) {
-    const menu = isDropdownBtn.nextElementSibling;
-    menu.toggleAttribute('hidden');
-  } else {
-    document.querySelectorAll('.js-dropdown-menu').forEach(function(menu) {
-      if (!menu.contains(e.target)) {
-        menu.setAttribute('hidden', '');
+document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.js-dropdown-btn');
+    const menus = document.querySelectorAll('.nav-dropdown-menu');
+    
+    // If we clicked the button
+    if (btn) {
+      // Find the menu specifically tied to this button
+      const menu = btn.parentElement.querySelector('.nav-dropdown-menu');
+      if (!menu) return;
+      
+      const isOpen = menu.classList.contains('is-open');
+      
+      // Close all menus
+      menus.forEach(m => m.classList.remove('is-open'));
+      
+      // If it wasn't open, open it
+      if (!isOpen) {
+        menu.classList.add('is-open');
       }
-    });
-  }
+    } 
+    // If we clicked outside the menu
+    else {
+      let clickedInsideMenu = false;
+      menus.forEach(m => {
+        if (m.contains(e.target)) {
+          clickedInsideMenu = true;
+        }
+      });
+      
+      // If click was not inside a menu, close all menus
+      if (!clickedInsideMenu) {
+        menus.forEach(m => m.classList.remove('is-open'));
+      }
+    }
+  });
 });
 </script>
 </header>
