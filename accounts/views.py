@@ -94,10 +94,11 @@ def unified_login(request):
             # Need to verify OTP
             otp_val = str(random.randint(100000, 999999))
             EmailOTP.objects.create(email=user.email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
+            print(f"OTP for {user.email}: {otp_val}")  # Dev console fallback
             try:
                 send_mail('Your TournamentSC Login Code', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
-            except Exception:
-                print(f"OTP for {user.email}: {otp_val}")
+            except Exception as e:
+                print(f"Email error: {e}")
             request.session['auth_email'] = user.email
             return redirect('verify_otp')
         return _do_login(request, form, 'player_dashboard')
@@ -119,10 +120,11 @@ def unified_signup(request):
         # Generate OTP
         otp_val = str(random.randint(100000, 999999))
         EmailOTP.objects.create(email=user.email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
+        print(f"OTP for {user.email}: {otp_val}")  # Dev console fallback
         try:
             send_mail('Verify your TournamentSC Account', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
-        except Exception:
-            print(f"OTP for {user.email}: {otp_val}")
+        except Exception as e:
+            print(f"Email error: {e}")
         
         request.session['auth_email'] = user.email
         return redirect('verify_otp')
