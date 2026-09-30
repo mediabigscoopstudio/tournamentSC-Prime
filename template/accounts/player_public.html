@@ -36,7 +36,7 @@ function toggleFollow(btn, userId) {
       {% if profile.specialization %}
       <p class="dim" style="margin:2px 0 0; font-size:14px;">{{ profile.specialization }}</p>
       {% endif %}
-      <p class="muted" style="margin:2px 0 0">{{ profile.city|default:'' }}</p>
+      <p class="muted" style="margin:2px 0 0">{{ profile.current_city|default:'' }}</p>
       
       <div style="display:flex; gap:16px; margin-top:8px;">
         <div><strong>{{ follower_count }}</strong> <span class="dim">Followers</span></div>

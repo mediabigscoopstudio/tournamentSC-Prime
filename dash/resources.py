@@ -705,11 +705,11 @@ register(Resource(
     model=PlayerProfile, form=PlayerProfileAdminForm,
     group='People', icon='🏃', ordering=('-created_at',),
     select_related=('user',), prefetch_related=('sports',),
-    search_fields=['user__email', 'user__first_name', 'city'],
+    search_fields=['user__email', 'user__first_name', 'current_city'],
     columns=[
         Column('Player', lambda o: o.user.display_name),
         Column('Email', lambda o: o.user.email),
-        Column('City', lambda o: o.city or '—'),
+        Column('City', lambda o: o.current_city or '—'),
         Column('Rating', lambda o: o.rating or '—'),
         Column('Sports', lambda o: ', '.join(s.name for s in o.sports.all()) or '—'),
         Column('Suspended', lambda o: o.user.is_suspended, kind='bool'),

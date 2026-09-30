@@ -16,7 +16,7 @@
       {% for p in page.object_list %}
         <a class="panel tblcard" href="{% url 'player_public' p.pk %}">
           <h3>{{ p.user.display_name }}{% if p.user.is_verified %} <span class="verified">✔</span>{% endif %}</h3>
-          <p class="muted">{{ p.city|default:'—' }}</p>
+          <p class="muted">{{ p.current_city|default:'—' }}</p>
         </a>
       {% endfor %}
     </div>
