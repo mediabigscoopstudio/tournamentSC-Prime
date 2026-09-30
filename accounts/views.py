@@ -58,7 +58,7 @@ def _home_for(user):
         return 'dash_index'
     if user.has_organizer_profile:
         return 'organizer_dashboard' if user.is_approved_organizer else 'organizer_status'
-    return 'player_dashboard'
+    return 'content_feed'
 
 
 def _settings():
