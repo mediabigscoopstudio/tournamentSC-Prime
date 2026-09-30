@@ -148,6 +148,60 @@
 
     <!-- FIXTURES -->
     <div class="tabpanel" data-panel="fixtures" data-poolnav-scope-for="fx">
+      
+      {% if categories %}
+      <div class="cat-filters" style="margin-bottom: 20px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-sm btn-primary cat-filter-btn" data-filter-cat="all">All</button>
+        {% for cat in categories %}
+        <button class="btn btn-sm btn-secondary cat-filter-btn" data-filter-cat="{{ cat.id }}">{{ cat.name }}</button>
+        {% endfor %}
+      </div>
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          const catBtns = document.querySelectorAll('.cat-filter-btn');
+          const fxItems = document.querySelectorAll('.fxc');
+          const fxSecs = document.querySelectorAll('.fxsec');
+          
+          catBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+              // Toggle classes
+              catBtns.forEach(b => {
+                b.classList.remove('btn-primary');
+                b.classList.add('btn-secondary');
+              });
+              btn.classList.add('btn-primary');
+              btn.classList.remove('btn-secondary');
+              
+              const catId = btn.getAttribute('data-filter-cat');
+              
+              // Filter cards
+              fxItems.forEach(item => {
+                if (catId === 'all') {
+                  item.style.display = '';
+                } else {
+                  if (item.getAttribute('data-cat-id') === catId) {
+                    item.style.display = '';
+                  } else {
+                    item.style.display = 'none';
+                  }
+                }
+              });
+
+              // Hide empty sections (e.g. pools/rounds with no visible matches)
+              fxSecs.forEach(sec => {
+                const visibleCards = sec.querySelectorAll('.fxc:not([style*="display: none"])');
+                if (visibleCards.length === 0) {
+                  sec.style.display = 'none';
+                } else {
+                  sec.style.display = '';
+                }
+              });
+            });
+          });
+        });
+      </script>
+      {% endif %}
+
       {% if is_pool_stage %}
         {% if pools %}
           {% include 'public/_pool_nav.html' with nav_scope='fx' nav_pools=pools nav_id_prefix='fxsec-pool-' nav_count_field='fixtures' nav_rounds=knockout_rounds nav_icon=tournament.sport.icon %}

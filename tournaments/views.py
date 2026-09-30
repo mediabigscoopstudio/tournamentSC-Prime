@@ -17,7 +17,7 @@ from . import constants as C
 from .emails import send_fixtures_created, send_player_welcome, send_tournament_published
 from .forms import (FixtureScheduleForm, HighlightForm, IndividualEntryForm, TeamForm,
                     TournamentForm)
-from .models import (Fixture, FixtureParticipant, IndividualRegistration, ScoreEvent, Team,
+from .models import (EventCategory, Fixture, FixtureParticipant, IndividualRegistration, ScoreEvent, Team,
                      TeamMembership, Tournament, TournamentTeamEntry)
 from .services import apply_result, sync_tournament_status
 from .utils import format_ms, parse_time_to_ms
@@ -1178,6 +1178,7 @@ def fixtures_manage(request, slug):
         # Pool Stage + Knockout (basketball only — see Tournament.supports_pool_stage)
         'pool_supported': t.supports_pool_stage,
         'pool_mode': pool_mode,
+        'categories': list(t.categories.all().prefetch_related('fixture_set')),
         'team_total': t.participant_count(),
         'pool_form': {'num_pools': num_pools or '', 'teams_per_pool': teams_per_pool or '',
                       'qualifiers_per_pool': qualifiers_per_pool or ''},
@@ -1495,43 +1496,55 @@ def swiss_generate_round(request, slug):
 
 @approved_organizer_required
 def chess_results_export(request, slug):
-    """Download fixtures as a CSV: round, White, Black, and the result (the
-    winner's name, or 'Draw', blank if not yet decided). A plain GET
-    download, same pattern as dash/views.py's admin CSV export — no state
-    change, so no CSRF/POST needed. Optional ?round=<n> limits the file to
-    a single round, for the per-round download icon on the fixtures page."""
+    """Download fixtures or standings as a CSV.
+    If ?round=<n> is given, downloads the fixtures for that round.
+    If no round is given, downloads the tournament standings."""
     t = _owned(request, slug)
     if t.sport.slug != 'chess':
         messages.error(request, 'CSV export is only available for chess tournaments.')
         return redirect('fixtures_manage', slug=slug)
 
-    fixtures = t.fixtures.filter(is_removed=False).order_by('round_no', 'sequence', 'id')
     round_no = request.GET.get('round')
-    suffix = ''
-    if round_no and round_no.isdigit():
-        fixtures = fixtures.filter(round_no=int(round_no))
-        suffix = f'-round-{round_no}'
-
     response = HttpResponse(content_type='text/csv')
     stamp = timezone.localtime(timezone.now()).strftime('%Y%m%d-%H%M')
-    response['Content-Disposition'] = f'attachment; filename="{t.slug}-chess-results{suffix}-{stamp}.csv"'
-    writer = csv.writer(response)
-    writer.writerow(['Round', 'White', 'Black', 'Result'])
-    for fx in fixtures:
-        parts = list(fx.ordered_participants())
-        white = parts[0].name if parts else ''
-        black = parts[1].name if len(parts) > 1 else ''
-        result = ''
-        if fx.status == 'COMPLETED' and len(parts) == 2:
-            # Score, not is_winner: the round-robin engine (chess's default
-            # format) never sets is_winner on FixtureParticipant, only score
-            # — 1/0 for a decisive game, 0.5/0.5 for a draw.
-            s0, s1 = parts[0].score, parts[1].score
-            if s0 is not None and s1 is not None and s0 != s1:
-                result = parts[0].name if s0 > s1 else parts[1].name
-            else:
-                result = 'Draw'
-        writer.writerow([fx.round_no, white, black, result])
+    
+    if round_no and round_no.isdigit():
+        fixtures = t.fixtures.filter(is_removed=False, round_no=int(round_no)).order_by('sequence', 'id')
+        response['Content-Disposition'] = f'attachment; filename="{t.slug}-chess-results-round-{round_no}-{stamp}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Round', 'White', 'Black', 'Result'])
+        for fx in fixtures:
+            parts = list(fx.ordered_participants())
+            white = parts[0].name if parts else ''
+            black = parts[1].name if len(parts) > 1 else ''
+            result = ''
+            if fx.status == 'COMPLETED' and len(parts) == 2:
+                s0, s1 = parts[0].score, parts[1].score
+                if s0 is not None and s1 is not None and s0 != s1:
+                    result = parts[0].name if s0 > s1 else parts[1].name
+                else:
+                    result = 'Draw'
+            writer.writerow([fx.round_no, white, black, result])
+    else:
+        response['Content-Disposition'] = f'attachment; filename="{t.slug}-chess-standings-{stamp}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Rank', 'Player', 'Rating', 'Played', 'Wins', 'Draws', 'Losses', 'Points', 'Direct Encounter', 'Buchholz', 'Sonneborn-Berger', 'Bye Count'])
+        standings = t.standings.all().order_by('position')
+        for s in standings:
+            writer.writerow([
+                s.position,
+                s.name,
+                s.extra_stats.get('rating', ''),
+                s.played,
+                s.won,
+                s.drawn,
+                s.lost,
+                s.points,
+                s.extra_stats.get('direct_encounter', 0),
+                s.extra_stats.get('buchholz', 0),
+                s.extra_stats.get('sonneborn_berger', 0),
+                s.extra_stats.get('byes', 0)
+            ])
     return response
 
 
@@ -2487,3 +2500,41 @@ def fixture_live_json(request, fixture_id):
                    for e in fixture.events.all()[:15]],
         'updated': timezone.now().isoformat(),
     })
+
+@require_POST
+@approved_organizer_required
+def category_create(request, slug):
+    t = _owned(request, slug)
+    name = request.POST.get('name', '').strip()
+    if name:
+        EventCategory.objects.create(tournament=t, name=name)
+        messages.success(request, f'Category "{name}" created.')
+    return redirect('fixtures_manage', slug=slug)
+
+@require_POST
+@approved_organizer_required
+def category_delete(request, slug):
+    t = _owned(request, slug)
+    cat_id = request.POST.get('category_id')
+    if cat_id:
+        t.categories.filter(id=cat_id).delete()
+        messages.success(request, 'Category deleted.')
+    return redirect('fixtures_manage', slug=slug)
+
+@require_POST
+@approved_organizer_required
+def fixture_set_category(request, slug):
+    t = _owned(request, slug)
+    fixture_id = request.POST.get('fixture_id')
+    cat_id = request.POST.get('category_id')
+    try:
+        fx = t.fixtures.get(id=fixture_id, is_removed=False)
+        if cat_id:
+            cat = t.categories.get(id=cat_id)
+            fx.event_category = cat
+        else:
+            fx.event_category = None
+        fx.save(update_fields=['event_category'])
+        return HttpResponse('OK')
+    except (Fixture.DoesNotExist, EventCategory.DoesNotExist, ValueError):
+        return HttpResponse('Error', status=400)

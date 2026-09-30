@@ -22,19 +22,39 @@ Context: standings, is_lobby, has_ratings
     {% else %}
       <thead><tr>
         <th>Competitor</th>
+        {% if tournament.sport.slug == 'chess' %}
+        <th class="n">Pts</th>
+        <th class="n">DE</th>
+        <th class="n">Buch.</th>
+        <th class="n">SB</th>
+        <th class="n">Wins</th>
+        <th class="n">Byes</th>
+        <th class="n">Rating</th>
+        {% else %}
         {% if has_ratings %}<th class="n">Rating</th>{% endif %}
         <th class="n">P</th><th class="n">W</th><th class="n">D</th><th class="n">L</th>
         <th class="n">Pts</th><th class="n">Buchholz</th>
+        {% endif %}
       </tr></thead>
       <tbody>
         {% for s in standings %}
           <tr class="{% if forloop.counter <= 2 %}qual{% endif %}">
             <td><div class="tcell"><span class="rk">{{ s.position }}</span> {{ s.name }}</div></td>
+            {% if tournament.sport.slug == 'chess' %}
+            <td class="pts">{{ s.points|floatformat:'-1' }}</td>
+            <td class="n">{{ s.extra_stats.direct_encounter|default:0|floatformat:'-2' }}</td>
+            <td class="n">{{ s.extra_stats.buchholz|default:0|floatformat:'-2' }}</td>
+            <td class="n">{{ s.extra_stats.sonneborn_berger|default:0|floatformat:'-2' }}</td>
+            <td class="n">{{ s.won }}</td>
+            <td class="n">{{ s.extra_stats.byes|default:0 }}</td>
+            <td class="n">{{ s.extra_stats.rating|default:'—' }}</td>
+            {% else %}
             {% if has_ratings %}<td class="n">{{ s.extra_stats.rating|default:'—' }}</td>{% endif %}
             <td class="n">{{ s.played }}</td><td class="n">{{ s.won }}</td>
             <td class="n">{{ s.drawn }}</td><td class="n">{{ s.lost }}</td>
             <td class="pts">{{ s.points }}</td>
             <td class="n">{{ s.extra_stats.buchholz|default:'—' }}</td>
+            {% endif %}
           </tr>
         {% endfor %}
       </tbody>

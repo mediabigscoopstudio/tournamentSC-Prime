@@ -685,7 +685,13 @@ class SwissEngine(FormatEngine):
         if len(entrants) < 2:
             return 0
         self._clear_fixtures()
-        count = self._create_round(1, self._round1_order(entrants))
+        
+        if t.sport.slug == 'chess':
+            from .chess_swiss import generate_chess_swiss_round_1
+            count = generate_chess_swiss_round_1(t, entrants)
+        else:
+            count = self._create_round(1, self._round1_order(entrants))
+            
         cfg = dict(t.swiss_config or {})
         cfg['current_round'] = 1
         t.swiss_config = cfg
@@ -707,7 +713,13 @@ class SwissEngine(FormatEngine):
             return 0
 
         next_round = current + 1
-        count = self._create_round(next_round, self._swiss_pairing_order())
+        if t.sport.slug == 'chess':
+            from .chess_swiss import generate_chess_swiss_next_round
+            entrants = _entrants_for(t)
+            count = generate_chess_swiss_next_round(t, current, entrants)
+        else:
+            count = self._create_round(next_round, self._swiss_pairing_order())
+            
         cfg = dict(t.swiss_config or {})
         cfg['current_round'] = next_round
         t.swiss_config = cfg
@@ -745,12 +757,15 @@ class SwissEngine(FormatEngine):
         request. No-rating entrants sort last; points/Buchholz/name only
         break ties among equal or missing ratings."""
         t = self.tournament
+        if t.sport.slug == 'chess':
+            from .chess_swiss import compute_chess_standings
+            compute_chess_standings(t, t.fixtures.filter(status='COMPLETED', is_removed=False), _entrants_for(t))
+        else:
+            def chess_sort(r):
+                rating = r['rating']
+                return (rating is None, -(rating or 0), -r['points'], -r['buchholz'], r['label'].lower())
 
-        def chess_sort(r):
-            rating = r['rating']
-            return (rating is None, -(rating or 0), -r['points'], -r['buchholz'], r['label'].lower())
-
-        _points_standings(t, t.fixtures.filter(status='COMPLETED', is_removed=False), sort_key=chess_sort)
+            _points_standings(t, t.fixtures.filter(status='COMPLETED', is_removed=False), sort_key=chess_sort)
 
     # -- pairing helpers --------------------------------------------------
     def _round1_order(self, entrants):

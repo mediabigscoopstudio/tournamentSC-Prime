@@ -547,6 +547,7 @@
     {% endif %}
   {% endif %}
 
+  <div id="swiss-dashboard">
   {% if is_swiss %}
     <div class="panel tblcard fxpanel">
       <div class="spread">
@@ -603,18 +604,40 @@
       <div class="panel tblcard fxpanel">
         <h3 class="fxpanel__h"><span class="fxpanel__ico">📊</span>Standings</h3>
         <div class="table-wrap" style="margin-top:12px"><table class="dtable">
-          <thead><tr><th>#</th><th>Entrant</th><th class="n" title="Ranked by rating, highest to lowest">Rating</th>
+          <thead><tr><th>#</th><th>Entrant</th>
+                 {% if tournament.sport.slug == 'chess' %}
+                 <th class="n">Pts</th>
+                 <th class="n" title="Direct Encounter">DE</th>
+                 <th class="n" title="Buchholz">Buch.</th>
+                 <th class="n" title="Sonneborn-Berger">SB</th>
+                 <th class="n">Wins</th>
+                 <th class="n">Byes</th>
+                 <th class="n">Rating</th>
+                 {% else %}
+                 <th class="n" title="Ranked by rating, highest to lowest">Rating</th>
                  <th class="n">P</th><th class="n">Pts</th>
-                 <th class="n" title="Buchholz tiebreak — sum of your opponents' points">Buch.</th></tr></thead>
+                 <th class="n" title="Buchholz tiebreak — sum of your opponents' points">Buch.</th>
+                 {% endif %}
+                 </tr></thead>
           <tbody>
             {% for s in swiss_standings %}
               <tr>
                 <td>{{ s.position }}</td>
                 <td>{{ s.name }}</td>
+                {% if tournament.sport.slug == 'chess' %}
+                <td class="n">{{ s.points|floatformat:'-1' }}</td>
+                <td class="n">{{ s.extra_stats.direct_encounter|default:0|floatformat:'-2' }}</td>
+                <td class="n">{{ s.extra_stats.buchholz|default:0|floatformat:'-2' }}</td>
+                <td class="n">{{ s.extra_stats.sonneborn_berger|default:0|floatformat:'-2' }}</td>
+                <td class="n">{{ s.won|default:0 }}</td>
+                <td class="n">{{ s.extra_stats.byes|default:0 }}</td>
+                <td class="n">{{ s.extra_stats.rating|default:'—' }}</td>
+                {% else %}
                 <td class="n">{{ s.extra_stats.rating|default:'—' }}</td>
                 <td class="n">{{ s.played }}</td>
                 <td class="n">{{ s.points|floatformat:'-1' }}</td>
                 <td class="n">{{ s.extra_stats.buchholz|default:0 }}</td>
+                {% endif %}
               </tr>
             {% endfor %}
           </tbody>
@@ -665,24 +688,173 @@
     <div class="panel tblcard fxpanel">
       <h3 class="fxpanel__h"><span class="fxpanel__ico">📊</span>Points table</h3>
       <div class="table-wrap" style="margin-top:12px"><table class="dtable">
-        <thead><tr><th>#</th><th>Entrant</th><th class="n" title="Ranked by rating, highest to lowest">Rating</th>
-               <th class="n">P</th><th class="n">Pts</th>
-               <th class="n" title="Buchholz tiebreak — sum of your opponents' points">Buch.</th></tr></thead>
-        <tbody>
-          {% for s in chess_standings %}
-            <tr>
-              <td>{{ s.position }}</td>
-              <td>{{ s.name }}</td>
-              <td class="n">{{ s.extra_stats.rating|default:'—' }}</td>
-              <td class="n">{{ s.played }}</td>
-              <td class="n">{{ s.points|floatformat:'-1' }}</td>
-              <td class="n">{{ s.extra_stats.buchholz|default:0 }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
+          <thead><tr><th>#</th><th>Entrant</th>
+                 {% if tournament.sport.slug == 'chess' %}
+                 <th class="n">Pts</th>
+                 <th class="n" title="Direct Encounter">DE</th>
+                 <th class="n" title="Buchholz">Buch.</th>
+                 <th class="n" title="Sonneborn-Berger">SB</th>
+                 <th class="n">Wins</th>
+                 <th class="n">Byes</th>
+                 <th class="n">Rating</th>
+                 {% else %}
+                 <th class="n" title="Ranked by rating, highest to lowest">Rating</th>
+                 <th class="n">P</th><th class="n">Pts</th>
+                 <th class="n" title="Buchholz tiebreak — sum of your opponents' points">Buch.</th>
+                 {% endif %}
+                 </tr></thead>
+          <tbody>
+            {% for s in swiss_standings %}
+              <tr>
+                <td>{{ s.position }}</td>
+                <td>{{ s.name }}</td>
+                {% if tournament.sport.slug == 'chess' %}
+                <td class="n">{{ s.points|floatformat:'-1' }}</td>
+                <td class="n">{{ s.extra_stats.direct_encounter|default:0|floatformat:'-2' }}</td>
+                <td class="n">{{ s.extra_stats.buchholz|default:0|floatformat:'-2' }}</td>
+                <td class="n">{{ s.extra_stats.sonneborn_berger|default:0|floatformat:'-2' }}</td>
+                <td class="n">{{ s.won|default:0 }}</td>
+                <td class="n">{{ s.extra_stats.byes|default:0 }}</td>
+                <td class="n">{{ s.extra_stats.rating|default:'—' }}</td>
+                {% else %}
+                <td class="n">{{ s.extra_stats.rating|default:'—' }}</td>
+                <td class="n">{{ s.played }}</td>
+                <td class="n">{{ s.points|floatformat:'-1' }}</td>
+                <td class="n">{{ s.extra_stats.buchholz|default:0 }}</td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
       </table></div>
     </div>
   {% endif %}
+
+  </div>
+
+  {# ================= CATEGORIES DND =================================== #}
+  <div id="fixture-categories-section">
+    <div class="panel tblcard fxpanel" style="margin-bottom: 24px">
+      <div class="spread">
+        <h3 class="fxpanel__h"><span class="fxpanel__ico">🗂️</span>Fixture Categories</h3>
+      </div>
+      <p class="muted fxpanel__p">Organize your fixtures into categories (e.g. Men's, Women's) by dragging and dropping them.</p>
+      
+      <form method="post" action="{% url 'category_create' tournament.slug %}" class="row-flex" style="margin-top:12px; flex-wrap:wrap">
+        {% csrf_token %}
+        <input class="input" type="text" name="name" placeholder="Category Name" required style="max-width:200px">
+        <button class="btn btn-secondary btn-sm">Create Category</button>
+      </form>
+
+      <div class="row-flex" style="margin-top:16px; overflow-x:auto; gap:16px; align-items:flex-start; padding-bottom:8px">
+        
+        {# Uncategorized Dropzone #}
+        <div class="cat-col" data-cat-id="" style="flex: 0 0 260px; background:var(--bg-panel); border-radius:8px; padding:12px; min-height:200px; border: 1px dashed var(--b-l3)">
+          <h4 style="margin:0 0 12px 0; font-size:14px; color:var(--tx-dim)">Uncategorized</h4>
+          <div class="cat-dropzone" style="min-height: 150px; max-height: 400px; overflow-y: auto; padding-bottom:20px;">
+            {% for fx in fixtures %}
+              {% if not fx.event_category %}
+                <div class="cat-item" draggable="true" data-fx-id="{{ fx.id }}" style="background:var(--bg-card); padding:8px; margin-bottom:8px; border-radius:4px; border:1px solid var(--b-l2); cursor:grab; font-size:13px; user-select:none">
+                  {% if fx.round_name %}<strong class="dim">{{ fx.round_name }}</strong><br>{% endif %}
+                  <span style="font-weight: bold; font-family: monospace">{{ fx.match_id }}</span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+        {# Categories Dropzones #}
+        {% for cat in categories %}
+          <div class="cat-col" data-cat-id="{{ cat.id }}" style="flex: 0 0 260px; background:var(--bg-panel); border-radius:8px; padding:12px; min-height:200px; border: 1px solid var(--b-l2)">
+            <div class="spread" style="margin:0 0 12px 0; align-items:center">
+              <h4 style="margin:0; font-size:14px">{{ cat.name }}</h4>
+              <form method="post" action="{% url 'category_delete' tournament.slug %}" onsubmit="return confirm('Delete this category? Fixtures will become uncategorized.')">
+                {% csrf_token %}
+                <input type="hidden" name="category_id" value="{{ cat.id }}">
+                <button type="submit" class="btn btn-sm" style="color:var(--tx-err); background:transparent; padding:0 4px; border:none; cursor:pointer" aria-label="Delete category">✕</button>
+              </form>
+            </div>
+            <div class="cat-dropzone" style="min-height: 150px; max-height: 400px; overflow-y: auto; padding-bottom:20px;">
+              {% for fx in cat.fixture_set.all %}
+                {% if not fx.is_removed %}
+                <div class="cat-item" draggable="true" data-fx-id="{{ fx.id }}" style="background:var(--bg-card); padding:8px; margin-bottom:8px; border-radius:4px; border:1px solid var(--b-l2); cursor:grab; font-size:13px; user-select:none">
+                  {% if fx.round_name %}<strong class="dim">{{ fx.round_name }}</strong><br>{% endif %}
+                  <span style="font-weight: bold; font-family: monospace">{{ fx.match_id }}</span>
+                </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+
+      </div>
+    </div>
+  </div>
+  
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const dndContainer = document.getElementById('fixture-categories-section');
+    if (!dndContainer) return;
+
+    let draggedItem = null;
+
+    dndContainer.addEventListener('dragstart', function(e) {
+      if (e.target.classList.contains('cat-item')) {
+        draggedItem = e.target;
+        e.dataTransfer.setData('text/plain', e.target.getAttribute('data-fx-id'));
+        setTimeout(() => e.target.style.opacity = '0.5', 0);
+      }
+    });
+
+    dndContainer.addEventListener('dragend', function(e) {
+      if (e.target.classList.contains('cat-item')) {
+        e.target.style.opacity = '1';
+        draggedItem = null;
+      }
+    });
+
+    dndContainer.addEventListener('dragover', function(e) {
+      const zone = e.target.closest('.cat-dropzone');
+      if (zone) {
+        e.preventDefault();
+        zone.style.background = 'rgba(0,0,0,0.02)';
+      }
+    });
+
+    dndContainer.addEventListener('dragleave', function(e) {
+      const zone = e.target.closest('.cat-dropzone');
+      if (zone) {
+        zone.style.background = '';
+      }
+    });
+
+    dndContainer.addEventListener('drop', function(e) {
+      const zone = e.target.closest('.cat-dropzone');
+      if (zone) {
+        e.preventDefault();
+        zone.style.background = '';
+        const fxId = e.dataTransfer.getData('text/plain');
+        if (!fxId || !draggedItem) return;
+        
+        if (draggedItem.parentElement !== zone) {
+          zone.appendChild(draggedItem);
+          const catId = zone.closest('.cat-col').getAttribute('data-cat-id');
+          
+          const fd = new FormData();
+          fd.append('fixture_id', fxId);
+          fd.append('category_id', catId);
+          fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+          
+          fetch("{% url 'fixture_set_category' tournament.slug %}", {
+            method: 'POST',
+            body: fd
+          }).then(res => {
+            if (!res.ok) alert('Failed to update category.');
+          });
+        }
+      }
+    });
+  });
+  </script>
 
   {# ================= MATCH CENTRE ===================================== #}
   <div id="match-centre">
@@ -1548,7 +1720,7 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var freshCentre = doc.getElementById('match-centre');
         if (!freshCentre) { window.location.reload(); return; }
-        ['match-centre', 'messages'].forEach(function (id) {
+        ['match-centre', 'messages', 'swiss-dashboard'].forEach(function (id) {
           var cur = document.getElementById(id);
           var fresh = doc.getElementById(id);
           if (cur && fresh) cur.innerHTML = fresh.innerHTML;

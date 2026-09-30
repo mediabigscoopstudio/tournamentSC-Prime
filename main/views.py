@@ -252,6 +252,7 @@ def tournament_detail(request, slug):
 
     ctx = {'tournament': tournament, 'yt_id': youtube_id(tournament.youtube_url)}
     ctx.update(_detail_context(tournament))
+    ctx['categories'] = tournament.categories.all()
     ctx['goals_table'] = _goals_table_context(tournament)
     if tournament.is_team_based:
         ctx['entries'] = tournament.team_entries.filter(status='APPROVED').select_related('team')

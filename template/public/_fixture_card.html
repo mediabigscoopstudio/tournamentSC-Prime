@@ -10,7 +10,7 @@ Context: tournament, fx  (optional: table_no — this card's position within
                            its section, used for chess's "Table N" label)
 {% endcomment %}
 {% with ps=fx.ordered_participants %}
-<article class="fxc{% if fx.status == 'LIVE' %} is-live{% elif fx.status == 'COMPLETED' %} is-done{% elif fx.status == 'CANCELLED' %} is-off{% endif %}">
+<article class="fxc" data-cat-id="{{ fx.event_category_id|default:"" }}"{% if fx.status == 'LIVE' %} is-live{% elif fx.status == 'COMPLETED' %} is-done{% elif fx.status == 'CANCELLED' %} is-off{% endif %}">
 
   {# Status strip #}
   <div class="fxc__top">

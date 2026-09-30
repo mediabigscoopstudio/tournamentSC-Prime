@@ -418,6 +418,7 @@ class Fixture(TimeStamped):
     500-runner race. Participation lives in FixtureParticipant, so there are no
     fixed team_a / team_b columns."""
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='fixtures')
+    match_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
     event_category = models.ForeignKey(EventCategory, on_delete=models.SET_NULL, null=True, blank=True)
     round_name = models.CharField(max_length=60, blank=True)
     round_no = models.PositiveIntegerField(default=1)
@@ -434,6 +435,13 @@ class Fixture(TimeStamped):
     venue_detail = models.CharField(max_length=120, blank=True, help_text='Court / lane / table')
     status = models.CharField(max_length=12, choices=C.FIXTURE_STATUS, default='SCHEDULED')
     youtube_url = models.URLField(blank=True)
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new and not self.match_id:
+            self.match_id = f"TSC{self.id}"
+            super().save(update_fields=['match_id'])
     summary = models.TextField(blank=True)
     result_published = models.BooleanField(default=True)
     # Bracket wiring: winner of this fixture advances into `advances_to` slot.
