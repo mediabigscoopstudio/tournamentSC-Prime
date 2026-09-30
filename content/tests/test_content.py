@@ -111,7 +111,7 @@ class AchievementAwardingTests(TestCase):
             name='Cup', sport=sport, organizer=organizer, start_date=datetime.date(2026, 1, 1),
             end_date=datetime.date(2026, 1, 2))
         Standing.objects.create(tournament=t, player=profile, played=3, won=3)
-        achievement = Achievement.objects.create(name='First Win', criteria={'wins': 1})
+        achievement, _ = Achievement.objects.get_or_create(name='First Win', criteria={'wins': 1})
 
         check_and_award_achievements_task(user.pk)
         self.assertTrue(UserAchievement.objects.filter(user=user, achievement=achievement).exists())
