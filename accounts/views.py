@@ -16,8 +16,9 @@ import os
 import random
 
 from google.oauth2 import id_token
+from datetime import timedelta
 from google.auth.transport import requests as google_requests
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, update_session_auth_hash
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
@@ -28,10 +29,11 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .decorators import login_required_msg, organizer_area_required, player_required
+from django.contrib.auth.forms import PasswordChangeForm
 from .forms import (OrganizerApplicationForm, OrganizerLoginForm, OrganizerProfileForm,
-                    OrganizerSignupForm, PlayerLoginForm, PlayerProfileForm, PlayerSignupForm)
+                    OrganizerSignupForm, PlayerLoginForm, PlayerProfileForm, PlayerSignupForm, UserSettingsForm)
 from .models import (AuditLog, Notification, OrganizerApplication, OrganizerProfile,
-                     PlayerProfile, User, UserFCMToken)
+                     PlayerProfile, User, UserFCMToken, EmailOTP, UserSettings, UserFollow)
 
 
 # ======================================================================
