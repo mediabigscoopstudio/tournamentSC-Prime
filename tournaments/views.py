@@ -450,7 +450,7 @@ def member_decide(request, slug, membership_id, decision):
         messages.info(request, 'Join request rejected.')
     else:
         messages.error(request, 'Unknown action.')
-    return redirect('tournament_manage', slug=slug)
+    return redirect('participants_manage', slug=slug)
 
 
 @approved_organizer_required
@@ -2375,29 +2375,50 @@ def tournament_join(request, slug):
 
     if request.method == 'POST':
         if t.is_team_based:
-            team = get_object_or_404(Team, id=request.POST.get('team_id'), entries__tournament=t)
-            if TeamMembership.objects.filter(team=team, player=profile).exists():
-                messages.info(request, 'You have already requested to join this team.')
-            else:
-                TeamMembership.objects.create(team=team, player=profile, is_approved=False)
+            action = request.POST.get('action')
+            if action == 'create_team':
+                team_name = request.POST.get('team_name', '').strip()
+                if not team_name:
+                    messages.error(request, 'Team name is required.')
+                    return redirect('tournament_join', slug=slug)
+                # Create the team
+                team = Team.objects.create(name=team_name, sport=t.sport, captain=profile)
+                if 'team_logo' in request.FILES:
+                    team.logo = request.FILES['team_logo']
+                    team.save()
+                # Create the membership
+                TeamMembership.objects.create(team=team, player=profile, role='CAPTAIN', is_approved=True)
+                # Create the tournament entry (pending)
+                TournamentTeamEntry.objects.create(tournament=t, team=team, status='PENDING')
+                
                 Notification.push(
                     t.organizer.user,
-                    f'{profile.user.display_name} requested to join {team.name}.',
-                    url=f'/organizer/t/{t.slug}/', verb='join')
-                messages.success(request, 'Join request sent to the organizer.')
+                    f'{profile.user.display_name} requested to register a new team: {team.name}.',
+                    url=f'/organizer/t/{t.slug}/participants', verb='registration')
+                messages.success(request, f'Team {team.name} created! Your application has been sent to the organizer.')
+            else:
+                team = get_object_or_404(Team, id=request.POST.get('team_id'), entries__tournament=t)
+                if TeamMembership.objects.filter(team=team, player=profile).exists():
+                    messages.info(request, 'You have already requested to join this team.')
+                else:
+                    TeamMembership.objects.create(team=team, player=profile, is_approved=False)
+                    Notification.push(
+                        t.organizer.user,
+                        f'{profile.user.display_name} requested to join {team.name}.',
+                        url=f'/organizer/t/{t.slug}/participants', verb='join')
+                    messages.success(request, 'Join request sent to the organizer.')
         else:
             if t.max_participants and t.participant_count() >= t.max_participants:
                 messages.error(request, 'This tournament is full.')
                 return redirect('tournament_detail', slug=slug)
             _, created = IndividualRegistration.objects.get_or_create(
                 tournament=t, player=profile,
-                defaults={'display_name': profile.user.display_name, 'status': 'APPROVED'})
+                defaults={'display_name': profile.user.display_name, 'status': 'PENDING'})
             if created:
                 Notification.push(t.organizer.user,
-                                  f'{profile.user.display_name} registered for {t.name}.',
+                                  f'{profile.user.display_name} requested to register for {t.name}.',
                                   url=f'/organizer/t/{t.slug}/participants', verb='registration')
-                send_player_welcome(profile, t)
-            messages.success(request, 'You are registered!' if created else 'Already registered.')
+            messages.success(request, 'Application submitted! Please wait for organizer approval.' if created else 'You have already applied.')
         return redirect('tournament_detail', slug=slug)
 
     teams = t.team_entries.select_related('team').filter(status='APPROVED') if t.is_team_based else None

@@ -6,28 +6,60 @@
   <h1 style="margin-top:12px">Join this tournament</h1>
 
   {% if tournament.is_team_based %}
-    {% if teams %}
-      <p class="muted">Request to join one of the teams below. The organizer will approve your request.</p>
-      <form method="post" class="panel tblcard stack" style="margin-top:20px">
-        {% csrf_token %}
-        <div class="field">
-          <label for="team_id">Choose a team</label>
-          <select name="team_id" id="team_id" class="input" required>
-            {% for e in teams %}<option value="{{ e.team.id }}">{{ e.team.name }}</option>{% endfor %}
-          </select>
+    
+    <div style="display:flex; gap:16px; margin-top:20px; border-bottom:1px solid var(--b-l3); padding-bottom:12px;">
+        <button id="tab-join" class="btn btn-secondary" onclick="document.getElementById('form-join').hidden=false; document.getElementById('form-create').hidden=true; this.classList.replace('btn-secondary', 'btn-primary'); document.getElementById('tab-create').classList.replace('btn-primary', 'btn-secondary');">Join Existing Team</button>
+        <button id="tab-create" class="btn btn-secondary" onclick="document.getElementById('form-create').hidden=false; document.getElementById('form-join').hidden=true; this.classList.replace('btn-secondary', 'btn-primary'); document.getElementById('tab-join').classList.replace('btn-primary', 'btn-secondary');">Register New Team</button>
+    </div>
+
+    <div id="form-join">
+      {% if teams %}
+        <p class="muted" style="margin-top:16px">Request to join one of the teams below. The organizer will approve your request.</p>
+        <form method="post" class="panel tblcard stack" style="margin-top:20px">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="join_team">
+          <div class="field">
+            <label for="team_id">Choose a team</label>
+            <select name="team_id" id="team_id" class="input" required>
+              {% for e in teams %}<option value="{{ e.team.id }}">{{ e.team.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-primary" type="submit">Request to join</button>
+        </form>
+      {% else %}
+        <div class="empty" style="margin-top:20px">
+          The organizer hasn't added any teams to this tournament yet. Check back soon.
         </div>
-        <button class="btn btn-primary" type="submit">Request to join</button>
-      </form>
-    {% else %}
-      <div class="empty" style="margin-top:20px">
-        The organizer hasn't added any teams to this tournament yet. Check back soon.
-      </div>
-    {% endif %}
+      {% endif %}
+    </div>
+
+    <div id="form-create" hidden>
+        <p class="muted" style="margin-top:16px">Create a new team and apply to this tournament.</p>
+        <form method="post" enctype="multipart/form-data" class="panel tblcard stack" style="margin-top:20px">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_team">
+          <div class="field">
+            <label for="team_name">Team Name</label>
+            <input type="text" name="team_name" id="team_name" class="input" required>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label for="team_logo">Team Logo (Optional)</label>
+            <input type="file" name="team_logo" id="team_logo" class="input" accept="image/*">
+          </div>
+          <button class="btn btn-primary" style="margin-top:16px" type="submit">Register Team</button>
+        </form>
+    </div>
+    
+    <script>
+      // Initialize tabs
+      document.getElementById('tab-create').click();
+    </script>
+
   {% else %}
     <p class="muted">Register yourself for this event.</p>
     <form method="post" class="panel tblcard" style="margin-top:20px">
       {% csrf_token %}
-      <button class="btn btn-primary btn-block" type="submit">Register now</button>
+      <button class="btn btn-primary btn-block" type="submit">Submit Application</button>
     </form>
   {% endif %}
 </section>

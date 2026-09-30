@@ -111,10 +111,18 @@
                               </span>
                             {% endif %}
                           </span>
-                          <span class="trc-player__tags">
+                          <span class="trc-player__tags" style="display:flex; align-items:center; gap:8px;">
                             <span class="trc-player__role">{{ m.get_role_display }}</span>
                             {% if m.role == 'CAPTAIN' %}<span class="trc-flag trc-flag--captain">C</span>{% endif %}
-                            {% if not m.is_approved %}<span class="trc-flag trc-flag--pending">Pending</span>{% endif %}
+                            {% if not m.is_approved %}
+                              <span class="trc-flag trc-flag--pending">Pending</span>
+                              <form method="post" action="{% url 'member_decide' tournament.slug m.id 'approve' %}" style="display:inline;">
+                                {% csrf_token %}<button class="btn btn-sm btn-primary" style="padding:2px 8px; font-size:11px;">Approve</button>
+                              </form>
+                              <form method="post" action="{% url 'member_decide' tournament.slug m.id 'reject' %}" style="display:inline;">
+                                {% csrf_token %}<button class="btn btn-sm btn-secondary" style="padding:2px 8px; font-size:11px;">Reject</button>
+                              </form>
+                            {% endif %}
                           </span>
                         </span>
                       </div>
