@@ -1,0 +1,43 @@
+{% load static %}<!doctype html>
+<html>
+<body style="margin:0; padding:0; background:#f4f5f7; font-family:Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7; padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0"
+            style="background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
+        <tr><td style="background:#0f1533; padding:20px 28px;">
+          <img src="{{ site_url }}{% static 'images/logo.png' %}" alt="TournamentSC" height="28" style="display:block;">
+        </td></tr>
+        <tr><td style="padding:28px;">
+          <h2 style="margin:0 0 12px; color:#0f1533;">Welcome to TournamentSC! 🏆</h2>
+          <p style="color:#444; line-height:1.5;">Hi {{ user.first_name|default:user.display_name }},</p>
+          <p style="color:#444; line-height:1.5;">
+            Your profile is all set! We're thrilled to have you join our community.
+          </p>
+          <p style="color:#444; line-height:1.5;">
+            Whether you're looking to compete in local events, track your rating, or connect with other players, TournamentSC is built for you.
+          </p>
+          
+          <table role="presentation" width="100%" cellpadding="12" cellspacing="0"
+                style="background:#f8f9fb; border-radius:8px; margin:24px 0; font-size:14px; color:#333; border:1px solid #e5e7eb;">
+            <tr><td><strong>🎯 Join Tournaments</strong><br><span style="color:#666;">Find and register for exciting local & online events.</span></td></tr>
+            <tr><td><strong>📈 Track Progress</strong><br><span style="color:#666;">Keep a permanent record of your matches, ratings, and stats.</span></td></tr>
+            <tr><td><strong>🤝 Connect</strong><br><span style="color:#666;">Follow friends, meet opponents, and grow your network.</span></td></tr>
+          </table>
+          
+          <p style="margin-top:32px;">
+            <a href="{{ site_url }}/content/"
+              style="background:#FF6B35; color:#fff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:bold;">
+              Explore the Community
+            </a>
+          </p>
+          <p style="color:#888; font-size:13px; margin-top:32px;">Have fun and play hard!</p>
+        </td></tr>
+        <tr><td style="padding:16px 28px; background:#f8f9fb; color:#888; font-size:12px; text-align:center;">
+          Team TournamentSC · <a href="{{ site_url }}" style="color:#888; text-decoration:none;">{{ site_url }}</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

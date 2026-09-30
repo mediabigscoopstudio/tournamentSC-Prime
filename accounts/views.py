@@ -12,6 +12,7 @@ another role's area:
 right door. They never authenticate anyone themselves.
 """
 import json
+from django.conf import settings
 import os
 import random
 
@@ -20,7 +21,8 @@ from datetime import timedelta
 from google.auth.transport import requests as google_requests
 from django.contrib.auth import get_user_model, update_session_auth_hash
 
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
+from django.template.loader import render_to_string
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.http import JsonResponse
@@ -443,6 +445,24 @@ def onboarding_flow(request):
         user.onboarding_complete = True
         user.save()
         profile.save()
+        
+        # Dispatch welcome email
+        try:
+            ctx = {'user': user, 'site_url': settings.SITE_URL}
+            text_body = render_to_string('emails/platform_welcome.txt', ctx)
+            html_body = render_to_string('emails/platform_welcome.html', ctx)
+            
+            msg = EmailMultiAlternatives(
+                subject='Welcome to TournamentSC! 🎉',
+                body=text_body,
+                from_email=settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else None,
+                to=[user.email]
+            )
+            msg.attach_alternative(html_body, 'text/html')
+            msg.send(fail_silently=True)
+            print(f"Dispatched platform welcome email to {user.email}")
+        except Exception as e:
+            print(f"Failed to send welcome email: {e}")
         
         return redirect('onboarding_success')
         

@@ -1,0 +1,18 @@
+Welcome to TournamentSC! 🏆
+
+Hi {{ user.first_name|default:user.display_name }},
+
+Your profile is all set! We're thrilled to have you join our community.
+
+Whether you're looking to compete in local events, track your rating, or connect with other players, TournamentSC is built for you.
+
+- Join Tournaments: Find and register for exciting local & online events.
+- Track Progress: Keep a permanent record of your matches, ratings, and stats.
+- Connect: Follow friends, meet opponents, and grow your network.
+
+Explore the community: {{ site_url }}/content/
+
+Have fun and play hard!
+
+Team TournamentSC
+{{ site_url }}
