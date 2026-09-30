@@ -20,6 +20,7 @@ from datetime import timedelta
 from google.auth.transport import requests as google_requests
 from django.contrib.auth import get_user_model, update_session_auth_hash
 
+from django.core.mail import send_mail
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.http import JsonResponse
@@ -93,7 +94,12 @@ def unified_login(request):
             # Need to verify OTP
             otp_val = str(random.randint(100000, 999999))
             EmailOTP.objects.create(email=user.email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
-            # In a real app, send email here. For now, we will print it or just show it in dev.
+            try:
+                send_mail('Your TournamentSC Login Code', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
+            except Exception:
+                try:
+            send_mail('Verify your TournamentSC Account', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
+        except Exception:
             print(f"OTP for {user.email}: {otp_val}")
             request.session['auth_email'] = user.email
             return redirect('verify_otp')
@@ -116,7 +122,10 @@ def unified_signup(request):
         # Generate OTP
         otp_val = str(random.randint(100000, 999999))
         EmailOTP.objects.create(email=user.email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
-        print(f"OTP for {user.email}: {otp_val}")
+        try:
+            send_mail('Verify your TournamentSC Account', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
+        except Exception:
+            print(f"OTP for {user.email}: {otp_val}")
         
         request.session['auth_email'] = user.email
         return redirect('verify_otp')
