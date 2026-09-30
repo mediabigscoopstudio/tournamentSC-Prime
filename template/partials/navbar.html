@@ -22,12 +22,12 @@
         
         <!-- User Dropdown (LinkedIn/Instagram style) -->
         <div class="dropdown-container" style="position:relative; display:inline-block;">
-          <button class="nav__login" style="background:none; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px;" onclick="this.nextElementSibling.toggleAttribute('hidden')">
+          <button class="nav__login js-dropdown-btn" style="background:none; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px;">
             {{ user.display_name }}
             <svg class="ico" style="width:16px;height:16px"><use href="#i-arrow"/></svg>
           </button>
           
-          <div hidden style="position:absolute; top:calc(100% + 8px); right:0; width:240px; background:var(--b-l1); border:1px solid var(--b-l3); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:100; padding:8px 0; display:flex; flex-direction:column; gap:4px;">
+          <div class="js-dropdown-menu" hidden style="position:absolute; top:calc(100% + 8px); right:0; width:240px; background:var(--bg, #ffffff); border:1px solid var(--b-l3); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:999999; padding:8px 0; display:flex; flex-direction:column; gap:4px;">
             <a href="{% url 'player_public' user.player_profile.pk %}" style="padding:8px 16px; color:inherit; text-decoration:none;">My Profile</a>
             <a href="{% url 'settings_view' %}" style="padding:8px 16px; color:inherit; text-decoration:none;">Settings</a>
             <a href="#" style="padding:8px 16px; color:inherit; text-decoration:none;">My Achievements</a>
@@ -55,14 +55,17 @@
 
 <script>
 document.addEventListener('click', function(e) {
-  document.querySelectorAll('.dropdown-container').forEach(function(container) {
-    if (!container.contains(e.target)) {
-      var menu = container.querySelector('div[hidden]') || container.querySelector('div:not([hidden])');
-      if (menu && menu.tagName === 'DIV' && !menu.hasAttribute('hidden') && e.target !== container.querySelector('button')) {
+  const isDropdownBtn = e.target.closest('.js-dropdown-btn');
+  if (isDropdownBtn) {
+    const menu = isDropdownBtn.nextElementSibling;
+    menu.toggleAttribute('hidden');
+  } else {
+    document.querySelectorAll('.js-dropdown-menu').forEach(function(menu) {
+      if (!menu.contains(e.target)) {
         menu.setAttribute('hidden', '');
       }
-    }
-  });
+    });
+  }
 });
 </script>
 </header>
