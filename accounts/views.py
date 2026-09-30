@@ -52,6 +52,8 @@ def _safe_next(request, fallback):
 def _home_for(user):
     """Where a signed-in account belongs. The single source of truth for
     post-login routing, so no view has to re-derive it."""
+    if getattr(user, 'onboarding_complete', False) is False:
+        return 'welcome_animation'
     if user.is_staff:
         return 'dash_index'
     if user.has_organizer_profile:
@@ -339,3 +341,103 @@ def fcm_register_token(request):
         user=request.user,
         defaults={'token': token, 'device_type': device_type, 'is_active': True})
     return JsonResponse({'status': 'registered'})
+
+# ======================================================================
+# Onboarding & API
+# ======================================================================
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from django.contrib.auth.decorators import login_required
+from .models import PlayerProfile
+
+@require_GET
+def check_username_api(request):
+    username = request.GET.get('username', '').strip().lower()
+    if not username:
+        return JsonResponse({'available': False, 'valid': False, 'reason': 'empty', 'suggestions': []})
+    
+    import re
+    if not re.match(r'^[a-z0-9_]+$', username):
+        return JsonResponse({'available': False, 'valid': False, 'reason': 'invalid_format', 'suggestions': []})
+    
+    User = get_user_model()
+    exists = User.objects.filter(username__iexact=username).exists()
+    
+    if not exists:
+        return JsonResponse({'available': True, 'username': username, 'suggestions': []})
+    
+    # Generate suggestions
+    suggestions = []
+    base = username
+    for i in range(1, 10):
+        cand = f"{base}{i}"
+        if not User.objects.filter(username__iexact=cand).exists():
+            suggestions.append(cand)
+        if len(suggestions) >= 3:
+            break
+    cand_chess = f"{base}_chess"
+    if not User.objects.filter(username__iexact=cand_chess).exists():
+        suggestions.append(cand_chess)
+        
+    return JsonResponse({'available': False, 'valid': True, 'reason': 'taken', 'suggestions': suggestions})
+
+
+@login_required
+def welcome_animation(request):
+    if getattr(request.user, 'onboarding_complete', False):
+        return redirect(_home_for(request.user))
+    return render(request, 'accounts/welcome.html')
+
+
+@login_required
+def onboarding_flow(request):
+    if getattr(request.user, 'onboarding_complete', False):
+        return redirect(_home_for(request.user))
+        
+    if request.method == 'POST':
+        # Handle the combined POST from the 5-step form
+        user = request.user
+        profile, _ = PlayerProfile.objects.get_or_create(user=user)
+        
+        # Step 1
+        if 'first_name' in request.POST:
+            user.first_name = request.POST.get('first_name', '')
+        if 'last_name' in request.POST:
+            user.last_name = request.POST.get('last_name', '')
+        if 'username' in request.POST:
+            desired_username = request.POST.get('username').strip().lower()
+            if desired_username and not get_user_model().objects.filter(username__iexact=desired_username).exclude(pk=user.pk).exists():
+                user.username = desired_username
+                
+        profile.middle_name = request.POST.get('middle_name', '')
+        profile.date_of_birth = request.POST.get('date_of_birth') or None
+        profile.gender = request.POST.get('gender', 'U')
+        
+        if 'profile_photo' in request.FILES:
+            profile.profile_photo = request.FILES['profile_photo']
+            
+        # Step 2
+        profile.bio = request.POST.get('bio', '')
+        # (sports logic can be added later if multi-select is passed)
+        
+        # Step 3
+        profile.school = request.POST.get('school', '')
+        profile.college = request.POST.get('college', '')
+        profile.workplace = request.POST.get('workplace', '')
+        
+        # Step 4
+        profile.home_city = request.POST.get('home_city', '')
+        profile.current_city = request.POST.get('current_city', '')
+        
+        user.onboarding_complete = True
+        user.save()
+        profile.save()
+        
+        return redirect('onboarding_success')
+        
+    return render(request, 'accounts/onboarding.html')
+
+@login_required
+def onboarding_success(request):
+    return render(request, 'accounts/onboarding_success.html')

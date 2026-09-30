@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Welcome — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<style>
+  .welcome-screen {
+    position: fixed; inset: 0; z-index: 10000;
+    background: #000 url('{% static "images/auth_hero.jpg" %}') center/cover no-repeat;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff; text-align: center; padding: 2rem;
+  }
+  .welcome-screen::before {
+    content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.7); z-index: 1;
+  }
+  .welcome-content {
+    position: relative; z-index: 2; max-width: 600px;
+    animation: scaleIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .welcome-logo { margin-bottom: 2rem; display:flex; justify-content:center; }
+  .welcome-logo img { height: 32px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)); }
+  .welcome-title { font-size: 3.5rem; margin-bottom: 1rem; line-height: 1.1; color: #fff; }
+  .welcome-subtitle { font-size: 1.25rem; opacity: 0.9; margin-bottom: 3rem; line-height: 1.5; }
+  .welcome-btn {
+    display: inline-block; padding: 16px 32px; font-size: 1.1rem; font-weight: 600;
+    background: var(--orange); color: #fff; border-radius: 30px; text-decoration: none;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .welcome-btn:hover { background: #e05e00; transform: translateY(-2px); }
+  
+  @keyframes scaleIn {
+    0% { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  
+  .confetti {
+    position: absolute; width: 8px; height: 16px; background: var(--orange);
+    animation: fall 3s linear infinite; z-index: 1; opacity: 0.8; border-radius: 4px;
+  }
+  @keyframes fall {
+    0% { transform: translateY(-100vh) rotate(0deg); }
+    100% { transform: translateY(100vh) rotate(360deg); }
+  }
+</style>
+
+<div class="welcome-screen">
+  <!-- Confetti -->
+  <div class="confetti" style="left: 10%; animation-delay: 0s;"></div>
+  <div class="confetti" style="left: 30%; animation-delay: 1.2s; background: #fff;"></div>
+  <div class="confetti" style="left: 50%; animation-delay: 0.5s;"></div>
+  <div class="confetti" style="left: 70%; animation-delay: 2.1s; background: #fff;"></div>
+  <div class="confetti" style="left: 90%; animation-delay: 0.8s;"></div>
+  
+  <div class="welcome-content">
+    <div class="welcome-logo">
+      <img src="{% static 'images/logo.png' %}" alt="TournamentSC">
+    </div>
+    <h1 class="welcome-title">Welcome to<br>TournamentSC!</h1>
+    <p class="welcome-subtitle">You're now part of a growing community of players, organizers, and chess enthusiasts.</p>
+    <a href="{% url 'onboarding_flow' %}" class="welcome-btn">Continue to Create Your Profile →</a>
+  </div>
+</div>
+{% endblock %}

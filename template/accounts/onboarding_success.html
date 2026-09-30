@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}You're All Set — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<style>
+  .success-layout { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; padding: 2rem; }
+  .success-icon { width: 80px; height: 80px; background: #FFF7ED; color: var(--orange); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 2rem; animation: popIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  
+  .success-title { font-size: 2.5rem; margin-bottom: 1rem; }
+  .success-subtitle { font-size: 1.1rem; color: var(--dim); max-width: 600px; margin-bottom: 3rem; line-height: 1.6; }
+  
+  .benefits-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; max-width: 800px; margin-bottom: 4rem; width: 100%; text-align: left; }
+  .benefit-card { background: var(--b-l1); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--b-l3); }
+  .benefit-title { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem; }
+  .benefit-desc { font-size: 0.9rem; color: var(--dim); }
+</style>
+
+<div class="success-layout">
+  <div class="success-icon">🏆</div>
+  <h1 class="success-title">You're All Set!</h1>
+  <p class="success-subtitle">Welcome to TournamentSC! Your profile is ready. You can now join tournaments, track your progress, connect with players and be part of a growing community.</p>
+  
+  <div class="benefits-grid">
+    <div class="benefit-card">
+      <div class="benefit-title">Join Tournaments</div>
+      <div class="benefit-desc">Compete with players across India</div>
+    </div>
+    <div class="benefit-card">
+      <div class="benefit-title">Track Your Progress</div>
+      <div class="benefit-desc">View ratings, stats and history</div>
+    </div>
+    <div class="benefit-card">
+      <div class="benefit-title">Connect With Players</div>
+      <div class="benefit-desc">Meet players and organizers</div>
+    </div>
+    <div class="benefit-card">
+      <div class="benefit-title">Growing Community</div>
+      <div class="benefit-desc">Discover events, leagues and opportunities</div>
+    </div>
+  </div>
+  
+  <a href="{% url 'player_dashboard' %}" class="btn btn-primary" style="padding: 16px 48px; font-size: 1.25rem; border-radius: 30px;">Go to Home →</a>
+</div>
+{% endblock %}

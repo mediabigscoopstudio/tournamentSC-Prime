@@ -1,68 +1,192 @@
 {% extends 'base.html' %}
-{% block title %}Create an Account — {{ site_conf.site_name }}{% endblock %}
+{% load static %}
+{% block title %}Create Account — {{ site_conf.site_name }}{% endblock %}
+
 {% block content %}
-<section class="section wrap" style="max-width:480px">
-  <h1 style="text-align:center">Create your account</h1>
-  <p class="muted" style="text-align:center">Join tournaments, track stats, and connect.</p>
+<style>
+  .auth-layout { display: flex; min-height: 100vh; }
+  .auth-hero { display: none; }
+  .auth-content {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: 2rem; max-width: 480px; margin: 0 auto;
+  }
+  .auth-logo {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 2rem;
+    font-weight: 700; font-size: 1.25rem; text-decoration: none; color: var(--fg);
+  }
+  .auth-logo img { height: 24px; }
   
-  <div style="margin-top: 24px;">
-    <!-- Google Sign-In Script -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <div id="g_id_onload"
-         data-client_id="{{ google_client_id }}"
-         data-context="signup"
-         data-ux_mode="popup"
-         data-callback="handleGoogleLogin"
-         data-auto_prompt="false">
-    </div>
+  @media (min-width: 768px) {
+    .auth-hero {
+      display: flex; flex-direction: column; justify-content: center; width: 45%;
+      background: #111 url('{% static "images/auth_hero.jpg" %}') center/cover no-repeat;
+      padding: 3rem; position: relative;
+    }
+    .auth-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 100%);
+    }
+    .auth-hero-content { position: relative; z-index: 1; color: #fff; }
+    .auth-hero h1 { font-size: 3rem; margin-bottom: 1rem; color: #fff; line-height: 1.1; }
+    .auth-hero p { font-size: 1.1rem; opacity: 0.9; max-width: 400px; }
+    .auth-content { max-width: 440px; margin: 0 auto; padding-left: 4rem; }
+  }
+  
+  .auth-title { font-size: 2rem; margin-bottom: 0.5rem; }
+  .auth-subtitle { color: var(--dim); margin-bottom: 2rem; }
+  .step { display: none; animation: fadeIn 0.3s ease; }
+  .step.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  
+  .username-msg { font-size: 0.85rem; margin-top: 4px; display: block; }
+  .username-msg.success { color: #10B981; }
+  .username-msg.error { color: #EF4444; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .suggestion-chip { background: var(--b-l2); padding: 4px 10px; border-radius: 16px; font-size: 0.85rem; cursor: pointer; }
+  
+  .otp-inputs { display: flex; gap: 8px; margin-bottom: 1rem; justify-content: space-between; }
+  .otp-inputs input { width: 45px; height: 50px; text-align: center; font-size: 1.25rem; font-weight: 600; border-radius: 8px; border: 1px solid var(--b-l3); }
+</style>
 
-    <div class="g_id_signin"
-         data-type="standard"
-         data-shape="rectangular"
-         data-theme="outline"
-         data-text="signup_with"
-         data-size="large"
-         data-logo_alignment="left"
-         style="display: flex; justify-content: center;">
+<div class="auth-layout">
+  <div class="auth-hero">
+    <div class="auth-hero-content">
+      <h1>Join<br>TournamentSC</h1>
+      <p>Create your account and be part of a growing community.</p>
     </div>
   </div>
   
-  <div style="display:flex; align-items:center; margin: 24px 0;">
-    <div style="flex:1; height:1px; background:var(--b-l3);"></div>
-    <div style="padding: 0 12px;" class="dim">or sign up with email</div>
-    <div style="flex:1; height:1px; background:var(--b-l3);"></div>
+  <div class="auth-content">
+    <a href="/" class="auth-logo">
+      <img src="{% static 'images/logo-icon.png' %}" alt="Logo">
+      TournamentSC
+    </a>
+    
+    <!-- STEP 1: Method Chooser -->
+    <div id="step-chooser" class="step active">
+      <h2 class="auth-title">Join TournamentSC</h2>
+      <p class="auth-subtitle">Create your account to get started.</p>
+      
+      <div style="margin-bottom: 1.5rem;">
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-context="signup" data-ux_mode="popup" data-callback="handleGoogleLogin" data-auto_prompt="false"></div>
+        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signup_with" data-size="large" data-logo_alignment="left" style="display: flex; width: 100%;"></div>
+      </div>
+      
+      <div style="display:flex; align-items:center; margin: 1.5rem 0;">
+        <div style="flex:1; height:1px; background:var(--b-l3);"></div>
+        <div style="padding: 0 12px;" class="dim">OR</div>
+        <div style="flex:1; height:1px; background:var(--b-l3);"></div>
+      </div>
+      
+      <button onclick="goToStep('step-username')" class="btn btn-primary btn-block" style="width:100%; padding:12px; font-size:1.1rem; border-radius:8px;">Sign up with Email</button>
+      
+      <p style="text-align:center; margin-top:2rem; color:var(--dim);">
+        Already have an account? <a href="{% url 'login' %}" style="color:var(--orange); font-weight:600;">Sign in</a>
+      </p>
+    </div>
+
+    <!-- STEP 2: Choose Username -->
+    <div id="step-username" class="step">
+      <h2 class="auth-title">Choose a username</h2>
+      <p class="auth-subtitle">This will be your unique identity on TournamentSC.</p>
+      
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="username-input" class="input" placeholder="e.g. magnus" autocomplete="off">
+        <span id="username-status" class="username-msg"></span>
+        <div id="username-suggestions" class="suggestions" style="display:none;"></div>
+      </div>
+      <button id="btn-next-email" class="btn btn-primary btn-block" style="width:100%; padding:12px; font-size:1.1rem; border-radius:8px;" disabled>Continue</button>
+    </div>
+    
+    <!-- STEP 3: Email -->
+    <div id="step-email" class="step">
+      <h2 class="auth-title">Enter Email</h2>
+      <p class="auth-subtitle">We'll send you a verification code.</p>
+      
+      <form id="form-email" method="post" action="{% url 'signup' %}">
+        {% csrf_token %}
+        <input type="hidden" name="username" id="hidden-username">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" name="email" id="email-input" class="input" required placeholder="you@example.com">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="width:100%; padding:12px; font-size:1.1rem; border-radius:8px;">Send OTP</button>
+      </form>
+    </div>
+    
+    <!-- OTP Verify will be handled by verify_otp page for now since it's an existing view -->
   </div>
-
-  <form method="post" class="panel tblcard" style="margin-top:20px">
-    {% csrf_token %}
-    <input type="hidden" name="next" value="{{ request.GET.next }}">
-    {% include 'partials/form.html' %}
-    <button class="btn btn-primary btn-block" type="submit">Create account</button>
-  </form>
-
-  <p class="dim center" style="margin-top:16px">
-    Already have an account? <a href="{% url 'login' %}">Log in</a>
-  </p>
-</section>
+</div>
 
 <script>
+function goToStep(id) {
+  document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// Handle Google Login
 function handleGoogleLogin(response) {
   const fd = new FormData();
   fd.append('credential', response.credential);
   fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-  
-  fetch("{% url 'google_login' %}", {
-    method: 'POST',
-    body: fd
-  }).then(res => res.json()).then(data => {
-    if (data.status === 'success') {
-      window.location.href = data.redirect;
-    } else {
-      alert(data.message || 'Signup failed.');
-    }
-  }).catch(err => {
-    alert('An error occurred during Google Sign-Up.');
-  });
+  fetch("{% url 'google_login' %}", { method: 'POST', body: fd })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') { window.location.href = data.redirect; }
+      else { alert(data.message || 'Login failed.'); }
+    }).catch(err => { alert('An error occurred during Google Sign-In.'); });
 }
+
+// Username availability debounce
+let debounceTimer;
+const usernameInput = document.getElementById('username-input');
+const statusText = document.getElementById('username-status');
+const suggestionsBox = document.getElementById('username-suggestions');
+const btnNextEmail = document.getElementById('btn-next-email');
+
+usernameInput.addEventListener('input', function() {
+  clearTimeout(debounceTimer);
+  const val = this.value.trim();
+  btnNextEmail.disabled = true;
+  suggestionsBox.style.display = 'none';
+  
+  if (!val) { statusText.textContent = ''; return; }
+  
+  statusText.textContent = 'Checking availability...';
+  statusText.className = 'username-msg';
+  
+  debounceTimer = setTimeout(() => {
+    fetch("{% url 'check_username_api' %}?username=" + encodeURIComponent(val))
+      .then(res => res.json())
+      .then(data => {
+        if (data.available) {
+          statusText.textContent = 'Username is available ✓';
+          statusText.className = 'username-msg success';
+          btnNextEmail.disabled = false;
+        } else {
+          statusText.textContent = 'Username is unavailable ✕';
+          statusText.className = 'username-msg error';
+          if (data.suggestions.length > 0) {
+            suggestionsBox.innerHTML = '<div style="width:100%; font-size:0.85rem; margin-bottom:4px;">Suggestions:</div>';
+            data.suggestions.forEach(s => {
+              const chip = document.createElement('div');
+              chip.className = 'suggestion-chip';
+              chip.textContent = s;
+              chip.onclick = () => { usernameInput.value = s; usernameInput.dispatchEvent(new Event('input')); };
+              suggestionsBox.appendChild(chip);
+            });
+            suggestionsBox.style.display = 'flex';
+          }
+        }
+      });
+  }, 400);
+});
+
+btnNextEmail.addEventListener('click', () => {
+  document.getElementById('hidden-username').value = usernameInput.value.trim();
+  goToStep('step-email');
+});
 </script>
 {% endblock %}

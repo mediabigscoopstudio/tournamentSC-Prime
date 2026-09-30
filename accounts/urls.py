@@ -16,6 +16,12 @@ urlpatterns = [
     path('logout', views.logout_view, name='logout'),
     path('google-login', views.google_login, name='google_login'),
     path('verify-otp', views.verify_otp, name='verify_otp'),
+    
+    # --- Onboarding & API ---
+    path('api/auth/username/check/', views.check_username_api, name='check_username_api'),
+    path('welcome', views.welcome_animation, name='welcome_animation'),
+    path('onboarding', views.onboarding_flow, name='onboarding_flow'),
+    path('onboarding/success', views.onboarding_success, name='onboarding_success'),
 
     # --- Player profile ---
     path('player/profile', views.profile_edit, name='profile_edit'),

@@ -1,49 +1,130 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Sign In — {{ site_conf.site_name }}{% endblock %}
+
 {% block content %}
-<section class="section wrap" style="max-width:440px">
-  <h1 style="text-align:center">Welcome Back</h1>
+<style>
+  .auth-layout {
+    display: flex;
+    min-height: 100vh;
+  }
+  .auth-hero {
+    display: none;
+  }
+  .auth-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2rem;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .auth-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2rem;
+    font-weight: 700;
+    font-size: 1.25rem;
+    text-decoration: none;
+    color: var(--fg);
+  }
+  .auth-logo img { height: 24px; }
   
-  <div style="margin-top: 24px;">
-    <!-- Google Sign-In Script -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <div id="g_id_onload"
-         data-client_id="{{ google_client_id }}"
-         data-context="signin"
-         data-ux_mode="popup"
-         data-callback="handleGoogleLogin"
-         data-auto_prompt="false">
-    </div>
+  @media (min-width: 768px) {
+    .auth-hero {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: 45%;
+      background: #111 url('{% static "images/auth_hero.jpg" %}') center/cover no-repeat;
+      padding: 3rem;
+      position: relative;
+    }
+    .auth-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 100%);
+    }
+    .auth-hero-content {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+    }
+    .auth-hero h1 { font-size: 3rem; margin-bottom: 1rem; color: #fff; line-height: 1.1; }
+    .auth-hero p { font-size: 1.1rem; opacity: 0.9; max-width: 400px; }
+    .auth-content { max-width: 440px; margin: 0 auto; padding-left: 4rem; }
+  }
+  
+  .auth-title { font-size: 2rem; margin-bottom: 0.5rem; }
+  .auth-subtitle { color: var(--dim); margin-bottom: 2rem; }
+  
+  .google-btn-wrapper { margin-bottom: 1.5rem; }
+</style>
 
-    <div class="g_id_signin"
-         data-type="standard"
-         data-shape="rectangular"
-         data-theme="outline"
-         data-text="signin_with"
-         data-size="large"
-         data-logo_alignment="left"
-         style="display: flex; justify-content: center;">
+<div class="auth-layout">
+  <div class="auth-hero">
+    <div class="auth-hero-content">
+      <h1>Welcome<br>Back</h1>
+      <p>Sign in to your TournamentSC account and continue your journey.</p>
     </div>
   </div>
   
-  <div style="display:flex; align-items:center; margin: 24px 0;">
-    <div style="flex:1; height:1px; background:var(--b-l3);"></div>
-    <div style="padding: 0 12px;" class="dim">or log in with email</div>
-    <div style="flex:1; height:1px; background:var(--b-l3);"></div>
+  <div class="auth-content">
+    <a href="/" class="auth-logo">
+      <img src="{% static 'images/logo-icon.png' %}" alt="Logo">
+      TournamentSC
+    </a>
+    
+    <h2 class="auth-title">Welcome Back</h2>
+    <p class="auth-subtitle">Sign in to your account</p>
+    
+    <div class="google-btn-wrapper">
+      <script src="https://accounts.google.com/gsi/client" async defer></script>
+      <div id="g_id_onload"
+           data-client_id="{{ google_client_id }}"
+           data-context="signin"
+           data-ux_mode="popup"
+           data-callback="handleGoogleLogin"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left" style="display: flex; width: 100%;"></div>
+    </div>
+    
+    <div style="display:flex; align-items:center; margin: 1.5rem 0;">
+      <div style="flex:1; height:1px; background:var(--b-l3);"></div>
+      <div style="padding: 0 12px;" class="dim">OR</div>
+      <div style="flex:1; height:1px; background:var(--b-l3);"></div>
+    </div>
+    
+    <form method="post" action="{% url 'login' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.GET.next }}">
+      
+      <div class="field">
+        <label>Email or phone</label>
+        <input type="text" name="identifier" class="input" required placeholder="you@example.com">
+      </div>
+      
+      <div class="field">
+        <label>Password</label>
+        <input type="password" name="password" class="input" required placeholder="••••••••">
+      </div>
+      
+      <div style="text-align:right; margin-bottom:1.5rem;">
+        <a href="/password-reset" style="font-size:0.9rem; color:var(--orange);">Forgot password?</a>
+      </div>
+      
+      <button class="btn btn-primary btn-block" type="submit" style="width:100%; padding:12px; font-size:1.1rem; border-radius:8px;">Log In</button>
+    </form>
+    
+    <p style="text-align:center; margin-top:2rem; color:var(--dim);">
+      New here? <a href="{% url 'signup' %}" style="color:var(--orange); font-weight:600;">Create an account</a>
+    </p>
   </div>
-
-  <form method="post" class="panel tblcard" style="margin-top:20px">
-    {% csrf_token %}
-    <input type="hidden" name="next" value="{{ request.GET.next }}">
-    {% include 'partials/form.html' %}
-    <button class="btn btn-primary btn-block" type="submit">Log in</button>
-  </form>
-
-  <p class="dim center" style="margin-top:16px">
-    <a href="/password-reset">Forgot password?</a> · New here?
-    <a href="{% url 'signup' %}">Create an account</a>
-  </p>
-</section>
+</div>
 
 <script>
 function handleGoogleLogin(response) {

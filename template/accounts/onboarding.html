@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Build Your Profile — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<style>
+  .onb-layout { display: flex; min-height: 100vh; background: var(--bg); }
+  .onb-hero { display: none; }
+  .onb-content { flex: 1; padding: 2rem 1rem; max-width: 800px; margin: 0 auto; width: 100%; }
+  
+  @media (min-width: 992px) {
+    .onb-hero {
+      display: flex; flex-direction: column; justify-content: center; width: 35%;
+      background: #111 url('{% static "images/auth_hero.jpg" %}') center/cover no-repeat;
+      padding: 3rem; position: relative; color: #fff;
+    }
+    .onb-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 100%);
+    }
+    .onb-hero-content { position: relative; z-index: 1; }
+    .onb-hero h1 { font-size: 3.5rem; margin: 2rem 0 1rem; color:#fff; line-height: 1.1; }
+    .onb-hero p { font-size: 1.1rem; opacity: 0.9; }
+    .onb-content { padding: 3rem 4rem; }
+  }
+  
+  .stepper { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; position: relative; }
+  .stepper::before { content: ''; position: absolute; top: 12px; left: 0; right: 0; height: 2px; background: var(--b-l3); z-index: 1; }
+  .step-item { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--bg); padding: 0 8px; }
+  .step-circle { width: 26px; height: 26px; border-radius: 50%; background: var(--b-l3); color: var(--fg); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; }
+  .step-item.active .step-circle { background: var(--orange); color: #fff; }
+  .step-item.completed .step-circle { background: #10B981; color: #fff; }
+  .step-label { font-size: 0.75rem; font-weight: 600; color: var(--dim); }
+  .step-item.active .step-label { color: var(--fg); }
+  
+  .step-panel { display: none; animation: fadeIn 0.3s ease; }
+  .step-panel.active { display: block; }
+  
+  .form-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .form-col { flex: 1; min-width: 240px; }
+  
+  .nav-btns { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--b-l3); }
+  .btn-next { background: var(--orange); color: #fff; padding: 12px 32px; border-radius: 30px; font-weight: 600; border: none; cursor: pointer; }
+  .btn-back { background: transparent; color: var(--fg); padding: 12px 24px; font-weight: 600; border: none; cursor: pointer; }
+</style>
+
+<div class="onb-layout">
+  <div class="onb-hero">
+    <div class="onb-hero-content">
+      <img src="{% static 'images/logo.png' %}" alt="TournamentSC" style="height: 32px;">
+      <h1>Build Your<br><span style="color:var(--orange)">Profile</span></h1>
+      <p>Tell us a bit about yourself. This helps other players know you and makes your TournamentSC experience better.</p>
+    </div>
+  </div>
+  
+  <div class="onb-content">
+    <div class="stepper">
+      <div class="step-item active" id="si-1"><div class="step-circle">1</div><div class="step-label">Basic Info</div></div>
+      <div class="step-item" id="si-2"><div class="step-circle">2</div><div class="step-label">About You</div></div>
+      <div class="step-item" id="si-3"><div class="step-circle">3</div><div class="step-label">Education</div></div>
+      <div class="step-item" id="si-4"><div class="step-circle">4</div><div class="step-label">Location</div></div>
+      <div class="step-item" id="si-5"><div class="step-circle">5</div><div class="step-label">Review</div></div>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      <!-- Step 1 -->
+      <div class="step-panel active" id="panel-1">
+        <h2>Basic Information</h2>
+        <p class="dim" style="margin-bottom:2rem;">Let's start with the essentials.</p>
+        
+        <div class="form-row">
+          <div class="form-col">
+            <label>First Name *</label>
+            <input type="text" name="first_name" class="input" value="{{ request.user.first_name }}" required>
+          </div>
+          <div class="form-col">
+            <label>Last Name *</label>
+            <input type="text" name="last_name" class="input" value="{{ request.user.last_name }}" required>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-col">
+            <label>Username *</label>
+            <input type="text" name="username" class="input" value="{{ request.user.username }}" required>
+          </div>
+          <div class="form-col">
+            <label>Date of Birth</label>
+            <input type="date" name="date_of_birth" class="input">
+          </div>
+        </div>
+        
+        <div class="field">
+          <label>Identify As</label>
+          <select name="gender" class="input">
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="N">Non-binary</option>
+            <option value="U">Prefer not to say</option>
+          </select>
+        </div>
+        
+        <div class="nav-btns">
+          <div></div>
+          <button type="button" class="btn-next" onclick="nextStep(2)">Next →</button>
+        </div>
+      </div>
+      
+      <!-- Step 2 -->
+      <div class="step-panel" id="panel-2">
+        <h2>About You</h2>
+        <p class="dim" style="margin-bottom:2rem;">Share a little more about yourself.</p>
+        
+        <div class="field">
+          <label>Bio (Optional)</label>
+          <textarea name="bio" class="input" rows="4" placeholder="Tell us about your chess journey..."></textarea>
+        </div>
+        
+        <div class="nav-btns">
+          <button type="button" class="btn-back" onclick="nextStep(1)">← Back</button>
+          <button type="button" class="btn-next" onclick="nextStep(3)">Next →</button>
+        </div>
+      </div>
+      
+      <!-- Step 3 -->
+      <div class="step-panel" id="panel-3">
+        <h2>Education & Work</h2>
+        <p class="dim" style="margin-bottom:2rem;">Add your school, college or workplace. (All optional)</p>
+        
+        <div class="field">
+          <label>My School</label>
+          <input type="text" name="school" class="input" placeholder="e.g. DAV Public School">
+        </div>
+        <div class="field">
+          <label>My College</label>
+          <input type="text" name="college" class="input" placeholder="e.g. KIIT University">
+        </div>
+        <div class="field">
+          <label>My Business / Workplace</label>
+          <input type="text" name="workplace" class="input" placeholder="e.g. Pinecode Studio">
+        </div>
+        
+        <div class="nav-btns">
+          <button type="button" class="btn-back" onclick="nextStep(2)">← Back</button>
+          <button type="button" class="btn-next" onclick="nextStep(4)">Next →</button>
+        </div>
+      </div>
+      
+      <!-- Step 4 -->
+      <div class="step-panel" id="panel-4">
+        <h2>Location</h2>
+        <p class="dim" style="margin-bottom:2rem;">Help others find and connect with you.</p>
+        
+        <div class="field">
+          <label>Home City or Town *</label>
+          <input type="text" name="home_city" class="input" placeholder="e.g. Bhubaneswar, Odisha" required>
+        </div>
+        <div class="field">
+          <label>Currently Living In *</label>
+          <input type="text" name="current_city" class="input" placeholder="e.g. Delhi, Delhi" required>
+        </div>
+        
+        <div class="nav-btns">
+          <button type="button" class="btn-back" onclick="nextStep(3)">← Back</button>
+          <button type="button" class="btn-next" onclick="nextStep(5)">Next →</button>
+        </div>
+      </div>
+      
+      <!-- Step 5 -->
+      <div class="step-panel" id="panel-5">
+        <h2>Review & Complete</h2>
+        <p class="dim" style="margin-bottom:2rem;">Almost there! Review your details before continuing.</p>
+        
+        <div class="panel tblcard" style="padding:1rem;">
+          <p>Everything looks good. You can always edit this later from your Profile Settings.</p>
+        </div>
+        
+        <div class="nav-btns">
+          <button type="button" class="btn-back" onclick="nextStep(4)">← Back</button>
+          <button type="submit" class="btn-next">Complete Profile →</button>
+        </div>
+      </div>
+      
+    </form>
+  </div>
+</div>
+
+<script>
+function nextStep(step) {
+  document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
+  document.getElementById('panel-' + step).classList.add('active');
+  
+  for(let i=1; i<=5; i++) {
+    const si = document.getElementById('si-' + i);
+    si.classList.remove('active');
+    if (i < step) si.classList.add('completed');
+    else si.classList.remove('completed');
+  }
+  document.getElementById('si-' + step).classList.add('active');
+}
+</script>
+{% endblock %}
