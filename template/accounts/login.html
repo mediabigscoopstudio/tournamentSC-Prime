@@ -4,146 +4,213 @@
 
 {% block content %}
 <style>
-  .auth-layout {
-    display: flex;
-    min-height: 100vh;
+  /* Base Layout Reset for Auth */
+  body { background-color: #f3f4f6; }
+  .auth-wrapper {
+    display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 1rem;
   }
+  
+  .auth-card {
+    display: flex; flex-direction: column; background: #fff; width: 100%; max-width: 420px;
+    border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  }
+
+  /* Mobile Hero (Top) */
   .auth-hero {
-    display: none;
+    position: relative; background: #111 url('{% static "images/auth_hero.jpg" %}') center/cover no-repeat;
+    padding: 2rem 1.5rem 4rem 1.5rem; color: #fff;
   }
-  .auth-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 2rem;
-    max-width: 480px;
-    margin: 0 auto;
+  .auth-hero::before {
+    content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.8) 100%);
   }
-  .auth-logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 2rem;
-    font-weight: 700;
-    font-size: 1.25rem;
-    text-decoration: none;
-    color: var(--fg);
-  }
-  .auth-logo img { height: 24px; }
+  .auth-hero-content { position: relative; z-index: 1; }
+  .auth-logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.25rem; color: #fff; margin-bottom: 2rem; text-decoration: none; }
+  .auth-logo img { height: 28px; }
   
-  @media (min-width: 768px) {
-    .auth-hero {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      width: 45%;
-      background: #111 url('{% static "images/auth_hero.jpg" %}') center/cover no-repeat;
-      padding: 3rem;
-      position: relative;
-    }
-    .auth-hero::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 100%);
-    }
-    .auth-hero-content {
-      position: relative;
-      z-index: 1;
-      color: #fff;
-    }
-    .auth-hero h1 { font-size: 3rem; margin-bottom: 1rem; color: #fff; line-height: 1.1; }
-    .auth-hero p { font-size: 1.1rem; opacity: 0.9; max-width: 400px; }
-    .auth-content { max-width: 440px; margin: 0 auto; padding-left: 4rem; }
+  .auth-hero-mobile-text { display: block; }
+  .auth-hero-desktop-text { display: none; }
+  .auth-hero h1 { font-size: 2.25rem; margin-bottom: 0.5rem; line-height: 1.1; color: #fff; }
+  .auth-hero p { font-size: 1rem; opacity: 0.9; max-width: 320px; line-height: 1.4; }
+
+  /* Mobile Sheet (Bottom) */
+  .auth-form-container {
+    background: #fff; border-radius: 24px 24px 0 0; padding: 2rem 1.5rem; position: relative; margin-top: -24px; z-index: 2;
   }
+
+  /* Desktop Layout */
+  @media (min-width: 992px) {
+    .auth-wrapper { padding: 2rem; }
+    .auth-card { flex-direction: row; max-width: 1000px; min-height: 640px; }
+    .auth-hero { width: 45%; padding: 3rem; display: flex; flex-direction: column; }
+    .auth-hero::before { background: linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 100%); }
+    .auth-hero-mobile-text { display: none; }
+    .auth-hero-desktop-text { display: block; margin-top: auto; margin-bottom: auto; }
+    .auth-hero-desktop-text h1 { font-size: 3.5rem; margin-bottom: 1rem; }
+    .auth-hero-desktop-text p { font-size: 1.1rem; }
+    .auth-form-container { width: 55%; padding: 4rem; border-radius: 0; margin-top: 0; display: flex; flex-direction: column; justify-content: center; }
+  }
+
+  /* Form Elements */
+  .auth-form-header { display: none; }
+  @media (min-width: 992px) {
+    .auth-form-header { display: block; margin-bottom: 2rem; }
+    .auth-form-header h2 { font-size: 2.25rem; color: #1e293b; margin-bottom: 0.5rem; }
+    .auth-form-header p { color: #64748b; font-size: 1.1rem; }
+  }
+
+  .g_id_signin { width: 100%; display: flex; justify-content: center; margin-bottom: 1.5rem; }
   
-  .auth-title { font-size: 2rem; margin-bottom: 0.5rem; }
-  .auth-subtitle { color: var(--dim); margin-bottom: 2rem; }
+  .auth-divider { display: flex; align-items: center; margin: 1.5rem 0; color: #94a3b8; font-size: 0.85rem; font-weight: 500; }
+  .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+  .auth-divider span { padding: 0 12px; }
+
+  .auth-field { margin-bottom: 1.25rem; }
+  .auth-label { display: block; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; font-size: 0.95rem; }
+  .auth-input-wrapper { position: relative; display: flex; align-items: center; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; transition: border-color 0.2s, background 0.2s; }
+  .auth-input-wrapper:focus-within { border-color: var(--orange); background: #fff; }
+  .auth-input-icon { position: absolute; left: 16px; color: #94a3b8; display: flex; }
+  .auth-input { width: 100%; background: transparent; border: none; padding: 14px 16px 14px 48px; font-size: 1rem; color: #1e293b; outline: none; }
+  .auth-input::placeholder { color: #94a3b8; }
   
-  .google-btn-wrapper { margin-bottom: 1.5rem; }
+  .auth-pwd-toggle { position: absolute; right: 16px; color: #94a3b8; background: none; border: none; cursor: pointer; display: flex; padding: 4px; }
+  .auth-pwd-toggle:hover { color: #1e293b; }
+
+  .auth-forgot { text-align: right; margin-bottom: 1.5rem; }
+  .auth-forgot a { color: #3b82f6; font-size: 0.9rem; font-weight: 500; text-decoration: none; }
+  .auth-forgot a:hover { text-decoration: underline; }
+
+  .auth-btn { width: 100%; background: var(--orange); color: #fff; border: none; padding: 16px; font-size: 1.1rem; font-weight: 600; border-radius: 30px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: transform 0.2s, background 0.2s; box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3); }
+  .auth-btn:hover { background: #ea580c; transform: translateY(-1px); }
+
+  .auth-footer { text-align: center; margin-top: 2rem; font-size: 0.95rem; color: #64748b; }
+  .auth-footer a { color: var(--orange); font-weight: 700; text-decoration: none; }
+  .auth-footer a:hover { text-decoration: underline; }
+
+  /* Feature List for Desktop Hero */
+  .hero-features { list-style: none; padding: 0; margin: 3rem 0 0 0; }
+  .hero-features li { display: flex; align-items: center; gap: 16px; margin-bottom: 1.5rem; color: rgba(255,255,255,0.9); font-size: 1rem; }
+  .hero-features svg { width: 24px; height: 24px; color: rgba(255,255,255,0.7); flex-shrink: 0; }
 </style>
 
-<div class="auth-layout">
-  <div class="auth-hero">
-    <div class="auth-hero-content">
-      <h1>Welcome<br>Back</h1>
-      <p>Sign in to your TournamentSC account and continue your journey.</p>
+<div class="auth-wrapper">
+  <div class="auth-card">
+    
+    <div class="auth-hero">
+      <div class="auth-hero-content">
+        <a href="/" class="auth-logo">
+          <img src="{% static 'images/logo-icon.png' %}" alt="Logo">
+          TournamentSC
+        </a>
+        
+        <div class="auth-hero-mobile-text">
+          <h1>Welcome<br>Back</h1>
+          <p>Sign in to your TournamentSC account and continue your journey.</p>
+        </div>
+        
+        <div class="auth-hero-desktop-text">
+          <h1>Play<br>Compete<br>Grow</h1>
+          <p>Join tournaments, track your progress, and be part of a growing community.</p>
+          
+          <ul class="hero-features">
+            <li>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+              <span>Join a community of players</span>
+            </li>
+            <li>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+              <span>Track your ratings and progress</span>
+            </li>
+            <li>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+              <span>Participate in exciting tournaments</span>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
-  </div>
-  
-  <div class="auth-content">
-    <a href="/" class="auth-logo">
-      <img src="{% static 'images/logo-icon.png' %}" alt="Logo">
-      TournamentSC
-    </a>
     
-    <h2 class="auth-title">Welcome Back</h2>
-    <p class="auth-subtitle">Sign in to your account</p>
-    
-    <div class="google-btn-wrapper">
-      <script src="https://accounts.google.com/gsi/client" async defer></script>
-      <div id="g_id_onload"
-           data-client_id="{{ google_client_id }}"
-           data-context="signin"
-           data-ux_mode="popup"
-           data-callback="handleGoogleLogin"
-           data-auto_prompt="false">
+    <div class="auth-form-container">
+      <div class="auth-form-header">
+        <h2>Welcome Back</h2>
+        <p>Sign in to your TournamentSC account and continue your journey.</p>
       </div>
-      <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left" style="display: flex; width: 100%;"></div>
+      
+      <div class="google-btn-wrapper">
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-context="signin" data-ux_mode="popup" data-callback="handleGoogleLogin" data-auto_prompt="false"></div>
+        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="continue_with" data-size="large" data-logo_alignment="center"></div>
+      </div>
+      
+      <div class="auth-divider"><span>OR</span></div>
+      
+      <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.GET.next }}">
+        
+        <div class="auth-field">
+          <label class="auth-label">Email or phone</label>
+          <div class="auth-input-wrapper">
+            <div class="auth-input-icon">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            </div>
+            <input type="text" name="identifier" class="auth-input" required placeholder="organizer@tournamentsc.app">
+          </div>
+        </div>
+        
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <div class="auth-input-wrapper">
+            <div class="auth-input-icon">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            </div>
+            <input type="password" name="password" id="auth-pwd" class="auth-input" required placeholder="••••••••••••">
+            <button type="button" class="auth-pwd-toggle" onclick="togglePwd()">
+              <svg id="eye-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            </button>
+          </div>
+        </div>
+        
+        <div class="auth-forgot">
+          <a href="{% url 'password_reset' %}">Forgot password?</a>
+        </div>
+        
+        <button type="submit" class="auth-btn">
+          Log in
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+        </button>
+      </form>
+      
+      <div class="auth-footer">
+        New here? <a href="{% url 'signup' %}">Create an account</a>
+      </div>
+      
     </div>
-    
-    <div style="display:flex; align-items:center; margin: 1.5rem 0;">
-      <div style="flex:1; height:1px; background:var(--b-l3);"></div>
-      <div style="padding: 0 12px;" class="dim">OR</div>
-      <div style="flex:1; height:1px; background:var(--b-l3);"></div>
-    </div>
-    
-    <form method="post" action="{% url 'login' %}">
-      {% csrf_token %}
-      <input type="hidden" name="next" value="{{ request.GET.next }}">
-      
-      <div class="field">
-        <label>Email or phone</label>
-        <input type="text" name="identifier" class="input" required placeholder="you@example.com">
-      </div>
-      
-      <div class="field">
-        <label>Password</label>
-        <input type="password" name="password" class="input" required placeholder="••••••••">
-      </div>
-      
-      <div style="text-align:right; margin-bottom:1.5rem;">
-        <a href="/password-reset" style="font-size:0.9rem; color:var(--orange);">Forgot password?</a>
-      </div>
-      
-      <button class="btn btn-primary btn-block" type="submit" style="width:100%; padding:12px; font-size:1.1rem; border-radius:8px;">Log In</button>
-    </form>
-    
-    <p style="text-align:center; margin-top:2rem; color:var(--dim);">
-      New here? <a href="{% url 'signup' %}" style="color:var(--orange); font-weight:600;">Create an account</a>
-    </p>
   </div>
 </div>
 
 <script>
+function togglePwd() {
+  const pwd = document.getElementById('auth-pwd');
+  const icon = document.getElementById('eye-icon');
+  if(pwd.type === 'password') {
+    pwd.type = 'text';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>';
+  } else {
+    pwd.type = 'password';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
+  }
+}
+
 function handleGoogleLogin(response) {
   const fd = new FormData();
   fd.append('credential', response.credential);
   fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-  
-  fetch("{% url 'google_login' %}", {
-    method: 'POST',
-    body: fd
-  }).then(res => res.json()).then(data => {
-    if (data.status === 'success') {
-      window.location.href = data.redirect;
-    } else {
-      alert(data.message || 'Login failed.');
-    }
-  }).catch(err => {
-    alert('An error occurred during Google Sign-In.');
-  });
+  fetch("{% url 'google_login' %}", { method: 'POST', body: fd })
+    .then(res => res.json())
+    .then(data => {
+      if(data.status === 'success') window.location.href = data.redirect;
+      else alert(data.message || 'Login failed.');
+    }).catch(err => alert('An error occurred during Google Sign-In.'));
 }
 </script>
 {% endblock %}
