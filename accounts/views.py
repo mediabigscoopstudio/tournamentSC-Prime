@@ -13,6 +13,11 @@ right door. They never authenticate anyone themselves.
 """
 import json
 import os
+import random
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from django.contrib.auth import get_user_model
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
