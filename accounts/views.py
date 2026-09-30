@@ -175,7 +175,8 @@ def google_login(request):
             user.save(update_fields=['is_email_verified'])
             
         login(request, user)
-        return JsonResponse({'status': 'success', 'redirect': '/dashboard'})
+        from django.shortcuts import resolve_url
+        return JsonResponse({'status': 'success', 'redirect': resolve_url(_home_for(user))})
     except ValueError:
         return JsonResponse({'status': 'error', 'message': 'Invalid token'}, status=400)
 
