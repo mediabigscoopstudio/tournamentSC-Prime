@@ -1,6 +1,6 @@
 Verify your email
 
-Hi {{ username }},
+Hi there,
 
 Your TournamentSC verification code is: {{ otp }}
 

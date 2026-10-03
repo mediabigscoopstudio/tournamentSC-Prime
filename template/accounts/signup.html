@@ -145,7 +145,7 @@
         
         <div class="auth-divider"><span>OR</span></div>
         
-        <button onclick="goToStep('step-username')" class="auth-btn" style="background:#f1f5f9; color:#1e293b; box-shadow:none;">
+        <button onclick="goToStep('step-email')" class="auth-btn" style="background:#f1f5f9; color:#1e293b; box-shadow:none;">
           <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
           Sign up with Email
         </button>
@@ -155,33 +155,7 @@
         </div>
       </div>
 
-      <!-- STEP 2: Choose Username -->
-      <div id="step-username" class="step">
-        <div class="auth-form-header">
-          <h2>Choose a username</h2>
-          <p>This will be your unique identity on TournamentSC.</p>
-        </div>
-        
-        <div class="auth-field">
-          <label class="auth-label">Username</label>
-          <div class="auth-input-wrapper">
-            <div class="auth-input-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            </div>
-            <input type="text" id="username-input" class="auth-input" placeholder="e.g. magnus" autocomplete="off">
-          </div>
-          <span id="username-status" class="username-msg"></span>
-          <div id="username-suggestions" class="suggestions" style="display:none;"></div>
-        </div>
-        
-        <button id="btn-next-email" class="auth-btn" disabled>
-          Continue
-          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-        </button>
-        <div class="auth-footer"><a href="javascript:void(0)" onclick="goToStep('step-chooser')" style="color:#64748b; font-weight:500;">← Back</a></div>
-      </div>
-      
-      <!-- STEP 3: Email -->
+      <!-- STEP 2: Email + password -->
       <div id="step-email" class="step">
         <div class="auth-form-header">
           <h2>Almost there</h2>
@@ -190,7 +164,6 @@
         
         <form id="form-email" method="post" action="{% url 'signup' %}">
           {% csrf_token %}
-          <input type="hidden" name="username" id="hidden-username">
           
           <div class="auth-field">
             <label class="auth-label">Email</label>
@@ -217,7 +190,7 @@
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
           </button>
         </form>
-        <div class="auth-footer"><a href="javascript:void(0)" onclick="goToStep('step-username')" style="color:#64748b; font-weight:500;">← Back</a></div>
+        <div class="auth-footer"><a href="javascript:void(0)" onclick="goToStep('step-chooser')" style="color:#64748b; font-weight:500;">← Back</a></div>
       </div>
       
     </div>
@@ -226,17 +199,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  {% if start_step %}
-  usernameInput.value = "{{ prefill_username|escapejs }}";
-  document.getElementById('hidden-username').value = "{{ prefill_username|escapejs }}";
-  goToStep("{{ start_step }}");
-  {% endif %}
+  {% if start_step %}goToStep("{{ start_step }}");{% endif %}
 });
 function goToStep(id) {
   document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  if (id === 'step-username') { document.querySelector('.auth-hero-mobile-text h1').innerHTML = 'Choose<br>Username'; document.querySelector('.auth-hero-mobile-text p').innerHTML = 'This will be your unique identity on TournamentSC.'; }
-  else if (id === 'step-email') { document.querySelector('.auth-hero-mobile-text h1').innerHTML = 'Enter<br>Email'; document.querySelector('.auth-hero-mobile-text p').innerHTML = 'We will send you a verification code.'; }
+  if (id === 'step-email') { document.querySelector('.auth-hero-mobile-text h1').innerHTML = 'Create<br>Account'; document.querySelector('.auth-hero-mobile-text p').innerHTML = 'Use your email and a password. We will send a verification code.'; }
   else { document.querySelector('.auth-hero-mobile-text h1').innerHTML = 'Join<br>TournamentSC'; document.querySelector('.auth-hero-mobile-text p').innerHTML = 'Create your account and be part of a growing community.'; }
 }
 
@@ -273,53 +241,5 @@ function handleGoogleLogin(response) {
     }).catch(err => alert('An error occurred during Google Sign-In.'));
 }
 
-let debounceTimer;
-const usernameInput = document.getElementById('username-input');
-const statusText = document.getElementById('username-status');
-const suggestionsBox = document.getElementById('username-suggestions');
-const btnNextEmail = document.getElementById('btn-next-email');
-
-usernameInput.addEventListener('input', function() {
-  clearTimeout(debounceTimer);
-  const val = this.value.trim();
-  btnNextEmail.disabled = true;
-  suggestionsBox.style.display = 'none';
-  
-  if (!val) { statusText.innerHTML = ''; return; }
-  
-  statusText.innerHTML = 'Checking availability...';
-  statusText.className = 'username-msg';
-  
-  debounceTimer = setTimeout(() => {
-    fetch("{% url 'check_username_api' %}?username=" + encodeURIComponent(val))
-      .then(res => res.json())
-      .then(data => {
-        if (data.available) {
-          statusText.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg> Username is available';
-          statusText.className = 'username-msg success';
-          btnNextEmail.disabled = false;
-        } else {
-          statusText.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg> Username is already taken';
-          statusText.className = 'username-msg error';
-          if (data.suggestions && data.suggestions.length > 0) {
-            suggestionsBox.innerHTML = '<div style="width:100%; font-size:0.85rem; margin-bottom:4px; font-weight:500; color:#64748b;">Try:</div>';
-            data.suggestions.forEach(s => {
-              const chip = document.createElement('div');
-              chip.className = 'suggestion-chip';
-              chip.textContent = s;
-              chip.onclick = () => { usernameInput.value = s; usernameInput.dispatchEvent(new Event('input')); };
-              suggestionsBox.appendChild(chip);
-            });
-            suggestionsBox.style.display = 'flex';
-          }
-        }
-      });
-  }, 400);
-});
-
-btnNextEmail.addEventListener('click', () => {
-  document.getElementById('hidden-username').value = usernameInput.value.trim();
-  goToStep('step-email');
-});
 </script>
 {% endblock %}

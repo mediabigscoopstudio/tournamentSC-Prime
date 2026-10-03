@@ -111,7 +111,7 @@ def unified_login(request):
 USERNAME_RE = re.compile(r'^[a-z0-9_]{3,30}$')
 
 
-def _issue_otp(email, username):
+def _issue_otp(email, username=''):
     """Create a fresh OTP, invalidate older ones and email it. Returns (otp, sent_ok)."""
     EmailOTP.objects.filter(email=email, is_verified=False).update(expires_at=timezone.now())
     otp_val = str(random.randint(100000, 999999))
@@ -133,15 +133,10 @@ def unified_signup(request):
     User = get_user_model()
 
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip().lower()
         email = request.POST.get('email', '').strip().lower()
         password = request.POST.get('password', '')
         error = None
-        if not USERNAME_RE.match(username):
-            error = 'Username must be 3-30 characters: letters, numbers or underscore.'
-        elif User.objects.filter(username__iexact=username).exists():
-            error = 'That username is already taken.'
-        elif not email or '@' not in email:
+        if not email or '@' not in email:
             error = 'Enter a valid email address.'
         elif User.objects.filter(email__iexact=email).exists():
             error = 'An account with this email already exists. Try signing in.'
@@ -153,14 +148,14 @@ def unified_signup(request):
 
         if error:
             messages.error(request, error)
-            ctx.update(prefill_username=username, prefill_email=email, start_step='step-email')
+            ctx.update(prefill_email=email, start_step='step-email')
             return render(request, 'accounts/signup.html', ctx)
 
         # The account is only created after the OTP is verified; hold details in the session.
         request.session['pending_signup'] = {
-            'username': username, 'email': email, 'password_hash': make_password(password)}
+            'email': email, 'password_hash': make_password(password)}
         request.session['auth_email'] = email
-        _, sent = _issue_otp(email, username)
+        _, sent = _issue_otp(email)
         if not sent:
             messages.warning(request, "We couldn't send the email right now. Tap 'Resend code' in a moment.")
         return redirect('verify_otp')
@@ -178,7 +173,7 @@ def verify_otp(request):
     if not email or (not pending and not legacy):
         messages.error(request, 'Your signup session expired. Please start again.')
         return redirect('signup')
-    uname = pending['username'] if pending else legacy.username
+    uname = legacy.username if legacy else ''
 
     if request.method == 'POST':
         if request.POST.get('action') == 'resend':
@@ -199,13 +194,12 @@ def verify_otp(request):
                 login(request, legacy, backend='django.contrib.auth.backends.ModelBackend')
                 request.session.pop('auth_email', None)
                 return redirect(_home_for(legacy))
-            if User.objects.filter(email__iexact=email).exists() or \
-               User.objects.filter(username__iexact=pending['username']).exists():
+            if User.objects.filter(email__iexact=email).exists():
                 messages.error(request, 'That account was just created. Please sign in.')
                 request.session.pop('pending_signup', None)
                 request.session.pop('auth_email', None)
                 return redirect('login')
-            user = User.objects.create_user(email=email, password=None, username=pending['username'])
+            user = User.objects.create_user(email=email, password=None)
             user.password = pending['password_hash']
             user.is_email_verified = True
             user.save()
@@ -417,11 +411,14 @@ def check_username_api(request):
         return JsonResponse({'available': False, 'valid': False, 'reason': 'empty', 'suggestions': []})
     
     import re
-    if not re.match(r'^[a-z0-9_]+$', username):
+    if not USERNAME_RE.match(username):
         return JsonResponse({'available': False, 'valid': False, 'reason': 'invalid_format', 'suggestions': []})
     
     User = get_user_model()
-    exists = User.objects.filter(username__iexact=username).exists()
+    qs = User.objects.filter(username__iexact=username)
+    if request.user.is_authenticated:
+        qs = qs.exclude(pk=request.user.pk)
+    exists = qs.exists()
     
     if not exists:
         return JsonResponse({'available': True, 'username': username, 'suggestions': []})
@@ -464,11 +461,17 @@ def onboarding_flow(request):
             user.first_name = request.POST.get('first_name', '')
         if 'last_name' in request.POST:
             user.last_name = request.POST.get('last_name', '')
-        if 'username' in request.POST:
-            desired_username = request.POST.get('username').strip().lower()
-            if desired_username and not get_user_model().objects.filter(username__iexact=desired_username).exclude(pk=user.pk).exists():
-                user.username = desired_username
-                
+        desired_username = request.POST.get('username', '').strip().lower()
+        uerr = None
+        if not USERNAME_RE.match(desired_username):
+            uerr = 'Choose a username of 3-30 characters: letters, numbers or underscore.'
+        elif get_user_model().objects.filter(username__iexact=desired_username).exclude(pk=user.pk).exists():
+            uerr = 'That username is already taken. Please pick another.'
+        if uerr:
+            messages.error(request, uerr)
+            return render(request, 'accounts/onboarding.html', {'username_error': uerr, 'posted': request.POST})
+        user.username = desired_username
+
         profile.middle_name = request.POST.get('middle_name', '')
         profile.date_of_birth = request.POST.get('date_of_birth') or None
         profile.gender = request.POST.get('gender', 'U')

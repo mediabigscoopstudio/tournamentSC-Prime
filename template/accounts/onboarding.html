@@ -56,7 +56,14 @@
   }
   .combo-option:hover, .combo-option.selected { background: #f8fafc; color: var(--orange); font-weight: 600; }
   .combo-option.add-new { color: var(--orange); font-weight: 600; }
+
+  .ob-ustatus { display:block; font-size:0.85rem; margin-top:6px; color:#64748b; font-weight:500; }
+  .ob-ustatus.ok { color:#10B981; } .ob-ustatus.bad { color:#EF4444; }
+  .ob-usuggest { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .ob-chip { background:#f1f5f9; border:1px solid #e2e8f0; color:#334155; padding:6px 12px; border-radius:16px; font-size:0.85rem; cursor:pointer; }
+  .ob-chip:hover { background:#e2e8f0; }
 </style>
+
 
 
 <div class="onb-layout">
@@ -98,8 +105,10 @@
         
         <div class="form-row">
           <div class="form-col">
-            <label>Username *</label>
-            <input type="text" name="username" class="input" value="{{ request.user.username }}" required>
+            <label>Choose your username *</label>
+            <input type="text" name="username" id="ob-username" class="input" value="{{ posted.username|default:'' }}" placeholder="e.g. magnus_fan" autocomplete="off" maxlength="30" required>
+            <span id="ob-username-status" class="ob-ustatus">{% if username_error %}<span style="color:#EF4444;">{{ username_error }}</span>{% else %}3-30 characters: letters, numbers, underscore.{% endif %}</span>
+            <div id="ob-username-suggest" class="ob-usuggest" style="display:none;"></div>
           </div>
           <div class="form-col">
             <label>Date of Birth</label>
@@ -119,7 +128,7 @@
         
         <div class="nav-btns">
           <div></div>
-          <button type="button" class="btn-next" onclick="nextStep(2)">Next →</button>
+          <button type="button" class="btn-next" id="ob-step1-next" onclick="step1Next()">Next →</button>
         </div>
       </div>
       
@@ -358,5 +367,49 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCityAutocomplete('home_city_input', 'home_city_dropdown');
   setupCityAutocomplete('current_city_input', 'current_city_dropdown');
 });
+
+// ---- Username live availability (first time the user chooses it) ----
+let obUsernameOk = false, obTimer;
+const obInput = document.getElementById('ob-username');
+const obStatus = document.getElementById('ob-username-status');
+const obSuggest = document.getElementById('ob-username-suggest');
+function obSet(msg, cls) { obStatus.textContent = msg; obStatus.className = 'ob-ustatus ' + (cls || ''); }
+function obCheck() {
+  const v = obInput.value.trim().toLowerCase();
+  obUsernameOk = false; obSuggest.style.display = 'none';
+  if (!v) { obSet('3-30 characters: letters, numbers, underscore.'); return; }
+  if (!/^[a-z0-9_]{3,30}$/.test(v)) { obSet('Use 3-30 letters, numbers or underscore only.', 'bad'); return; }
+  obSet('Checking availability...');
+  clearTimeout(obTimer);
+  obTimer = setTimeout(() => {
+    fetch("{% url 'check_username_api' %}?username=" + encodeURIComponent(v))
+      .then(r => r.json()).then(d => {
+        if (obInput.value.trim().toLowerCase() !== v) return; // stale response
+        if (d.available) { obUsernameOk = true; obSet('✓ @' + v + ' is available', 'ok'); }
+        else {
+          obSet('✕ That username is already taken', 'bad');
+          if (d.suggestions && d.suggestions.length) {
+            obSuggest.innerHTML = '';
+            d.suggestions.forEach(s => {
+              const chip = document.createElement('span'); chip.className = 'ob-chip'; chip.textContent = s;
+              chip.onclick = () => { obInput.value = s; obCheck(); };
+              obSuggest.appendChild(chip);
+            });
+            obSuggest.style.display = 'flex';
+          }
+        }
+      }).catch(() => obSet('Could not check right now. Please try again.', 'bad'));
+  }, 400);
+}
+obInput.addEventListener('input', obCheck);
+if (obInput.value) obCheck();
+
+function step1Next() {
+  const fn = document.querySelector('[name=first_name]'), ln = document.querySelector('[name=last_name]');
+  if (!fn.value.trim()) { fn.reportValidity(); return; }
+  if (!ln.value.trim()) { ln.reportValidity(); return; }
+  if (!obUsernameOk) { obSet(obInput.value.trim() ? obStatus.textContent : 'Please choose a username to continue.', 'bad'); obInput.focus(); return; }
+  nextStep(2);
+}
 </script>
 {% endblock %}
