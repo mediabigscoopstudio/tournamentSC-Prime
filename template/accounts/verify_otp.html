@@ -19,8 +19,15 @@
       <button type="submit" class="btn btn-primary btn-block">Verify & Continue</button>
     </form>
     
+    <form method="post" action="{% url 'verify_otp' %}" style="margin-top:16px; text-align:center;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="resend">
+      <span class="muted">Didn't get it? Check spam, or</span>
+      <button type="submit" class="btn-link" style="background:none;border:none;color:var(--orange);font-weight:600;cursor:pointer;">Resend code</button>
+    </form>
+
     <div style="margin-top: 24px; text-align:center;">
-      <a href="{% url 'login' %}" class="btn-link dim">Back to Login</a>
+      <a href="{% url 'signup' %}" class="btn-link dim">← Change email</a>
     </div>
   </div>
 </main>

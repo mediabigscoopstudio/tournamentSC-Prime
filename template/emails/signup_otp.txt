@@ -1,0 +1,10 @@
+Verify your email
+
+Hi {{ username }},
+
+Your TournamentSC verification code is: {{ otp }}
+
+It expires in 10 minutes. If you didn't request it, ignore this email.
+
+Team TournamentSC
+{{ site_url }}

@@ -184,8 +184,8 @@
       <!-- STEP 3: Email -->
       <div id="step-email" class="step">
         <div class="auth-form-header">
-          <h2>Enter Email</h2>
-          <p>We'll send you a verification code.</p>
+          <h2>Almost there</h2>
+          <p>Enter your email and set a password. We'll send a verification code.</p>
         </div>
         
         <form id="form-email" method="post" action="{% url 'signup' %}">
@@ -198,7 +198,17 @@
               <div class="auth-input-icon">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
               </div>
-              <input type="email" name="email" id="email-input" class="auth-input" required placeholder="you@example.com">
+              <input type="email" name="email" id="email-input" class="auth-input" required placeholder="you@example.com" value="{{ prefill_email|default:'' }}">
+            </div>
+          </div>
+
+          <div class="auth-field">
+            <label class="auth-label">Create a password</label>
+            <div class="auth-input-wrapper">
+              <div class="auth-input-icon">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+              </div>
+              <input type="password" name="password" id="password-input" class="auth-input" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters">
             </div>
           </div>
           
@@ -215,6 +225,13 @@
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', () => {
+  {% if start_step %}
+  usernameInput.value = "{{ prefill_username|escapejs }}";
+  document.getElementById('hidden-username').value = "{{ prefill_username|escapejs }}";
+  goToStep("{{ start_step }}");
+  {% endif %}
+});
 function goToStep(id) {
   document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
   document.getElementById(id).classList.add('active');

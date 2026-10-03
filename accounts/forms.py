@@ -183,7 +183,7 @@ class PlayerProfileForm(forms.ModelForm):
 
     class Meta:
         model = PlayerProfile
-        fields = ['city', 'date_of_birth', 'gender', 'profile_photo', 'cover_photo', 'bio', 'rating',
+        fields = ['home_city', 'current_city', 'date_of_birth', 'gender', 'profile_photo', 'cover_photo', 'bio', 'rating',
                   'sports', 'emergency_contact_name', 'emergency_contact_phone',
                   'specialization', 'followed_sports']
         widgets = {

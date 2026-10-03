@@ -12,6 +12,7 @@ another role's area:
 right door. They never authenticate anyone themselves.
 """
 import json
+import re
 from django.conf import settings
 from tournaments.tasks import _send
 import os
@@ -25,6 +26,9 @@ from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.contrib import messages
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.contrib.auth import login, logout
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -96,70 +100,122 @@ def unified_login(request):
     if request.method == 'POST' and form.is_valid():
         user = form.cleaned_data.get('user')
         if user and not user.is_email_verified:
-            # Need to verify OTP
-            otp_val = str(random.randint(100000, 999999))
-            EmailOTP.objects.create(email=user.email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
-            print(f"OTP for {user.email}: {otp_val}")  # Dev console fallback
-            try:
-                send_mail('Your TournamentSC Login Code', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
-            except Exception as e:
-                print(f"Email error: {e}")
+            # Existing account that never verified its email
             request.session['auth_email'] = user.email
+            _issue_otp(user.email, user.username)
             return redirect('verify_otp')
-        return _do_login(request, form, 'player_dashboard')
+        return _do_login(request, form, _home_for(form.cleaned_data['user']))
     
     return render(request, 'accounts/login.html', {'form': form, 'google_client_id': os.getenv('GOOGLE_CLIENT_ID', '')})
+
+USERNAME_RE = re.compile(r'^[a-z0-9_]{3,30}$')
+
+
+def _issue_otp(email, username):
+    """Create a fresh OTP, invalidate older ones and email it. Returns (otp, sent_ok)."""
+    EmailOTP.objects.filter(email=email, is_verified=False).update(expires_at=timezone.now())
+    otp_val = str(random.randint(100000, 999999))
+    EmailOTP.objects.create(email=email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
+    print(f"OTP for {email}: {otp_val}")  # Dev console fallback
+    try:
+        _send('signup_otp', f'{otp_val} is your TournamentSC verification code', email,
+              {'otp': otp_val, 'username': username})
+        return otp_val, True
+    except Exception as e:
+        print(f"OTP email error: {e}")
+        return otp_val, False
+
 
 def unified_signup(request):
     if request.user.is_authenticated:
         return redirect(_home_for(request.user))
-    conf = _settings()
-    
-    form = PlayerSignupForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        user = form.save(commit=False)
-        user.is_email_verified = False
-        user.save()
-        PlayerProfile.objects.get_or_create(user=user)
-        
-        # Generate OTP
-        otp_val = str(random.randint(100000, 999999))
-        EmailOTP.objects.create(email=user.email, otp=otp_val, expires_at=timezone.now() + timedelta(minutes=10))
-        print(f"OTP for {user.email}: {otp_val}")  # Dev console fallback
-        try:
-            send_mail('Verify your TournamentSC Account', f'Your OTP is {otp_val}. It expires in 10 minutes.', None, [user.email])
-        except Exception as e:
-            print(f"Email error: {e}")
-        
-        request.session['auth_email'] = user.email
+    ctx = {'google_client_id': os.getenv('GOOGLE_CLIENT_ID', '')}
+    User = get_user_model()
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip().lower()
+        email = request.POST.get('email', '').strip().lower()
+        password = request.POST.get('password', '')
+        error = None
+        if not USERNAME_RE.match(username):
+            error = 'Username must be 3-30 characters: letters, numbers or underscore.'
+        elif User.objects.filter(username__iexact=username).exists():
+            error = 'That username is already taken.'
+        elif not email or '@' not in email:
+            error = 'Enter a valid email address.'
+        elif User.objects.filter(email__iexact=email).exists():
+            error = 'An account with this email already exists. Try signing in.'
+        else:
+            try:
+                validate_password(password)
+            except ValidationError as e:
+                error = ' '.join(e.messages)
+
+        if error:
+            messages.error(request, error)
+            ctx.update(prefill_username=username, prefill_email=email, start_step='step-email')
+            return render(request, 'accounts/signup.html', ctx)
+
+        # The account is only created after the OTP is verified; hold details in the session.
+        request.session['pending_signup'] = {
+            'username': username, 'email': email, 'password_hash': make_password(password)}
+        request.session['auth_email'] = email
+        _, sent = _issue_otp(email, username)
+        if not sent:
+            messages.warning(request, "We couldn't send the email right now. Tap 'Resend code' in a moment.")
         return redirect('verify_otp')
-        
-    return render(request, 'accounts/signup.html', {'form': form, 'google_client_id': os.getenv('GOOGLE_CLIENT_ID', '')})
+
+    return render(request, 'accounts/signup.html', ctx)
+
 
 def verify_otp(request):
     email = request.session.get('auth_email')
-    if not email:
-        return redirect('login')
-        
+    pending = request.session.get('pending_signup')
+    User = get_user_model()
+    legacy = None
+    if email and not pending:
+        legacy = User.objects.filter(email__iexact=email, is_email_verified=False).first()
+    if not email or (not pending and not legacy):
+        messages.error(request, 'Your signup session expired. Please start again.')
+        return redirect('signup')
+    uname = pending['username'] if pending else legacy.username
+
     if request.method == 'POST':
+        if request.POST.get('action') == 'resend':
+            _, sent = _issue_otp(email, uname)
+            messages.success(request, 'A new code has been sent.') if sent else \
+                messages.error(request, "Couldn't send the email. Please try again shortly.")
+            return redirect('verify_otp')
+
         otp_entered = request.POST.get('otp', '').strip()
-        otp_record = EmailOTP.objects.filter(email=email, is_verified=False, expires_at__gte=timezone.now()).order_by('-created_at').first()
-        
-        if otp_record and otp_record.otp == otp_entered:
-            otp_record.is_verified = True
-            otp_record.save()
-            
-            user = get_user_model().objects.get(email=email)
+        rec = EmailOTP.objects.filter(email=email, is_verified=False,
+                                      expires_at__gte=timezone.now()).order_by('-created_at').first()
+        if rec and rec.otp == otp_entered:
+            rec.is_verified = True
+            rec.save(update_fields=['is_verified'])
+            if legacy:
+                legacy.is_email_verified = True
+                legacy.save(update_fields=['is_email_verified'])
+                login(request, legacy, backend='django.contrib.auth.backends.ModelBackend')
+                request.session.pop('auth_email', None)
+                return redirect(_home_for(legacy))
+            if User.objects.filter(email__iexact=email).exists() or \
+               User.objects.filter(username__iexact=pending['username']).exists():
+                messages.error(request, 'That account was just created. Please sign in.')
+                request.session.pop('pending_signup', None)
+                request.session.pop('auth_email', None)
+                return redirect('login')
+            user = User.objects.create_user(email=email, password=None, username=pending['username'])
+            user.password = pending['password_hash']
             user.is_email_verified = True
-            user.save(update_fields=['is_email_verified'])
-            
-            login(request, user)
-            del request.session['auth_email']
-            messages.success(request, f'Welcome, {user.display_name}!')
-            return redirect('player_dashboard')
-        else:
-            messages.error(request, 'Invalid or expired OTP.')
-            
+            user.save()
+            PlayerProfile.objects.get_or_create(user=user)
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            request.session.pop('pending_signup', None)
+            request.session.pop('auth_email', None)
+            return redirect(_home_for(user))
+        messages.error(request, 'Invalid or expired code.')
+
     return render(request, 'accounts/verify_otp.html', {'email': email})
 
 @require_POST

@@ -1,0 +1,25 @@
+{% load static %}<!doctype html>
+<html>
+<body style="margin:0; padding:0; background:#f4f5f7; font-family:Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7; padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
+        <tr><td style="background:#0f1533; padding:20px 28px;">
+          <img src="{{ site_url }}{% static 'images/logo.png' %}" alt="TournamentSC" height="28" style="display:block;">
+        </td></tr>
+        <tr><td style="padding:28px;">
+          <h2 style="margin:0 0 12px; color:#0f1533;">Verify your email</h2>
+          <p style="color:#444; line-height:1.5;">Hi <strong>{{ username }}</strong>, use this code to finish creating your TournamentSC account:</p>
+          <p style="margin:24px 0; text-align:center;">
+            <span style="display:inline-block; background:#fff7ed; border:1px dashed #FF6B35; color:#0f1533; font-size:34px; font-weight:bold; letter-spacing:10px; padding:14px 24px; border-radius:10px;">{{ otp }}</span>
+          </p>
+          <p style="color:#888; font-size:13px;">This code expires in 10 minutes. If you didn't request it, you can safely ignore this email.</p>
+        </td></tr>
+        <tr><td style="padding:16px 28px; background:#f8f9fb; color:#888; font-size:12px; text-align:center;">
+          Team TournamentSC · <a href="{{ site_url }}" style="color:#888; text-decoration:none;">{{ site_url }}</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
