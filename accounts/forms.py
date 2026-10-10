@@ -235,9 +235,72 @@ class RoleForm(forms.ModelForm):
         self.fields['permissions'].queryset = Permission.objects.select_related(
             'content_type').order_by('content_type__app_label', 'codename')
 
-from .models import UserSettings
+from .models import UserSettings, RefereeProfile, CommentatorProfile
+
 
 class UserSettingsForm(forms.ModelForm):
     class Meta:
         model = UserSettings
         fields = ['email_marketing', 'sound_enabled', 'haptic_enabled']
+
+
+class RefereeProfileForm(forms.ModelForm):
+    first_name = forms.CharField(max_length=150, required=False, label='Full name')
+
+    class Meta:
+        model = RefereeProfile
+        fields = ['sports', 'experience_level', 'years_experience', 'preferred_location', 'certifications', 'bio', 'is_available']
+        widgets = {
+            'bio': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Share your officiating philosophy, background, and previous tournaments...'}),
+            'certifications': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Certifications, licenses, federation badges (e.g. FIFA, BWF Level 1, FIBA)...'}),
+            'sports': forms.CheckboxSelectMultiple,
+            'experience_level': forms.Select(attrs={'class': 'input'}),
+            'years_experience': forms.NumberInput(attrs={'class': 'input', 'min': 0}),
+            'preferred_location': forms.TextInput(attrs={'class': 'input', 'placeholder': 'e.g. London, Greater Manchester, Central Indoor Arena'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.user_id:
+            self.fields['first_name'].initial = self.instance.user.first_name
+
+    def save(self, commit=True):
+        profile = super().save(commit=commit)
+        name = self.cleaned_data.get('first_name')
+        if name is not None and profile.user_id:
+            profile.user.first_name = name
+            if commit:
+                profile.user.save(update_fields=['first_name'])
+        return profile
+
+
+class CommentatorProfileForm(forms.ModelForm):
+    first_name = forms.CharField(max_length=150, required=False, label='Full name')
+
+    class Meta:
+        model = CommentatorProfile
+        fields = ['sports', 'experience_level', 'years_experience', 'languages', 'social_handle', 'sample_reel_url', 'bio', 'is_available']
+        widgets = {
+            'bio': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Share your commentary style, broadcasting experience, or favorite sports to cast...'}),
+            'sports': forms.CheckboxSelectMultiple,
+            'experience_level': forms.Select(attrs={'class': 'input'}),
+            'years_experience': forms.NumberInput(attrs={'class': 'input', 'min': 0}),
+            'languages': forms.TextInput(attrs={'class': 'input', 'placeholder': 'e.g. English, Hindi, Spanish'}),
+            'social_handle': forms.TextInput(attrs={'class': 'input', 'placeholder': 'e.g. @caster_mike (Twitter/Twitch)'}),
+            'sample_reel_url': forms.URLInput(attrs={'class': 'input', 'placeholder': 'https://youtube.com/... or portfolio link'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.user_id:
+            self.fields['first_name'].initial = self.instance.user.first_name
+
+    def save(self, commit=True):
+        profile = super().save(commit=commit)
+        name = self.cleaned_data.get('first_name')
+        if name is not None and profile.user_id:
+            profile.user.first_name = name
+            if commit:
+                profile.user.save(update_fields=['first_name'])
+        return profile
+

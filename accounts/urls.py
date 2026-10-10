@@ -25,11 +25,22 @@ urlpatterns = [
 
     # --- Player profile ---
     path('player/profile', views.profile_edit, name='profile_edit'),
+    path('player/profile/quick', views.edit_profile_quick, name='edit_profile_quick'),
 
     # --- Organizer capability ---
     path('organizer/apply', views.organizer_apply, name='organizer_apply'),
     path('organizer/status', views.organizer_status, name='organizer_status'),
     path('organizer/profile', views.organizer_profile_edit, name='organizer_profile_edit'),
+
+    # --- Referee capability ---
+    path('referee/onboard', views.referee_onboarding, name='referee_onboarding'),
+    path('referee/profile', views.referee_profile_edit, name='referee_profile_edit'),
+    path('referees/<int:pk>', views.referee_public, name='referee_public'),
+
+    # --- Commentator capability ---
+    path('commentator/onboard', views.commentator_onboarding, name='commentator_onboarding'),
+    path('commentator/profile', views.commentator_profile_edit, name='commentator_profile_edit'),
+    path('commentators/<int:pk>', views.commentator_public, name='commentator_public'),
 
 
     # --- Settings ---

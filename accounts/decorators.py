@@ -56,14 +56,20 @@ def player_required(view):
 
 
 def approved_organizer_required(view):
-    """The organizer flow. Requires an organizer profile that an admin approved."""
+    """The organizer flow. Requires an organizer profile that an admin approved,
+    OR an active co-organizer delegation for the specific tournament being managed."""
     @wraps(view)
     def wrapped(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            messages.info(request, 'Log in to your organizer account to continue.')
-            return _login_redirect('organizer_login', request)
+            messages.info(request, 'Please log in to continue.')
+            return _login_redirect('login', request)
         if request.user.is_staff:
             return redirect('dash_index')
+        slug = kwargs.get('slug')
+        if slug:
+            from tournaments.models import TournamentCoOrganizer
+            if TournamentCoOrganizer.objects.filter(tournament__slug=slug, user=request.user, is_active=True).exists():
+                return view(request, *args, **kwargs)
         if not request.user.is_approved_organizer:
             messages.warning(request, 'You need an approved organizer account to do that.')
             return redirect('organizer_status')

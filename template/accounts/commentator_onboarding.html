@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}{% if is_edit %}Edit Commentator Profile{% else %}Become a Live Commentator{% endif %} — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<div class="page-min-center" style="padding: 2.5rem 1rem;">
+  <div class="panel" style="max-width: 680px; margin: 0 auto; padding: 2.5rem 2rem; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid #f0f0f0;">
+    
+    <div style="width: 72px; height: 72px; background: #eef2ff; color: #4f46e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;">
+      <svg class="ico" style="width: 36px; height: 36px;"><use href="#i-mic"/></svg>
+    </div>
+    
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <h1 style="font-size: 2rem; color: #0f1533; font-weight: 800; margin-bottom: 0.5rem;">
+        {% if is_edit %}Edit Commentator Profile{% else %}Become a Live Commentator{% endif %}
+      </h1>
+      <p style="color: #6b7280; font-size: 1rem; line-height: 1.5; max-width: 500px; margin: 0 auto;">
+        {% if is_edit %}
+          Update your casting credentials, stream reel, supported sports, and broadcasting availability.
+        {% else %}
+          Cast and commentate official matches on TournamentSC. Organizers can assign you to fixtures and you'll publish play-by-play live commentary for fans.
+        {% endif %}
+      </p>
+    </div>
+    
+    <form method="post" style="text-align: left;">
+      {% csrf_token %}
+      
+      {% if form.errors %}
+        <div style="padding: 14px 16px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 12px; margin-bottom: 1.5rem; font-size: 0.9rem;">
+          <strong style="display:block; margin-bottom:4px;">Please correct the errors below:</strong>
+          <ul style="margin: 0; padding-left: 20px;">
+          {% for field, errors in form.errors.items %}
+            {% for error in errors %}
+              <li>{{ field|title }}: {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.25rem;">
+        <div>
+          <label for="{{ form.first_name.id_for_label }}" style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #374151;">Full Name / Caster Name</label>
+          <input type="text" name="first_name" id="{{ form.first_name.id_for_label }}" value="{{ form.first_name.value|default:user.display_name }}" class="input" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:10px; font-size:0.95rem;">
+        </div>
+        <div>
+          <label for="{{ form.experience_level.id_for_label }}" style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #374151;">Experience Level</label>
+          {{ form.experience_level }}
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.25rem;">
+        <div>
+          <label for="{{ form.years_experience.id_for_label }}" style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #374151;">Years of Experience</label>
+          {{ form.years_experience }}
+        </div>
+        <div>
+          <label for="{{ form.languages.id_for_label }}" style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #374151;">Broadcasting Languages</label>
+          {{ form.languages }}
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.25rem;">
+        <div>
+          <label for="{{ form.social_handle.id_for_label }}" style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #374151;">Caster Handle (Twitch/YouTube/X)</label>
+          {{ form.social_handle }}
+        </div>
+        <div>
+          <label for="{{ form.sample_reel_url.id_for_label }}" style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #374151;">Portfolio / Sample Reel URL</label>
+          {{ form.sample_reel_url }}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; color: #374151;">Sports You Commentate</label>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; max-height: 180px; overflow-y: auto; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px;">
+          {% for choice in form.sports %}
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #4b5563; cursor: pointer;">
+              {{ choice.tag }}
+              <span>{{ choice.choice_label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label for="{{ form.bio.id_for_label }}" style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #374151;">Commentator Bio & Style</label>
+        {{ form.bio }}
+      </div>
+
+      <div style="margin-bottom: 2rem; background: #f9fafb; padding: 14px 16px; border-radius: 12px; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-weight: 600; font-size: 0.95rem; color: #111827;">Available for Assignments</div>
+          <div style="font-size: 0.85rem; color: #6b7280;">Allow tournament organizers to find and assign you to upcoming match broadcasts.</div>
+        </div>
+        <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+          <input type="checkbox" name="is_available" {% if form.is_available.value or form.is_available.value is None %}checked{% endif %} style="opacity: 0; width: 0; height: 0;">
+          <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .2s; border-radius: 24px;"></span>
+        </label>
+      </div>
+
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button type="submit" class="btn btn-primary" style="flex: 1; padding: 12px; font-size: 1rem; font-weight: 700; border-radius: 12px;">
+          {% if is_edit %}Save Changes{% else %}Activate Commentator Profile{% endif %}
+        </button>
+        {% if is_edit %}
+          <a href="{% url 'commentator_dashboard' %}" class="btn btn-outline" style="padding: 12px 20px; font-size: 1rem; border-radius: 12px; text-decoration: none;">Cancel</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

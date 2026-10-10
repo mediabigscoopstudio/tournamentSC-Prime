@@ -39,9 +39,11 @@ from django.views.decorators.http import require_POST
 from .decorators import login_required_msg, organizer_area_required, player_required
 from django.contrib.auth.forms import PasswordChangeForm
 from .forms import (OrganizerApplicationForm, OrganizerLoginForm, OrganizerProfileForm,
-                    OrganizerSignupForm, PlayerLoginForm, PlayerProfileForm, PlayerSignupForm, UserSettingsForm)
+                    OrganizerSignupForm, PlayerLoginForm, PlayerProfileForm, PlayerSignupForm,
+                    UserSettingsForm, RefereeProfileForm, CommentatorProfileForm)
 from .models import (AuditLog, Notification, OrganizerApplication, OrganizerProfile,
-                     PlayerProfile, User, UserFCMToken, EmailOTP, UserSettings, UserFollow)
+                     PlayerProfile, User, UserFCMToken, EmailOTP, UserSettings, UserFollow,
+                     RefereeProfile, CommentatorProfile)
 
 
 # ======================================================================
@@ -244,12 +246,42 @@ def profile_edit(request):
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Profile updated.')
-        return redirect('profile_edit')
+        return redirect(request.POST.get('next', 'profile_edit'))
     return render(request, 'accounts/profile_edit.html', {'form': form, 'profile': profile})
 
 
+
+@login_required_msg
+def edit_profile_quick(request):
+    if request.method == 'POST':
+        profile = request.user.player_profile
+        user = request.user
+        
+        if 'profile_photo' in request.FILES:
+            profile.profile_photo = request.FILES['profile_photo']
+        if 'bio' in request.POST:
+            profile.bio = request.POST['bio'].strip()
+        if 'current_city' in request.POST:
+            profile.current_city = request.POST['current_city'].strip()
+        
+        if 'first_name' in request.POST:
+            user.first_name = request.POST['first_name'].strip()
+        if 'last_name' in request.POST:
+            user.last_name = request.POST['last_name'].strip()
+        if 'username' in request.POST:
+            username = request.POST['username'].strip()
+            if username and not get_user_model().objects.filter(username__iexact=username).exclude(pk=user.pk).exists():
+                user.username = username
+        
+        user.save()
+        profile.save()
+        messages.success(request, 'Profile updated successfully.')
+        
+    return redirect(request.POST.get('next', 'profile_edit'))
+
 # ======================================================================
 # Organizer flow
+
 # ======================================================================
 @organizer_area_required
 def organizer_apply(request):
@@ -352,14 +384,57 @@ def toggle_follow_user(request, pk):
 # Public + shared
 # ======================================================================
 def player_public(request, pk):
-    """Public player profile — audience, no login."""
+    """Public player profile — sports identity, community, and content journey."""
     profile = get_object_or_404(
-        PlayerProfile.objects.select_related('user'), pk=pk, user__is_suspended=False)
-    from tournaments.stats import player_history
+        PlayerProfile.objects.select_related('user').prefetch_related('sports'),
+        pk=pk, user__is_suspended=False
+    )
+    from tournaments.stats import player_history, player_results
+    from tournaments.models import Standing
+
+    is_following = False
+    if request.user.is_authenticated:
+        from accounts.models import UserFollow
+        is_following = UserFollow.objects.filter(follower=request.user, following=profile.user).exists()
+    
+    content_posts = profile.user.content_posts.filter(
+        is_published=True, is_removed=False
+    ).prefetch_related('media_items', 'tagged_users').order_by('-created_at')
+    
+    all_posts = list(content_posts)
+    # Segregate content into distinct sports media categories:
+    # 1. Vlogs: 16:9 full length videos or youtube embeds
+    vlogs = [p for p in all_posts if p.content_type == 'full_video' or p.aspect_ratio == '16/9' or bool(p.youtube_url)]
+    # 2. Highlights: 9:16 short vertical videos
+    highlights = [p for p in all_posts if (p.content_type == 'short' or p.aspect_ratio == '9/16') and p not in vlogs]
+    # 3. Posts: photos and carousels
+    posts = [p for p in all_posts if p not in vlogs and p not in highlights]
+
+    # Sporting history and genuine metrics
+    history = player_history(profile)
+    matches_played_count = player_results(profile).count()
+    standings = Standing.objects.filter(player=profile)
+    total_wins = sum(s.won for s in standings)
+
+    # Teams and achievements
+    teams = profile.team_memberships.filter(is_approved=True).select_related('team', 'team__sport')
+    earned_achievements = profile.user.achievements.select_related('achievement').order_by('-created_at')
+    
     return render(request, 'accounts/player_public.html', {
         'profile': profile,
-        'history': player_history(profile),
-        'earned_achievements': profile.user.achievements.select_related('achievement'),
+        'history': history,
+        'matches_played_count': matches_played_count,
+        'total_wins': total_wins,
+        'earned_achievements': earned_achievements,
+        'teams': teams,
+        'follower_count': profile.user.followers_users.count(),
+        'following_count': profile.user.following_users.count(),
+        'is_following': is_following,
+        'content_posts': content_posts,
+        'vlogs': vlogs,
+        'highlights': highlights,
+        'posts': posts,
+        'has_any_content': bool(all_posts),
     })
 
 
@@ -446,6 +521,24 @@ def welcome_animation(request):
     return render(request, 'accounts/welcome.html')
 
 
+def _to_square_webp(upload, size=512):
+    """Centre-crop to a square, resize, and re-encode as WebP. Returns a
+    ContentFile ready for an ImageField, or None if it isn't a valid image."""
+    from io import BytesIO
+    from uuid import uuid4
+    from PIL import Image, ImageOps
+    from django.core.files.base import ContentFile
+    try:
+        img = ImageOps.exif_transpose(Image.open(upload))
+        img = img.convert('RGBA' if 'A' in img.getbands() else 'RGB')
+        img = ImageOps.fit(img, (size, size), Image.LANCZOS)
+        buf = BytesIO()
+        img.save(buf, format='WEBP', quality=85)
+        return ContentFile(buf.getvalue(), name=f'{uuid4().hex}.webp')
+    except Exception:
+        return None
+
+
 @login_required
 def onboarding_flow(request):
     if getattr(request.user, 'onboarding_complete', False):
@@ -477,11 +570,25 @@ def onboarding_flow(request):
         profile.gender = request.POST.get('gender', 'U')
         
         if 'profile_photo' in request.FILES:
-            profile.profile_photo = request.FILES['profile_photo']
+            webp = _to_square_webp(request.FILES['profile_photo'])
+            if webp:
+                profile.profile_photo = webp
             
+        
         # Step 2
         profile.bio = request.POST.get('bio', '')
-        # (sports logic can be added later if multi-select is passed)
+        sport_names = request.POST.getlist('sports')
+        if sport_names:
+            from tournaments.models import Sport
+            from django.utils.text import slugify
+            sport_objs = []
+            for name in sport_names:
+                name = name.strip()
+                if not name: continue
+                s, _ = Sport.objects.get_or_create(name__iexact=name, defaults={'name': name, 'slug': slugify(name)})
+                sport_objs.append(s)
+            profile.sports.set(sport_objs)
+
         
         # Step 3
         profile.school = [s.strip() for s in request.POST.getlist('school[]') if s.strip()]
@@ -513,6 +620,9 @@ def onboarding_flow(request):
         except Exception as e:
             print(f"Failed to send welcome email: {e}")
         
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            from django.http import JsonResponse
+            return JsonResponse({'status': 'success'})
         return redirect('onboarding_success')
         
     return render(request, 'accounts/onboarding.html')
@@ -520,3 +630,136 @@ def onboarding_flow(request):
 @login_required
 def onboarding_success(request):
     return render(request, 'accounts/onboarding_success.html')
+
+
+@login_required_msg
+def referee_onboarding(request):
+    """Allows existing user to set up their referee profile and enter the referee ecosystem."""
+    if hasattr(request.user, 'referee_profile'):
+        return redirect('referee_dashboard')
+
+    if request.method == 'POST':
+        form = RefereeProfileForm(request.POST)
+        if form.is_valid():
+            profile = form.save(commit=False)
+            profile.user = request.user
+            profile.save()
+            form.save_m2m()
+            messages.success(request, 'Referee profile created! Welcome to your Referee Portal.')
+            return redirect('referee_dashboard')
+    else:
+        form = RefereeProfileForm()
+
+    return render(request, 'accounts/referee_onboarding.html', {'form': form, 'is_edit': False})
+
+
+@login_required_msg
+def referee_profile_edit(request):
+    """Allows a referee to update their officiating details and availability."""
+    profile = get_object_or_404(RefereeProfile, user=request.user)
+    if request.method == 'POST':
+        form = RefereeProfileForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Referee profile updated successfully.')
+            return redirect('referee_dashboard')
+    else:
+        form = RefereeProfileForm(instance=profile)
+
+    return render(request, 'accounts/referee_onboarding.html', {
+        'form': form,
+        'is_edit': True,
+        'profile': profile,
+    })
+
+
+def referee_public(request, pk):
+    """Public referee profile: identity, qualifications, verified badge, stats, and match history."""
+    profile = get_object_or_404(RefereeProfile.objects.select_related('user'), pk=pk)
+    
+    assignments = profile.user.referee_assignments.select_related(
+        'fixture__tournament__sport', 'fixture__tournament__venue',
+    ).prefetch_related(
+        'fixture__participants__team', 'fixture__participants__player__user'
+    ).order_by('-fixture__scheduled_time', '-id')
+
+    total_matches = assignments.count()
+    completed_matches = assignments.filter(fixture__status='COMPLETED')
+    upcoming_matches = assignments.filter(fixture__status__in=['SCHEDULED', 'LIVE'])
+
+    return render(request, 'accounts/referee_public.html', {
+        'referee': profile,
+        'total_matches': total_matches,
+        'completed_matches': completed_matches,
+        'upcoming_matches': upcoming_matches,
+        'recent_assignments': assignments[:20],
+    })
+
+
+@login_required_msg
+def commentator_onboarding(request):
+    """Commentator profile creation flow.
+    Preserves 1-account-many-capabilities architecture: any registered user
+    can activate their commentator capabilities.
+    """
+    if hasattr(request.user, 'commentator_profile'):
+        return redirect('commentator_dashboard')
+
+    if request.method == 'POST':
+        form = CommentatorProfileForm(request.POST)
+        if form.is_valid():
+            profile = form.save(commit=False)
+            profile.user = request.user
+            profile.save()
+            form.save_m2m()
+            messages.success(request, 'Commentator profile created! Welcome to the Commentator Portal.')
+            return redirect('commentator_dashboard')
+    else:
+        form = CommentatorProfileForm()
+
+    return render(request, 'accounts/commentator_onboarding.html', {'form': form, 'is_edit': False})
+
+
+@login_required_msg
+def commentator_profile_edit(request):
+    """Allows a commentator to update their broadcasting details, reel, and availability."""
+    profile = get_object_or_404(CommentatorProfile, user=request.user)
+    if request.method == 'POST':
+        form = CommentatorProfileForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Commentator profile updated successfully.')
+            return redirect('commentator_dashboard')
+    else:
+        form = CommentatorProfileForm(instance=profile)
+
+    return render(request, 'accounts/commentator_onboarding.html', {
+        'form': form,
+        'is_edit': True,
+        'profile': profile,
+    })
+
+
+def commentator_public(request, pk):
+    """Public commentator portfolio: bio, languages, reel, stats, and match commentary history."""
+    profile = get_object_or_404(CommentatorProfile.objects.select_related('user'), pk=pk)
+
+    assignments = profile.user.commentator_assignments.select_related(
+        'fixture__tournament__sport', 'fixture__tournament__venue',
+    ).prefetch_related(
+        'fixture__participants__team', 'fixture__participants__player__user'
+    ).order_by('-fixture__scheduled_time', '-id')
+
+    total_matches = assignments.count()
+    completed_matches = assignments.filter(fixture__status='COMPLETED')
+    upcoming_matches = assignments.filter(fixture__status__in=['SCHEDULED', 'LIVE'])
+
+    return render(request, 'accounts/commentator_public.html', {
+        'commentator': profile,
+        'total_matches': total_matches,
+        'completed_matches': completed_matches,
+        'upcoming_matches': upcoming_matches,
+        'recent_assignments': assignments[:20],
+    })
+
+

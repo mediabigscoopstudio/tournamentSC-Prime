@@ -1,13 +1,135 @@
 {% extends 'base.html' %}
-{% block title %}Apply to organize — TournamentSC{% endblock %}
+{% block title %}Apply to organize — {{ site_conf.site_name }}{% endblock %}
 {% block content %}
-<section class="section wrap" style="max-width:560px">
-  <h1>Apply to become an organizer</h1>
-  <p class="muted">Tell us a little about yourself. An admin reviews every application before you can create tournaments.</p>
-  <form method="post" class="panel" style="margin-top:20px">
-    {% csrf_token %}
-    {% include 'partials/form.html' %}
-    <button class="btn btn-primary btn-block" type="submit">Submit application</button>
-  </form>
-</section>
+<div class="page-min-center" style="padding: 2rem 1rem;">
+  <div class="panel" style="max-width: 600px; margin: 0 auto; padding: 3rem 2.5rem; text-align: center;">
+    
+    <div style="width: 80px; height: 80px; background: #e0e7ff; color: #4f46e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+      <svg class="ico" style="width: 40px; height: 40px;"><use href="#i-shield"/></svg>
+    </div>
+    
+    <h1 style="font-size: 2.25rem; color: #0f1533; margin-bottom: 0.75rem; font-weight: 800;">Become an Organizer</h1>
+    <p style="color: #6b7280; margin-bottom: 2.5rem; font-size: 1.1rem; line-height: 1.6;">
+      Tell us a little about yourself. An admin reviews every application before you can create official tournaments on {{ site_conf.site_name }}.
+    </p>
+    
+    <form method="post" style="text-align: left;">
+      {% csrf_token %}
+      
+      <div style="margin-bottom: 1.5rem;">
+        <label for="{{ form.affiliation.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Affiliation or Organization Name</label>
+        {{ form.affiliation }}
+        <div style="font-size: 0.85rem; color: #9ca3af; margin-top: 8px;">School, club, brand, or independent.</div>
+      </div>
+      
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">What sports will you organize?</label>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px;">
+          {% for widget in form.sports %}
+            <label class="sport-pill" style="display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: #4b5563; padding: 16px 8px; background: white; border: 2px solid #e5e7eb; border-radius: 16px; transition: all 0.2s; user-select: none; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+              <div style="display: none;">{{ widget.tag }}</div>
+              <svg class="ico sport-icon" style="width: 32px; height: 32px; opacity: 0.7; transition: all 0.2s;"><use href="#i-{{ widget.choice_label|slugify }}"/></svg>
+              <span>{{ widget.choice_label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 2.5rem;">
+        <label for="{{ form.reason.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Why do you want to organize here?</label>
+        {{ form.reason }}
+      </div>
+      
+      {% if form.errors %}
+        <div style="padding: 16px; background: #fee2e2; color: #b91c1c; border-radius: 12px; margin-bottom: 2rem;">
+          <ul style="margin: 0; padding-left: 20px;">
+          {% for field, errors in form.errors.items %}
+            {% for error in errors %}
+              <li><strong>{{ field|title }}</strong>: {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      
+      <button class="btn btn-primary" type="submit" style="width: 100%; padding: 18px; font-size: 1.15rem; font-weight: 700; border-radius: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.1s; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
+        Submit Application <svg class="ico" style="width: 20px; height: 20px;"><use href="#i-arrow"/></svg>
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Add some interactivity to the sport pills
+  document.addEventListener('DOMContentLoaded', () => {
+    const pills = document.querySelectorAll('.sport-pill');
+    pills.forEach(pill => {
+      const checkbox = pill.querySelector('input[type="checkbox"]');
+      
+      // Initial state
+      const icon = pill.querySelector('.sport-icon');
+      
+      if(checkbox.checked) {
+        pill.style.borderColor = '#4f46e5';
+        pill.style.color = '#4f46e5';
+        pill.style.background = '#eef2ff';
+        if(icon) { icon.style.opacity = '1'; icon.style.transform = 'scale(1.1)'; }
+      }
+      
+      checkbox.addEventListener('change', (e) => {
+        if(e.target.checked) {
+          pill.style.borderColor = '#4f46e5';
+          pill.style.color = '#4f46e5';
+          pill.style.background = '#eef2ff';
+          if(icon) { icon.style.opacity = '1'; icon.style.transform = 'scale(1.1)'; }
+        } else {
+          pill.style.borderColor = '#e5e7eb';
+          pill.style.color = '#4b5563';
+          pill.style.background = 'white';
+          if(icon) { icon.style.opacity = '0.7'; icon.style.transform = 'scale(1)'; }
+        }
+      });
+    });
+  });
+</script>
+
+<style>
+  form input[type="text"], 
+  form textarea {
+    width: 100%;
+    padding: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 16px;
+    font-size: 1.05rem;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  form input[type="text"]:focus, 
+  form textarea:focus {
+    border-color: #4f46e5;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+  }
+  
+  form input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #4f46e5;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  .sport-pill:hover {
+    border-color: #4f46e5 !important;
+    color: #4f46e5 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1) !important;
+  }
+  .sport-pill:hover .sport-icon {
+    opacity: 1 !important;
+  }
+</style>
+
 {% endblock %}

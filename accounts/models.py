@@ -66,6 +66,29 @@ class User(AbstractUser):
     def has_organizer_profile(self):
         return hasattr(self, 'organizer_profile')
 
+    @property
+    def has_referee_profile(self):
+        return hasattr(self, 'referee_profile')
+
+    @property
+    def has_commentator_profile(self):
+        return hasattr(self, 'commentator_profile')
+
+    @property
+    def profile_url(self):
+        from django.urls import reverse
+        try:
+            if hasattr(self, 'player_profile') and self.player_profile:
+                return reverse('player_public', args=[self.player_profile.pk])
+        except Exception:
+            pass
+        try:
+            if hasattr(self, 'organizer_profile') and self.organizer_profile:
+                return reverse('organizer_public', args=[self.organizer_profile.pk])
+        except Exception:
+            pass
+        return '#'
+
 
 
 class EmailOTP(TimeStamped):
@@ -92,6 +115,11 @@ class OrganizerProfile(TimeStamped):
 
     def __str__(self):
         return f'Organizer: {self.user.display_name}'
+
+    @property
+    def logo(self):
+        """Compatibility property for templates and views expecting .logo (aliases profile_photo)."""
+        return self.profile_photo
 
     @property
     def completion_percentage(self):
@@ -157,6 +185,103 @@ class PlayerProfile(TimeStamped):
     @property
     def is_profile_complete(self):
         return self.completion_percentage >= 80
+
+
+class RefereeProfile(TimeStamped):
+    EXPERIENCE_LEVEL_CHOICES = [
+        ('GRASSEROOTS', 'Grassroots / Amateur'),
+        ('REGIONAL', 'Regional / State Level'),
+        ('NATIONAL', 'National Level'),
+        ('INTERNATIONAL', 'International / Professional'),
+    ]
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name='referee_profile')
+    bio = models.TextField(blank=True)
+    sports = models.ManyToManyField('tournaments.Sport', blank=True, related_name='referees')
+    experience_level = models.CharField(max_length=20, choices=EXPERIENCE_LEVEL_CHOICES, default='GRASSEROOTS')
+    years_experience = models.PositiveIntegerField(default=0, help_text='Years of officiating experience')
+    certifications = models.TextField(blank=True, help_text='Qualifications, badges or referee certifications')
+    preferred_location = models.CharField(max_length=120, blank=True)
+    is_available = models.BooleanField(default=True)
+    is_verified = models.BooleanField(default=False, help_text='Official certification verified by platform')
+
+    def __str__(self):
+        return f'Referee: {self.user.display_name}'
+
+    def get_absolute_url(self):
+        return reverse('referee_public', args=[self.pk])
+
+    @property
+    def display_avatar_url(self):
+        if hasattr(self.user, 'player_profile') and self.user.player_profile.profile_photo:
+            return self.user.player_profile.profile_photo.url
+        return None
+
+    @property
+    def total_matches_count(self):
+        return self.user.referee_assignments.count()
+
+    @property
+    def completed_matches_count(self):
+        return self.user.referee_assignments.filter(fixture__status='COMPLETED').count()
+
+    @property
+    def live_matches_count(self):
+        return self.user.referee_assignments.filter(fixture__status='LIVE').count()
+
+    @property
+    def upcoming_matches_count(self):
+        return self.user.referee_assignments.filter(fixture__status='SCHEDULED').count()
+
+
+class CommentatorProfile(TimeStamped):
+    EXPERIENCE_LEVEL_CHOICES = [
+        ('ROOKIE', 'Rookie / College Media'),
+        ('REGIONAL', 'Regional / Club Broadcaster'),
+        ('NATIONAL', 'National Streamer / Caster'),
+        ('PROFESSIONAL', 'Professional / TV Broadcast'),
+    ]
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name='commentator_profile')
+    bio = models.TextField(blank=True)
+    sports = models.ManyToManyField('tournaments.Sport', blank=True, related_name='commentators')
+    experience_level = models.CharField(max_length=20, choices=EXPERIENCE_LEVEL_CHOICES, default='ROOKIE')
+    years_experience = models.PositiveIntegerField(default=0, help_text='Years of casting/commentary experience')
+    languages = models.CharField(max_length=200, blank=True, help_text='e.g. English, Hindi, Spanish')
+    social_handle = models.CharField(max_length=100, blank=True, help_text='Twitter/Twitch/YouTube handle')
+    sample_reel_url = models.URLField(blank=True, help_text='Link to audio/video commentary portfolio')
+    is_available = models.BooleanField(default=True)
+    is_verified = models.BooleanField(default=False, help_text='Official caster verified by platform')
+
+    def __str__(self):
+        return f'Commentator: {self.user.display_name}'
+
+    def get_absolute_url(self):
+        return reverse('commentator_public', args=[self.pk])
+
+    @property
+    def display_avatar_url(self):
+        if hasattr(self.user, 'player_profile') and self.user.player_profile.profile_photo:
+            return self.user.player_profile.profile_photo.url
+        return None
+
+    @property
+    def total_matches_count(self):
+        return self.user.commentator_assignments.count()
+
+    @property
+    def completed_matches_count(self):
+        return self.user.commentator_assignments.filter(fixture__status='COMPLETED').count()
+
+    @property
+    def live_matches_count(self):
+        return self.user.commentator_assignments.filter(fixture__status='LIVE').count()
+
+    @property
+    def upcoming_matches_count(self):
+        return self.user.commentator_assignments.filter(fixture__status='SCHEDULED').count()
 
 
 class OrganizerApplication(TimeStamped):

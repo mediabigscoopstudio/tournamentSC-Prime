@@ -1,104 +1,1772 @@
 {% extends 'base.html' %}
-{% block title %}{{ profile.user.display_name }} — TournamentSC
-<script>
-function toggleFollow(btn, userId) {
-  fetch('/users/' + userId + '/toggle-follow', {
-    method: 'POST',
-    headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}' }
-  }).then(r => r.json()).then(data => {
-    if (data.error) {
-      alert(data.error);
-      return;
-    }
-    if (data.is_following) {
-      btn.textContent = 'Unfollow';
-      btn.className = 'btn btn-secondary';
-    } else {
-      btn.textContent = 'Follow';
-      btn.className = 'btn btn-primary';
-    }
-    // Very basic optimistic UI update, we could also update the count element dynamically.
-    window.location.reload();
-  });
-}
-</script>
-{% endblock %}
+{% load static %}
+{% block title %}{{ profile.user.get_full_name|default:profile.user.display_name }} (@{{ profile.user.username }}) — TournamentSC{% endblock %}
 
 {% block content %}
-<section class="section wrap" style="max-width:720px">
-  <div class="row-flex" style="align-items:flex-start;">
-    <div class="avatar" style="width:80px;height:80px;font-size:28px">
-      {% if profile.profile_photo %}<img src="{{ profile.profile_photo.url }}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">{% else %}{{ profile.user.display_name|slice:':1'|upper }}{% endif %}
-    </div>
-    <div style="flex:1;">
-      <h1 style="margin:0">{{ profile.user.display_name }}{% if profile.user.is_verified %} <span class="verified">✔</span>{% endif %}</h1>
-      <p class="muted" style="margin:2px 0 0; font-weight:600;">@{{ profile.user.username }}</p>
-      {% if profile.specialization %}
-      <p class="dim" style="margin:2px 0 0; font-size:14px;">{{ profile.specialization }}</p>
+<style>
+/* ==========================================================================
+   TournamentSC Profile Page — Sports Identity & Community Layout
+   Light Theme · Brand Navy (#1B2340) · Sport Green (#10b981 / #3FA33C) · Clean Editorial
+   ========================================================================== */
+
+.tsc-profile-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  color: var(--navy, #1B2340);
+}
+
+.tsc-profile-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+/* ==========================================================================
+   Left Sidebar Column: Sports Identity & Credentials
+   ========================================================================== */
+.tsc-profile-sidebar {
+  flex: 0 0 340px;
+  max-width: 340px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tsc-card {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(27, 35, 64, 0.04);
+}
+
+/* Identity Card */
+.tsc-identity-card {
+  text-align: center;
+}
+
+.tsc-avatar-wrap {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  margin: 0 auto 16px;
+}
+
+.tsc-avatar-img,
+.tsc-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ffffff;
+  box-shadow: 0 4px 16px rgba(27, 35, 64, 0.08);
+}
+
+.tsc-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: var(--navy, #1B2340);
+  font-family: var(--font-display, inherit);
+  font-size: 38px;
+  font-weight: 800;
+}
+
+.tsc-avatar-edit-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.tsc-avatar-edit-badge:hover {
+  transform: scale(1.08);
+  background: #10b981;
+}
+
+.tsc-profile-name {
+  font-family: var(--font-display, inherit);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tsc-verified-badge {
+  display: inline-flex;
+  color: #10b981;
+}
+
+.tsc-profile-handle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 2px 0 0;
+  font-weight: 500;
+}
+
+.tsc-profile-bio {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #334155;
+  margin: 12px 0 0;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.tsc-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 16px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid #f1f5f9;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.tsc-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.tsc-meta-item a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+}
+.tsc-meta-item a:hover {
+  text-decoration: underline;
+}
+
+.tsc-profile-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.tsc-action-btn {
+  flex: 1;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.tsc-btn-outline {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--navy, #1B2340);
+}
+.tsc-btn-outline:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.tsc-btn-follow {
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+}
+.tsc-btn-follow:hover {
+  background: #2d3768;
+}
+.tsc-btn-follow.active {
+  background: #f1f5f9;
+  color: var(--navy, #1B2340);
+  border-color: #cbd5e1;
+}
+
+/* Sports Section */
+.tsc-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.tsc-section-title {
+  font-family: var(--font-display, inherit);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  margin: 0;
+}
+
+.tsc-section-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #10b981;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.tsc-section-link:hover {
+  color: #059669;
+  text-decoration: underline;
+}
+
+.tsc-sports-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tsc-sport-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.tsc-sport-chip-empty {
+  font-size: 13px;
+  color: #64748b;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* Stats Grid */
+.tsc-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.tsc-stat-tile {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tsc-stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tsc-stat-icon.followers { background: #dcfce7; color: #16a34a; }
+.tsc-stat-icon.following { background: #dbeafe; color: #2563eb; }
+.tsc-stat-icon.tournaments { background: #fef3c7; color: #d97706; }
+.tsc-stat-icon.matches { background: #ede9fe; color: #7c3aed; }
+.tsc-stat-icon.wins { background: #ffe4e6; color: #e11d48; }
+
+.tsc-stat-number {
+  font-family: var(--font-display, inherit);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  line-height: 1.1;
+}
+
+.tsc-stat-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+/* Achievements List */
+.tsc-achievements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tsc-achievement-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+}
+
+.tsc-achievement-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #fffbeb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.tsc-achievement-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  line-height: 1.2;
+}
+
+.tsc-achievement-desc {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Teams List */
+.tsc-teams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tsc-team-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.tsc-team-item:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.tsc-team-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.tsc-team-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tsc-team-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  line-height: 1.2;
+}
+
+.tsc-team-meta {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+
+/* ==========================================================================
+   Right Main Column: Content, Journey & Community Play
+   ========================================================================== */
+.tsc-profile-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Welcoming Prompt Banner: "What's your next play?" */
+.tsc-play-banner {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 20px;
+  padding: 28px 30px;
+  box-shadow: 0 2px 14px rgba(27, 35, 64, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.tsc-play-banner-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tsc-play-greeting {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 3px;
+}
+
+.tsc-play-title {
+  font-family: var(--font-display, inherit);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  margin: 0;
+  line-height: 1.15;
+  position: relative;
+  display: inline-block;
+}
+
+.tsc-play-title-accent {
+  display: block;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #10b981 0%, #34d399 70%, transparent 100%);
+  border-radius: 2px;
+  margin-top: 4px;
+}
+
+.tsc-play-subtitle {
+  font-size: 14px;
+  color: #475569;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.tsc-create-main-btn {
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(27, 35, 64, 0.15);
+}
+.tsc-create-main-btn:hover {
+  background: #2d3768;
+  transform: translateY(-1px);
+}
+
+/* 3 Contextual Creation Prompts */
+.tsc-prompts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.tsc-prompt-card {
+  border-radius: 16px;
+  padding: 18px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.tsc-prompt-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(27, 35, 64, 0.08);
+}
+
+/* 1. Vlog Prompt */
+.tsc-prompt-vlog {
+  border: 1px solid #fecdd3;
+  background: linear-gradient(180deg, #fff1f2 0%, #ffffff 42%);
+}
+.tsc-prompt-vlog:hover { border-color: #f43f5e; }
+
+/* 2. Highlight Prompt */
+.tsc-prompt-highlight {
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 42%);
+}
+.tsc-prompt-highlight:hover { border-color: #10b981; }
+
+/* 3. Post Prompt */
+.tsc-prompt-post {
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 42%);
+}
+.tsc-prompt-post:hover { border-color: #3b82f6; }
+
+.tsc-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tsc-prompt-icon-bubble {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tsc-prompt-vlog .tsc-prompt-icon-bubble { background: #ffe4e6; color: #e11d48; }
+.tsc-prompt-highlight .tsc-prompt-icon-bubble { background: #dcfce7; color: #16a34a; }
+.tsc-prompt-post .tsc-prompt-icon-bubble { background: #dbeafe; color: #2563eb; }
+
+.tsc-prompt-title {
+  font-family: var(--font-display, inherit);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  margin: 0;
+}
+
+.tsc-prompt-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Mini Mockup Visual inside Prompt Card */
+.tsc-prompt-visual {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px dashed #e2e8f0;
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-weight: 600;
+  gap: 6px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.tsc-prompt-card:hover .tsc-prompt-visual {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: var(--navy, #1B2340);
+}
+
+
+/* ==========================================================================
+   State A: Welcoming Empty State (Friendly, not a shelf of empty dashed boxes)
+   ========================================================================== */
+.tsc-empty-state-card {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 20px;
+  padding: 44px 28px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(27, 35, 64, 0.04);
+}
+
+.tsc-empty-illustration-wrap {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tsc-empty-title {
+  font-family: var(--font-display, inherit);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  margin: 0 0 8px;
+}
+
+.tsc-empty-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #64748b;
+  max-width: 440px;
+  margin: 0 auto 22px;
+}
+
+.tsc-empty-action-btn {
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  padding: 11px 26px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+.tsc-empty-action-btn:hover {
+  background: #2d3768;
+  transform: translateY(-1px);
+}
+
+
+/* ==========================================================================
+   Populated Content Categories: Vlogs (16:9), Highlights (9:16), Posts (1:1/4:5)
+   ========================================================================== */
+.tsc-content-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tsc-content-sec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tsc-content-sec-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tsc-content-sec-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tsc-content-sec-icon-badge.vlogs { background: #ffe4e6; color: #e11d48; }
+.tsc-content-sec-icon-badge.highlights { background: #dcfce7; color: #16a34a; }
+.tsc-content-sec-icon-badge.posts { background: #dbeafe; color: #2563eb; }
+
+.tsc-content-sec-title {
+  font-family: var(--font-display, inherit);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  margin: 0;
+}
+
+.tsc-content-sec-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+.tsc-see-all-link {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+.tsc-see-all-link:hover {
+  text-decoration: underline;
+}
+
+/* 1. Vlogs Grid (Horizontal 16:9 Cards) */
+.tsc-vlogs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.tsc-vlog-card {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(27, 35, 64, 0.03);
+}
+.tsc-vlog-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(27, 35, 64, 0.08);
+}
+
+.tsc-vlog-thumb-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  background: #0f172a;
+  overflow: hidden;
+}
+.tsc-vlog-thumb-wrap img,
+.tsc-vlog-thumb-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.tsc-vlog-card:hover .tsc-vlog-thumb-wrap img {
+  transform: scale(1.03);
+}
+
+.tsc-vlog-duration-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.tsc-vlog-info {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tsc-vlog-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  line-height: 1.35;
+  margin: 0 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tsc-vlog-meta {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: auto;
+}
+
+/* 2. Highlights Grid (Vertical 9:16 Cards) */
+.tsc-highlights-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.tsc-highlight-card {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0f172a;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(27, 35, 64, 0.04);
+  transition: all 0.2s ease;
+}
+.tsc-highlight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(27, 35, 64, 0.12);
+}
+
+.tsc-highlight-card img,
+.tsc-highlight-card video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.tsc-highlight-card:hover img {
+  transform: scale(1.04);
+}
+
+.tsc-highlight-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.85) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 10px;
+  color: #ffffff;
+}
+
+.tsc-highlight-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+.tsc-highlight-duration-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+/* 3. Posts Grid (1:1 and 4:5 Cards) */
+.tsc-posts-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.tsc-post-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f1f5f9;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(27, 35, 64, 0.03);
+  transition: all 0.2s ease;
+  border: 1px solid var(--line, #e4e7ef);
+}
+.tsc-post-card.ratio-4-5 {
+  aspect-ratio: 4 / 5;
+}
+.tsc-post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(27, 35, 64, 0.08);
+}
+
+.tsc-post-card img,
+.tsc-post-card video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tsc-post-badge-top {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tsc-post-overlay-stats {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  transition: opacity 0.15s ease;
+}
+.tsc-post-card:hover .tsc-post-overlay-stats {
+  opacity: 1;
+}
+
+.tsc-post-overlay-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Recent Tournaments Row */
+.tsc-tournaments-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.tsc-tournament-card {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 14px;
+  padding: 14px 16px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(27, 35, 64, 0.03);
+}
+.tsc-tournament-card:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+}
+
+.tsc-tourney-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #fffbeb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.tsc-tourney-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  line-height: 1.25;
+}
+
+.tsc-tourney-meta {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+
+/* ==========================================================================
+   Edit Profile Modal Styling
+   ========================================================================== */
+.tsc-edit-modal {
+  padding: 0;
+  border: none;
+  border-radius: 18px;
+  background: #ffffff;
+  max-width: 460px;
+  width: 92%;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+}
+.tsc-edit-modal::backdrop {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.tsc-edit-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line, #e4e7ef);
+  font-family: var(--font-display, inherit);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--navy, #1B2340);
+}
+
+.tsc-edit-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tsc-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tsc-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tsc-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--navy, #1B2340);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.tsc-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+
+/* ==========================================================================
+   Responsive Adaptations: Mobile & Tablets
+   ========================================================================== */
+@media (max-width: 960px) {
+  .tsc-profile-layout {
+    flex-direction: column;
+  }
+  .tsc-profile-sidebar {
+    max-width: 100%;
+    flex: 1 1 100%;
+  }
+  .tsc-prompts-grid {
+    grid-template-columns: 1fr;
+  }
+  .tsc-vlogs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tsc-highlights-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .tsc-posts-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .tsc-tournaments-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .tsc-profile-page {
+    padding: 14px 12px 36px;
+  }
+  .tsc-card,
+  .tsc-play-banner,
+  .tsc-empty-state-card {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+  .tsc-play-title {
+    font-size: 22px;
+  }
+  .tsc-vlogs-grid {
+    grid-template-columns: 1fr;
+  }
+  .tsc-highlights-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tsc-posts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>
+
+<div class="tsc-profile-page">
+  <div class="tsc-profile-layout">
+
+    <!-- ======================================================================
+         LEFT SIDEBAR: SPORTS IDENTITY & CREDENTIALS
+         ====================================================================== -->
+    <aside class="tsc-profile-sidebar">
+
+      <!-- Identity Card -->
+      <div class="tsc-card tsc-identity-card">
+        <div class="tsc-avatar-wrap">
+          {% if profile.profile_photo %}
+            <img src="{{ profile.profile_photo.url }}" alt="{{ profile.user.display_name }}" class="tsc-avatar-img">
+          {% else %}
+            <div class="tsc-avatar-fallback">{{ profile.user.display_name|slice:':1'|upper }}</div>
+          {% endif %}
+          {% if request.user == profile.user %}
+            <button type="button" class="tsc-avatar-edit-badge" onclick="document.getElementById('edit-profile-modal').showModal()" title="Edit Profile Photo">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+          {% endif %}
+        </div>
+
+        <h1 class="tsc-profile-name">
+          {{ profile.user.get_full_name|default:profile.user.display_name }}
+          {% if profile.user.is_verified %}
+            <span class="tsc-verified-badge" title="Verified Athlete">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </span>
+          {% endif %}
+        </h1>
+        <p class="tsc-profile-handle">@{{ profile.user.username }}</p>
+
+        {% if profile.bio %}
+          <p class="tsc-profile-bio">{{ profile.bio }}</p>
+        {% elif request.user == profile.user %}
+          <p class="tsc-profile-bio" style="color:#94a3b8; font-style: italic;">Add a bio to share your sporting background and achievements with the community.</p>
+        {% endif %}
+
+        <!-- Meta Details -->
+        <div class="tsc-meta-list">
+          {% if profile.current_city or profile.home_city %}
+            <div class="tsc-meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span>{{ profile.current_city|default:profile.home_city }}</span>
+            </div>
+          {% endif %}
+          <div class="tsc-meta-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <a href="https://tournamentsc.com" target="_blank" rel="noopener">tournamentsc.com</a>
+          </div>
+          <div class="tsc-meta-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Joined {{ profile.user.date_joined|date:"M Y" }}</span>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <div class="tsc-profile-actions">
+          {% if request.user == profile.user %}
+            <button type="button" class="tsc-action-btn tsc-btn-outline" onclick="document.getElementById('edit-profile-modal').showModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Edit Profile
+            </button>
+          {% elif request.user.is_authenticated %}
+            <button type="button" class="tsc-action-btn tsc-btn-follow {% if is_following %}active{% endif %}" onclick="toggleFollow(this, {{ profile.user.pk }})">
+              {% if is_following %}Following{% else %}Follow{% endif %}
+            </button>
+          {% else %}
+            <a href="{% url 'login' %}?next={{ request.path }}" class="tsc-action-btn tsc-btn-follow">
+              Follow
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- My Sports Card (Loaded dynamically from user profile) -->
+      <div class="tsc-card">
+        <div class="tsc-section-header">
+          <h2 class="tsc-section-title">My Sports</h2>
+          {% if request.user == profile.user %}
+            <a href="{% url 'profile_edit' %}" class="tsc-section-link">Edit</a>
+          {% endif %}
+        </div>
+
+        <div class="tsc-sports-chips">
+          {% for s in profile.sports.all %}
+            <div class="tsc-sport-chip">
+              <span>{{ s.icon|default:"⚽" }}</span>
+              <span>{{ s.name }}</span>
+            </div>
+          {% empty %}
+            <p class="tsc-sport-chip-empty">
+              {% if request.user == profile.user %}
+                <a href="{% url 'profile_edit' %}" class="tsc-section-link">+ Add sports to your profile</a>
+              {% else %}
+                No sports selected yet.
+              {% endif %}
+            </p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Genuine Statistics Grid -->
+      <div class="tsc-card">
+        <div class="tsc-section-header">
+          <h2 class="tsc-section-title">Sports Statistics</h2>
+        </div>
+        <div class="tsc-stats-grid">
+          <!-- 1. Followers -->
+          <div class="tsc-stat-tile">
+            <div class="tsc-stat-icon followers">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <div class="tsc-stat-number" id="follower-count-val">{{ follower_count }}</div>
+              <div class="tsc-stat-label">Followers</div>
+            </div>
+          </div>
+
+          <!-- 2. Following -->
+          <div class="tsc-stat-tile">
+            <div class="tsc-stat-icon following">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            </div>
+            <div>
+              <div class="tsc-stat-number">{{ following_count }}</div>
+              <div class="tsc-stat-label">Following</div>
+            </div>
+          </div>
+
+          <!-- 3. Tournaments -->
+          <div class="tsc-stat-tile">
+            <div class="tsc-stat-icon tournaments">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1h12v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/></svg>
+            </div>
+            <div>
+              <div class="tsc-stat-number">{{ history.count }}</div>
+              <div class="tsc-stat-label">Tournaments</div>
+            </div>
+          </div>
+
+          <!-- 4. Matches Played -->
+          <div class="tsc-stat-tile">
+            <div class="tsc-stat-icon matches">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 9.17l4.24-4.24"/><path d="M14.83 14.83l4.24 4.24"/><path d="M9.17 14.83l-4.24 4.24"/></svg>
+            </div>
+            <div>
+              <div class="tsc-stat-number">{{ matches_played_count }}</div>
+              <div class="tsc-stat-label">Matches</div>
+            </div>
+          </div>
+
+          <!-- 5. Wins (Only when genuine data exists) -->
+          {% if total_wins > 0 %}
+          <div class="tsc-stat-tile" style="grid-column: 1 / -1;">
+            <div class="tsc-stat-icon wins">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+            </div>
+            <div>
+              <div class="tsc-stat-number">{{ total_wins }}</div>
+              <div class="tsc-stat-label">Victories / Matches Won</div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Achievements (Only when earned) -->
+      {% if earned_achievements.exists %}
+      <div class="tsc-card">
+        <div class="tsc-section-header">
+          <h2 class="tsc-section-title">Achievements</h2>
+          <span class="tsc-meta-item">{{ earned_achievements.count }}</span>
+        </div>
+        <div class="tsc-achievements-list">
+          {% for ua in earned_achievements|slice:":4" %}
+            <div class="tsc-achievement-item">
+              <div class="tsc-achievement-badge">{{ ua.achievement.icon|default:"🏅" }}</div>
+              <div>
+                <div class="tsc-achievement-name">{{ ua.achievement.name }}</div>
+                <div class="tsc-achievement-desc">{{ ua.achievement.description|default:"Milestone achieved" }}</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
       {% endif %}
-      <p class="muted" style="margin:2px 0 0">{{ profile.current_city|default:'' }}</p>
-      
-      <div style="display:flex; gap:16px; margin-top:8px;">
-        <div><strong>{{ follower_count }}</strong> <span class="dim">Followers</span></div>
-        <div><strong>{{ following_count }}</strong> <span class="dim">Following</span></div>
+
+      <!-- Teams (Only when joined) -->
+      {% if teams.exists %}
+      <div class="tsc-card">
+        <div class="tsc-section-header">
+          <h2 class="tsc-section-title">Teams</h2>
+          <span class="tsc-meta-item">{{ teams.count }}</span>
+        </div>
+        <div class="tsc-teams-list">
+          {% for m in teams|slice:":4" %}
+            <a href="{% url 'team_detail' m.team.pk %}" class="tsc-team-item">
+              <div class="tsc-team-avatar">
+                {% if m.team.logo %}
+                  <img src="{{ m.team.logo.url }}" alt="{{ m.team.name }}">
+                {% else %}
+                  {{ m.team.initials }}
+                {% endif %}
+              </div>
+              <div>
+                <div class="tsc-team-name">{{ m.team.name }}</div>
+                <div class="tsc-team-meta">{{ m.get_role_display }} · {{ m.team.sport.name }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </aside>
+
+
+    <!-- ======================================================================
+         RIGHT MAIN COLUMN: CONTENT, JOURNEY & COMMUNITY DISCOVERY
+         ====================================================================== -->
+    <main class="tsc-profile-main">
+
+      <!-- Welcoming Content Introduction: "What's your next play?" -->
+      <section class="tsc-play-banner">
+        <div class="tsc-play-banner-head">
+          <div>
+            <div class="tsc-play-greeting">Hey {{ profile.user.first_name|default:profile.user.username }},</div>
+            <h2 class="tsc-play-title">
+              What's your next play?
+              <span class="tsc-play-title-accent"></span>
+            </h2>
+            <p class="tsc-play-subtitle">Share your game, your journey, your story.</p>
+          </div>
+          {% if request.user == profile.user %}
+            <button type="button" class="tsc-create-main-btn" onclick="document.getElementById('create-post-modal').showModal()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create Content
+            </button>
+          {% endif %}
+        </div>
+
+        <!-- 3 Contextual Creation Prompts -->
+        <div class="tsc-prompts-grid">
+
+          <!-- 1. Vlogs Prompt -->
+          <div class="tsc-prompt-card tsc-prompt-vlog" {% if request.user == profile.user %}onclick="openCreateModalWithType('full_video', '16/9')"{% endif %}>
+            <div>
+              <div class="tsc-prompt-header">
+                <div class="tsc-prompt-icon-bubble">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                </div>
+                <h3 class="tsc-prompt-title">Share a Vlog</h3>
+              </div>
+              <p class="tsc-prompt-desc">Long form videos, match vlogs, travel, behind the scenes.</p>
+            </div>
+            <div class="tsc-prompt-visual">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Vlog your journey &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 2. Highlights Prompt -->
+          <div class="tsc-prompt-card tsc-prompt-highlight" {% if request.user == profile.user %}onclick="openCreateModalWithType('short', '9/16')"{% endif %}>
+            <div>
+              <div class="tsc-prompt-header">
+                <div class="tsc-prompt-icon-bubble">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <h3 class="tsc-prompt-title">Post a Highlight</h3>
+              </div>
+              <p class="tsc-prompt-desc">Short, vertical videos of your best moments, skills and goals.</p>
+            </div>
+            <div class="tsc-prompt-visual">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"/></svg>
+              <span>Show your skills &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 3. Posts Prompt -->
+          <div class="tsc-prompt-card tsc-prompt-post" {% if request.user == profile.user %}onclick="openCreateModalWithType('post', '1/1')"{% endif %}>
+            <div>
+              <div class="tsc-prompt-header">
+                <div class="tsc-prompt-icon-bubble">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </div>
+                <h3 class="tsc-prompt-title">Create a Post</h3>
+              </div>
+              <p class="tsc-prompt-desc">Photos or carousel posts. Training, updates, moments.</p>
+            </div>
+            <div class="tsc-prompt-visual">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 21h12a2 2 0 0 0 2-2V7"/></svg>
+              <span>Share your moments &rarr;</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+
+      <!-- ======================================================================
+           STATE A: BRAND NEW USER (Friendly Empty State, Not Empty Dashed Shelves)
+           ====================================================================== -->
+      {% if not has_any_content %}
+      <section class="tsc-empty-state-card">
+        <div class="tsc-empty-illustration-wrap">
+          <!-- Athletic Player & Ball Illustration -->
+          <svg width="130" height="130" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="90" fill="#f8fafc"/>
+            <path d="M50 160C70 140 130 140 150 160" stroke="#cbd5e1" stroke-width="3" stroke-dasharray="6 6"/>
+            <!-- Crown Doodle -->
+            <path d="M85 30L92 42L100 26L108 42L115 30L113 46H87L85 30Z" fill="#fbbf24"/>
+            <!-- Player Silhouette -->
+            <circle cx="100" cy="62" r="14" fill="#1B2340"/>
+            <path d="M82 120C82 92 88 82 100 82C112 82 118 92 118 120H82Z" fill="#1B2340"/>
+            <text x="100" y="112" font-family="monospace" font-size="16" font-weight="900" fill="#ffffff" text-anchor="middle">10</text>
+            <!-- Soccer Ball -->
+            <circle cx="132" cy="142" r="14" fill="#ffffff" stroke="#1B2340" stroke-width="3"/>
+            <polygon points="132,134 139,139 136,147 128,147 125,139" fill="#1B2340"/>
+            <!-- Dynamic Grass stroke -->
+            <path d="M75 145C85 142 115 142 145 145" stroke="#10b981" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <h3 class="tsc-empty-title">No content yet?</h3>
+        <p class="tsc-empty-text">It all starts somewhere. Share your first vlog, highlight or post and let your sporting journey begin.</p>
+
+        {% if request.user == profile.user %}
+          <button type="button" class="tsc-empty-action-btn" onclick="openCreateModalWithType('post', '1/1')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Your First Post
+          </button>
+        {% endif %}
+      </section>
+      {% endif %}
+
+
+      <!-- ======================================================================
+           STATE B, C, D: POPULATED CONTENT CATEGORIES (Vlogs, Highlights, Posts)
+           ====================================================================== -->
+
+      <!-- 1. VLOGS SECTION (Horizontal 16:9) -->
+      {% if vlogs %}
+      <section class="tsc-content-section">
+        <div class="tsc-content-sec-header">
+          <div class="tsc-content-sec-title-wrap">
+            <div class="tsc-content-sec-icon-badge vlogs">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            </div>
+            <div>
+              <h2 class="tsc-content-sec-title">Vlogs</h2>
+              <p class="tsc-content-sec-sub">Long form videos. Match vlogs, travel, behind the scenes and more.</p>
+            </div>
+          </div>
+          <span class="tsc-see-all-link">{{ vlogs|length }} vlog{{ vlogs|length|pluralize }}</span>
+        </div>
+
+        <div class="tsc-vlogs-grid">
+          {% for v in vlogs|slice:":6" %}
+            <a href="{{ v.get_absolute_url }}" class="tsc-vlog-card">
+              <div class="tsc-vlog-thumb-wrap">
+                {% if v.youtube_url and v.youtube_thumbnail_url %}
+                  <img src="{{ v.youtube_thumbnail_url }}" alt="{{ v.title }}" loading="lazy">
+                {% elif v.media_file %}
+                  {% if v.is_video %}
+                    <video src="{{ v.media_file.url }}" muted></video>
+                  {% else %}
+                    <img src="{{ v.media_file.url }}" alt="{{ v.title }}" loading="lazy">
+                  {% endif %}
+                {% else %}
+                  <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ffffff;font-size:24px;">📹</div>
+                {% endif %}
+
+                {% if v.formatted_duration %}
+                  <div class="tsc-vlog-duration-badge">{{ v.formatted_duration }}</div>
+                {% elif v.video_duration %}
+                  <div class="tsc-vlog-duration-badge">{{ v.video_duration }}s</div>
+                {% endif %}
+              </div>
+              <div class="tsc-vlog-info">
+                <h4 class="tsc-vlog-title">{{ v.title|default:v.description|default:"Match Vlog" }}</h4>
+                <div class="tsc-vlog-meta">{{ v.view_count|default:1 }} views · {{ v.created_at|timesince }} ago</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+
+      <!-- 2. HIGHLIGHTS SECTION (Vertical 9:16) -->
+      {% if highlights %}
+      <section class="tsc-content-section">
+        <div class="tsc-content-sec-header">
+          <div class="tsc-content-sec-title-wrap">
+            <div class="tsc-content-sec-icon-badge highlights">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div>
+              <h2 class="tsc-content-sec-title">Highlights</h2>
+              <p class="tsc-content-sec-sub">Short, vertical videos. Best moments, skills, goals and quick clips.</p>
+            </div>
+          </div>
+          <span class="tsc-see-all-link">{{ highlights|length }} clip{{ highlights|length|pluralize }}</span>
+        </div>
+
+        <div class="tsc-highlights-grid">
+          {% for h in highlights|slice:":10" %}
+            <a href="{{ h.get_absolute_url }}" class="tsc-highlight-card">
+              {% if h.media_file %}
+                {% if h.is_video %}
+                  <video src="{{ h.media_file.url }}" muted></video>
+                {% else %}
+                  <img src="{{ h.media_file.url }}" alt="{{ h.title }}" loading="lazy">
+                {% endif %}
+              {% elif h.youtube_url and h.youtube_thumbnail_url %}
+                <img src="{{ h.youtube_thumbnail_url }}" alt="{{ h.title }}" loading="lazy">
+              {% else %}
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ffffff;font-size:24px;">⚡</div>
+              {% endif %}
+
+              <div class="tsc-highlight-overlay">
+                <h4 class="tsc-highlight-title">{{ h.title|default:h.description|truncatechars:45 }}</h4>
+              </div>
+
+              {% if h.formatted_duration %}
+                <div class="tsc-highlight-duration-badge">{{ h.formatted_duration }}</div>
+              {% elif h.video_duration %}
+                <div class="tsc-highlight-duration-badge">{{ h.video_duration }}s</div>
+              {% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+
+      <!-- 3. POSTS SECTION (1:1 Square & 4:5 Portrait Photos / Carousels) -->
+      {% if posts %}
+      <section class="tsc-content-section">
+        <div class="tsc-content-sec-header">
+          <div class="tsc-content-sec-title-wrap">
+            <div class="tsc-content-sec-icon-badge posts">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div>
+              <h2 class="tsc-content-sec-title">Posts</h2>
+              <p class="tsc-content-sec-sub">Photos and carousels. Match updates, training, moments and more.</p>
+            </div>
+          </div>
+          <span class="tsc-see-all-link">{{ posts|length }} post{{ posts|length|pluralize }}</span>
+        </div>
+
+        <div class="tsc-posts-grid">
+          {% for p in posts|slice:":8" %}
+            <a href="{{ p.get_absolute_url }}" class="tsc-post-card {% if p.aspect_ratio == '4/5' %}ratio-4-5{% endif %}">
+              {% if p.primary_thumbnail_url %}
+                <img src="{{ p.primary_thumbnail_url }}" alt="{{ p.title }}" loading="lazy">
+              {% elif p.media_file %}
+                <img src="{{ p.media_file.url }}" alt="{{ p.title }}" loading="lazy">
+              {% else %}
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:14px;color:#475569;font-size:12px;text-align:center;">
+                  {{ p.description|truncatechars:60 }}
+                </div>
+              {% endif %}
+
+              <!-- Carousel Icon Badge -->
+              {% if p.is_carousel %}
+                <div class="tsc-post-badge-top" title="Carousel post">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 21h12a2 2 0 0 0 2-2V7"/></svg>
+                </div>
+              {% endif %}
+
+              <!-- Hover Stats Overlay -->
+              <div class="tsc-post-overlay-stats">
+                <div class="tsc-post-overlay-stat">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                  <span>{{ p.like_count }}</span>
+                </div>
+                <div class="tsc-post-overlay-stat">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span>{{ p.comment_count }}</span>
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+
+      <!-- Recent Tournaments Section (When Participated) -->
+      {% if history.tournaments %}
+      <section class="tsc-content-section" style="margin-top: 10px;">
+        <div class="tsc-content-sec-header">
+          <div class="tsc-content-sec-title-wrap">
+            <div class="tsc-content-sec-icon-badge" style="background:#fef3c7; color:#d97706;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1h12v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/></svg>
+            </div>
+            <div>
+              <h2 class="tsc-content-sec-title">Recent Tournaments</h2>
+              <p class="tsc-content-sec-sub">Tournaments participated in across India.</p>
+            </div>
+          </div>
+          <span class="tsc-see-all-link">{{ history.count }} tournament{{ history.count|pluralize }}</span>
+        </div>
+
+        <div class="tsc-tournaments-grid">
+          {% for t in history.tournaments|slice:":6" %}
+            <a href="{{ t.get_absolute_url }}" class="tsc-tournament-card">
+              <div class="tsc-tourney-badge">{{ t.sport.icon|default:"🏆" }}</div>
+              <div>
+                <div class="tsc-tourney-title">{{ t.name }}</div>
+                <div class="tsc-tourney-meta">{{ t.sport.name }} · {{ t.get_format_display }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+    </main>
+
+  </div>
+</div>
+
+
+<!-- ==========================================================================
+     Edit Profile Modal
+     ========================================================================== -->
+{% if request.user == profile.user %}
+<dialog id="edit-profile-modal" class="tsc-edit-modal">
+  <form method="post" action="{% url 'edit_profile_quick' %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.path }}">
+    <div class="tsc-edit-modal-head">
+      <span>Edit Profile Details</span>
+      <button type="button" style="font-size:22px; cursor:pointer;" onclick="this.closest('dialog').close()">&times;</button>
+    </div>
+    <div class="tsc-edit-modal-body">
+      <!-- Photo Selector -->
+      <div style="text-align: center; margin-bottom: 6px;">
+        <div style="width: 84px; height: 84px; border-radius: 50%; background: #f1f5f9; margin: 0 auto 10px; overflow: hidden; border: 2px solid #e2e8f0;">
+          {% if profile.profile_photo %}
+            <img src="{{ profile.profile_photo.url }}" id="edit-profile-photo-preview" style="width:100%;height:100%;object-fit:cover">
+          {% else %}
+            <div id="edit-profile-photo-preview-fallback" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#64748b;">
+              {{ profile.user.display_name|slice:':1'|upper }}
+            </div>
+          {% endif %}
+        </div>
+        <label for="edit-profile-photo-input" style="color: #2563eb; font-weight: 600; cursor: pointer; font-size: 13px;">Change Profile Photo</label>
+        <input type="file" id="edit-profile-photo-input" name="profile_photo" accept="image/*" style="display: none;" onchange="tscPreviewAvatar(this)">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="tsc-input-group">
+          <label class="tsc-label">First Name</label>
+          <input type="text" name="first_name" class="tsc-input" value="{{ profile.user.first_name }}">
+        </div>
+        <div class="tsc-input-group">
+          <label class="tsc-label">Last Name</label>
+          <input type="text" name="last_name" class="tsc-input" value="{{ profile.user.last_name }}">
+        </div>
+      </div>
+
+      <div class="tsc-input-group">
+        <label class="tsc-label">Username</label>
+        <input type="text" name="username" class="tsc-input" value="{{ profile.user.username }}">
+      </div>
+
+      <div class="tsc-input-group">
+        <label class="tsc-label">Current City</label>
+        <input type="text" name="current_city" class="tsc-input" value="{{ profile.current_city }}">
+      </div>
+
+      <div class="tsc-input-group">
+        <label class="tsc-label">Bio</label>
+        <textarea name="bio" class="tsc-input" rows="3" style="resize:vertical;">{{ profile.bio }}</textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 6px;">
+        <a href="{% url 'profile_edit' %}" class="tsc-action-btn tsc-btn-outline" style="text-align: center;">Advanced Settings</a>
+        <button type="submit" class="tsc-action-btn tsc-btn-follow" style="background:#10b981;">Save Changes</button>
       </div>
     </div>
-    
-    {% if request.user.is_authenticated and request.user != profile.user %}
-    <div>
-      <button class="btn {% if is_following %}btn-secondary{% else %}btn-primary{% endif %}" onclick="toggleFollow(this, {{ profile.user.pk }})">
-        {% if is_following %}Unfollow{% else %}Follow{% endif %}
-      </button>
-    </div>
-    {% endif %}
-  </div>
+  </form>
+</dialog>
+{% endif %}
 
-  {% if profile.bio %}<p style="margin-top:16px">{{ profile.bio }}</p>{% endif %}
-  <div class="pill-row" style="margin-top:12px">
-    {% for s in profile.sports.all %}<span class="tag {{ s.tag_class }}">{{ s.icon }} {{ s.name }}</span>{% endfor %}
-  </div>
-
-  {% if earned_achievements %}
-    <div class="pill-row" style="margin-top:8px">
-      {% for ua in earned_achievements %}
-        <span class="tag" title="{{ ua.achievement.description }}">{{ ua.achievement.icon }} {{ ua.achievement.name }}</span>
-      {% endfor %}
-    </div>
-  {% endif %}
-
-  <div class="divider"></div>
-  <h3>Tournaments played ({{ history.count }})</h3>
-  <div class="stack" style="margin-top:12px">
-    {% for t in history.tournaments %}
-      <a class="fixture-row" href="{{ t.get_absolute_url }}">
-        <span>{{ t.name }}</span>
-        <span class="tag {{ t.sport.tag_class }}">{{ t.sport.icon }}</span>
-      </a>
-    {% empty %}<p class="dim">No tournament history yet.</p>{% endfor %}
-  </div>
-</section>
+<!-- Existing Create Post Modal Reused Directly -->
+{% include 'partials/create_post_modal.html' with tournaments=history.tournaments %}
 
 <script>
+// Open creation modal with specific format preselected
+function openCreateModalWithType(type, ratio) {
+  const modal = document.getElementById('create-post-modal');
+  if (!modal) return;
+  modal.showModal();
+
+  setTimeout(function() {
+    const cards = modal.querySelectorAll('.tsc-type-card');
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      if (ratio === '16/9' && card.innerText.includes('16:9')) {
+        card.click();
+        break;
+      } else if (ratio === '9/16' && card.innerText.includes('9:16')) {
+        card.click();
+        break;
+      } else if (ratio === '1/1' && card.innerText.includes('1:1')) {
+        card.click();
+        break;
+      }
+    }
+  }, 60);
+}
+
+// Live follow/unfollow toggle
 function toggleFollow(btn, userId) {
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
   fetch('/users/' + userId + '/toggle-follow', {
     method: 'POST',
-    headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}' }
+    headers: {
+      'X-CSRFToken': csrf,
+      'X-Requested-With': 'XMLHttpRequest'
+    }
   }).then(r => r.json()).then(data => {
     if (data.error) {
       alert(data.error);
       return;
     }
     if (data.is_following) {
-      btn.textContent = 'Unfollow';
-      btn.className = 'btn btn-secondary';
+      btn.textContent = 'Following';
+      btn.classList.add('active');
     } else {
       btn.textContent = 'Follow';
-      btn.className = 'btn btn-primary';
+      btn.classList.remove('active');
     }
-    // Very basic optimistic UI update, we could also update the count element dynamically.
+    const fc = document.getElementById('follower-count-val');
+    if (fc && data.follower_count !== undefined) {
+      fc.textContent = data.follower_count;
+    }
+  }).catch(() => {
     window.location.reload();
   });
 }
+
+// Live avatar preview in quick edit
+function tscPreviewAvatar(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = document.getElementById('edit-profile-photo-preview');
+      const fallback = document.getElementById('edit-profile-photo-preview-fallback');
+      if (img) {
+        img.src = e.target.result;
+      } else if (fallback) {
+        fallback.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+      }
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
 </script>
 {% endblock %}
-

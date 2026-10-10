@@ -62,6 +62,37 @@
   .ob-usuggest { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
   .ob-chip { background:#f1f5f9; border:1px solid #e2e8f0; color:#334155; padding:6px 12px; border-radius:16px; font-size:0.85rem; cursor:pointer; }
   .ob-chip:hover { background:#e2e8f0; }
+
+  .sport-card { 
+    position: relative; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 8px; 
+    text-align: center; cursor: pointer; transition: all 0.2s; user-select: none;
+    background: #fff; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .sport-card svg { width: 28px; height: 28px; color: #475569; transition: color 0.2s; stroke-width: 1.5; }
+  .sport-card span { font-size: 0.8rem; font-weight: 600; color: #334155; }
+  .sport-card:hover { border-color: #cbd5e1; background: #f8fafc; }
+  .sport-card.selected { border-color: #f97316; background: #fff7ed; }
+  .sport-card.selected svg { color: #f97316; }
+  .sport-card.selected span { color: #ea580c; }
+  .sport-check { 
+    position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; 
+    background: #f97316; color: #fff; border-radius: 50%; display: none; 
+    align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(249,115,22,0.3);
+  }
+  .sport-card.selected .sport-check { display: flex; }
+  .sport-check svg { width: 12px; height: 12px; color: #fff; stroke-width: 3; }
+
+  /* Cinematic loader */
+  .cinema-container { text-align: center; padding: 60px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; }
+  .cinema-loader { position: relative; width: 80px; height: 80px; margin-bottom: 2rem; }
+  .cinema-ring { position: absolute; inset: 0; border: 4px solid #f1f5f9; border-top-color: #f97316; border-radius: 50%; animation: spin 1s linear infinite; }
+  .cinema-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #f97316; }
+  .cinema-title { font-size: 2rem; font-weight: 800; color: #0f1533; margin: 0 0 1rem; background: linear-gradient(90deg, #0f1533, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .cinema-subtitle { color: #64748b; font-size: 1.1rem; margin-bottom: 2.5rem; }
+  .cinema-bar-wrap { width: 100%; max-width: 300px; height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; }
+  .cinema-bar-fill { height: 100%; background: #f97316; width: 0%; transition: width 5s linear; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+
 </style>
 
 
@@ -84,7 +115,7 @@
       <div class="step-item" id="si-5"><div class="step-circle">5</div><div class="step-label">Review</div></div>
     </div>
     
-    <form method="post" enctype="multipart/form-data">
+    <form id="onboarding-form" method="post" enctype="multipart/form-data">
       {% csrf_token %}
       
       <!-- Step 1 -->
@@ -92,7 +123,22 @@
         <h2>Basic Information</h2>
         <p class="dim" style="margin-bottom:2rem;">Let's start with the essentials.</p>
         
-        <div class="form-row">
+        <div class="ob-avatar-wrap">
+           <button type="button" class="ob-avatar" id="ob-avatar-btn" aria-label="Upload profile picture">
+             <img id="ob-avatar-img" alt="" style="display:none">
+             <svg id="ob-avatar-ph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+             <span class="ob-avatar-cam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+           </button>
+           <div>
+             <div style="font-weight:700;color:#0f1533">Profile picture <span class="dim" style="font-weight:500">(optional)</span></div>
+             <div class="dim" style="font-size:.85rem">Upload a photo and adjust how it fits.</div>
+             <button type="button" class="ob-linkbtn" id="ob-avatar-remove" style="display:none">Remove photo</button>
+           </div>
+           <input type="file" id="ob-avatar-pick" accept="image/*" hidden>
+           <input type="file" name="profile_photo" id="ob-avatar-final" hidden>
+         </div>
+
+         <div class="form-row">
           <div class="form-col">
             <label>First Name *</label>
             <input type="text" name="first_name" class="input" value="{{ request.user.first_name }}" required>
@@ -111,14 +157,15 @@
             <div id="ob-username-suggest" class="ob-usuggest" style="display:none;"></div>
           </div>
           <div class="form-col">
-            <label>Date of Birth</label>
-            <input type="date" name="date_of_birth" class="input">
+            <label>Date of Birth *</label>
+            <input type="date" name="date_of_birth" id="ob-dob" class="input" required>
           </div>
         </div>
         
         <div class="field">
-          <label>Identify As</label>
-          <select name="gender" class="input">
+          <label>Identify As *</label>
+          <select name="gender" id="ob-gender" class="input" required>
+            <option value="" disabled selected>Select</option>
             <option value="M">Male</option>
             <option value="F">Female</option>
             <option value="N">Non-binary</option>
@@ -132,19 +179,42 @@
         </div>
       </div>
       
-      <!-- Step 2 -->
+            <!-- Step 2 -->
       <div class="step-panel" id="panel-2">
         <h2>About You</h2>
         <p class="dim" style="margin-bottom:2rem;">Share a little more about yourself.</p>
         
-        <div class="field">
+        <div class="field" style="margin-bottom: 2rem;">
           <label>Bio (Optional)</label>
-          <textarea name="bio" class="input" rows="4" placeholder="Tell us about your chess journey..."></textarea>
+          <div style="position:relative;">
+            <textarea name="bio" id="bio-input" class="input" style="min-height:120px; resize:vertical; padding-bottom:24px;" placeholder="Tell us about yourself, your sports journey, achievements or interests..." maxlength="300"></textarea>
+            <div id="bio-counter" style="position:absolute; bottom:8px; right:12px; font-size:0.8rem; color:#94a3b8;">0/300</div>
+          </div>
+        </div>
+        
+        <div class="sports-section" style="margin-bottom: 2rem;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:1rem;">
+            <div>
+              <h3 style="margin:0; font-size:1.1rem; color:#1e293b;">Sports you are interested in</h3>
+              <p class="dim" style="margin:4px 0 0; font-size:0.9rem;">Select at least 2 sports. You can choose more later.</p>
+            </div>
+            <div style="font-size:0.85rem;">
+              <span id="sports-req" style="color:#EF4444; font-weight:600;">Minimum 2 required</span>
+              <span style="color:#cbd5e1; margin:0 8px;">|</span>
+              <span id="sports-count" style="color:#64748b; font-weight:600;">0 selected</span>
+            </div>
+          </div>
+          
+          <div class="sports-grid" id="sports-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:12px;">
+            <!-- Generated via JS -->
+          </div>
+          <!-- Hidden inputs will be appended here by JS -->
+          <div id="sports-hidden-inputs"></div>
         </div>
         
         <div class="nav-btns">
           <button type="button" class="btn-back" onclick="nextStep(1)">← Back</button>
-          <button type="button" class="btn-next" onclick="nextStep(3)">Next →</button>
+          <button type="button" class="btn-next" onclick="step2Next()">Next →</button>
         </div>
       </div>
       
@@ -213,26 +283,59 @@
         
         <div class="nav-btns">
           <button type="button" class="btn-back" onclick="nextStep(3)">← Back</button>
-          <button type="button" class="btn-next" onclick="nextStep(5)">Next →</button>
+          <button type="button" class="btn-next" onclick="submitCinematic()">Review & Complete →</button>
         </div>
       </div>
       
-      <!-- Step 5 -->
+            <!-- Step 5: Cinematic Animation -->
       <div class="step-panel" id="panel-5">
-        <h2>Review & Complete</h2>
-        <p class="dim" style="margin-bottom:2rem;">Almost there! Review your details before continuing.</p>
-        
-        <div class="panel tblcard" style="padding:1rem;">
-          <p>Everything looks good. You can always edit this later from your Profile Settings.</p>
-        </div>
-        
-        <div class="nav-btns">
-          <button type="button" class="btn-back" onclick="nextStep(4)">← Back</button>
-          <button type="submit" class="btn-next">Complete Profile →</button>
+        <div class="cinema-container">
+          <div class="cinema-loader">
+            <div class="cinema-ring"></div>
+            <div class="cinema-icon">
+              <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+          </div>
+          <h2 class="cinema-title">Setting up your profile</h2>
+          <p class="cinema-subtitle">Personalizing your TournamentSC experience...</p>
+          <div class="cinema-bar-wrap">
+            <div class="cinema-bar-fill" id="cinema-bar"></div>
+          </div>
         </div>
       </div>
       
-    </form>
+    
+<dialog id="ob-crop-dialog" class="ob-crop">
+  <h3 style="margin:0 0 4px;color:#0f1533">Adjust your photo</h3>
+  <p class="dim" style="margin:0 0 14px;font-size:.9rem">Drag to reposition, use the slider to zoom.</p>
+  <div class="ob-crop-stage"><canvas id="ob-crop-canvas" width="320" height="320"></canvas></div>
+  <input type="range" id="ob-crop-zoom" min="1" max="3" step="0.01" value="1" style="width:100%;margin:16px 0 6px">
+  <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px">
+    <button type="button" class="ob-btn-ghost" id="ob-crop-cancel">Cancel</button>
+    <button type="button" class="ob-btn-primary" id="ob-crop-apply">Apply</button>
+  </div>
+</dialog>
+<style>
+.ob-avatar-wrap{display:flex;align-items:center;gap:18px;margin-bottom:1.75rem}
+.ob-avatar{position:relative;width:96px;height:96px;border-radius:50%;border:2px dashed #cbd0dc;background:#f4f5f8;color:#9aa1b2;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:none;transition:border-color .15s}
+.ob-avatar:hover{border-color:#ff6b35}
+.ob-avatar svg#ob-avatar-ph{width:42px;height:42px}
+.ob-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.ob-avatar-cam{position:absolute;right:-2px;bottom:-2px;width:30px;height:30px;border-radius:50%;background:#ea580c;color:#fff;display:flex;align-items:center;justify-content:center;border:3px solid #fff}
+.ob-avatar-cam svg{width:14px;height:14px}
+.ob-linkbtn{background:none;border:0;color:#ea580c;font-weight:600;cursor:pointer;padding:4px 0;font-size:.85rem}
+.ob-crop{max-width:380px;width:92%;padding:1.5rem;border:none;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.ob-crop::backdrop{background:rgba(15,21,51,.55)}
+.ob-crop-stage{display:flex;justify-content:center;background:#0f1533;border-radius:14px;padding:10px}
+#ob-crop-canvas{width:100%;max-width:320px;height:auto;touch-action:none;cursor:grab;border-radius:8px}
+#ob-crop-canvas:active{cursor:grabbing}
+#ob-crop-zoom{accent-color:#ea580c}
+.ob-btn-ghost{padding:11px 24px;border-radius:100px;border:2px solid #e5e7eb;background:#fff;color:#0f1533;font-weight:700;cursor:pointer}
+.ob-btn-primary{padding:11px 28px;border-radius:100px;border:0;background:#ea580c;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(234,88,12,.3)}
+</style>
+</form>
   </div>
 </div>
 
@@ -406,10 +509,201 @@ if (obInput.value) obCheck();
 
 function step1Next() {
   const fn = document.querySelector('[name=first_name]'), ln = document.querySelector('[name=last_name]');
+  const dob = document.getElementById('ob-dob'), gen = document.getElementById('ob-gender');
   if (!fn.value.trim()) { fn.reportValidity(); return; }
   if (!ln.value.trim()) { ln.reportValidity(); return; }
   if (!obUsernameOk) { obSet(obInput.value.trim() ? obStatus.textContent : 'Please choose a username to continue.', 'bad'); obInput.focus(); return; }
+  if (!dob.value) { dob.reportValidity(); return; }
+  if (!gen.value) { gen.reportValidity(); return; }
   nextStep(2);
 }
+
+// Bio Character Counter
+const bioInput = document.getElementById('bio-input');
+const bioCounter = document.getElementById('bio-counter');
+bioInput.addEventListener('input', () => {
+  bioCounter.textContent = `${bioInput.value.length}/300`;
+});
+
+// Sports Grid
+const sportsData = [
+  { name: 'Football', icon: '<circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path>' },
+  { name: 'Cricket', icon: '<path d="M14 6l6 6-10 10-6-6 10-10Z"></path><path d="M14 6l-4-4"></path><path d="M20 12l4 4"></path>' },
+  { name: 'Basketball', icon: '<circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>' },
+  { name: 'Tennis', icon: '<circle cx="12" cy="12" r="10"></circle><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M12 12m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0"></path>' },
+  { name: 'Badminton', icon: '<path d="M21 3l-6 6"></path><circle cx="12" cy="12" r="3"></circle><path d="M12 15l-3 3"></path><path d="M9 12l-3-3"></path><path d="M15 12l3-3"></path>' },
+  { name: 'Table Tennis', icon: '<circle cx="17" cy="7" r="3"></circle><path d="M11 11l-7 7 4 4 7-7"></path><path d="M8 14l3-3"></path>' },
+  { name: 'Chess', icon: '<path d="M12 2l-3 5h6z"></path><path d="M9 7v4h6V7"></path><path d="M7 11h10v2H7z"></path><path d="M5 13h14v2H5z"></path><path d="M3 15h18v7H3z"></path>' },
+  { name: 'Volleyball', icon: '<circle cx="12" cy="12" r="10"></circle><path d="M12 2v20"></path><path d="M2 12h20"></path><path d="M5 5l14 14"></path><path d="M19 5L5 19"></path>' },
+  { name: 'Running', icon: '<path d="M12 5h.01"></path><path d="M5 20l4-4 3 2 4-6"></path><path d="M18 10l-4-2-2 4"></path>' },
+  { name: 'Swimming', icon: '<path d="M2 12h20"></path><path d="M2 16h20"></path><path d="M2 20h20"></path><path d="M12 4a2 2 0 1 0 0 4 2 2 0 1 0 0-4z"></path>' },
+  { name: 'Boxing', icon: '<path d="M6 10V6c0-2.2 1.8-4 4-4h4c2.2 0 4 1.8 4 4v4"></path><rect x="4" y="10" width="16" height="12" rx="2"></rect>' },
+  { name: 'Cycling', icon: '<circle cx="5" cy="18" r="4"></circle><circle cx="19" cy="18" r="4"></circle><path d="M5 18l4-8h5l2.5 5"></path><path d="M12 10l-3-5h-3"></path>' },
+  { name: 'Esports', icon: '<rect x="2" y="6" width="20" height="12" rx="4"></rect><circle cx="17" cy="12" r="1"></circle><circle cx="14" cy="12" r="1"></circle><path d="M6 12h4"></path><path d="M8 10v4"></path>' },
+  { name: 'Other', icon: '<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>' }
+];
+const sportsGrid = document.getElementById('sports-grid');
+const sportsHidden = document.getElementById('sports-hidden-inputs');
+let selectedSports = new Set();
+
+sportsData.forEach(sport => {
+  const card = document.createElement('div');
+  card.className = 'sport-card';
+  card.innerHTML = `
+    <div class="sport-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"></path></svg></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${sport.icon}</svg>
+    <span>${sport.name}</span>
+  `;
+  card.onclick = () => {
+    if (selectedSports.has(sport.name)) {
+      selectedSports.delete(sport.name);
+      card.classList.remove('selected');
+    } else {
+      selectedSports.add(sport.name);
+      card.classList.add('selected');
+    }
+    updateSports();
+  };
+  sportsGrid.appendChild(card);
+});
+
+function updateSports() {
+  const count = selectedSports.size;
+  document.getElementById('sports-count').textContent = count + ' selected';
+  const req = document.getElementById('sports-req');
+  if (count >= 2) {
+    req.style.color = '#10B981';
+    req.textContent = 'Requirement met';
+  } else {
+    req.style.color = '#EF4444';
+    req.textContent = 'Minimum 2 required';
+  }
+  
+  // Update hidden inputs for form submission
+  sportsHidden.innerHTML = '';
+  selectedSports.forEach(sport => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = 'sports';
+    inp.value = sport;
+    sportsHidden.appendChild(inp);
+  });
+}
+
+function step2Next() {
+  if (selectedSports.size < 2) {
+    alert("Please select at least 2 sports.");
+    return;
+  }
+  nextStep(3);
+}
+
+// Cinematic Submit
+function submitCinematic() {
+  const hc = document.getElementById('home_city_input');
+  const cc = document.getElementById('current_city_input');
+  if (!hc.value.trim()) { hc.reportValidity(); return; }
+  if (!cc.value.trim()) { cc.reportValidity(); return; }
+  
+  // Transition to cinematic screen
+  document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
+  document.getElementById('panel-5').classList.add('active');
+  
+  // Start animation
+  setTimeout(() => {
+    document.getElementById('cinema-bar').style.width = '100%';
+  }, 100);
+
+  // Rotating text
+  const loadingTexts = [
+    "Personalizing your TournamentSC experience...",
+    "Finding your sports communities...",
+    "Connecting you with local players...",
+    "Generating your feed..."
+  ];
+  const subEl = document.querySelector('.cinema-subtitle');
+  let tIdx = 0;
+  const textInterval = setInterval(() => {
+    tIdx = (tIdx + 1) % loadingTexts.length;
+    subEl.style.opacity = 0;
+    setTimeout(() => {
+      subEl.textContent = loadingTexts[tIdx];
+      subEl.style.opacity = 1;
+    }, 300);
+  }, 1250);
+  subEl.style.transition = 'opacity 0.3s ease';
+  
+  // Submit form via fetch
+  const form = document.getElementById('onboarding-form');
+  const fd = new FormData(form);
+  
+  const minWait = new Promise(resolve => setTimeout(resolve, 5000));
+  const req = fetch(form.action, {
+    method: 'POST',
+    body: fd,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  });
+
+  Promise.all([req, minWait])
+    .then(() => {
+      clearInterval(textInterval);
+      window.location.href = "{% url 'onboarding_success' %}";
+    })
+    .catch(err => {
+      console.error(err);
+      clearInterval(textInterval);
+      window.location.href = "{% url 'onboarding_success' %}";
+    });
+}
+
+// ---- Profile picture: pick -> adjust (pan/zoom, circular) -> WebP ----
+(function(){
+  const pick=document.getElementById('ob-avatar-pick'), fin=document.getElementById('ob-avatar-final');
+  const btn=document.getElementById('ob-avatar-btn'), dlg=document.getElementById('ob-crop-dialog');
+  const cv=document.getElementById('ob-crop-canvas'), ctx=cv.getContext('2d');
+  const zoom=document.getElementById('ob-crop-zoom'), prev=document.getElementById('ob-avatar-img');
+  const ph=document.getElementById('ob-avatar-ph'), rm=document.getElementById('ob-avatar-remove');
+  const S=320, R=140;
+  let img=null, base=1, scale=1, ox=0, oy=0, drag=null;
+  btn.onclick=()=>pick.click();
+  pick.onchange=()=>{
+    const f=pick.files[0]; if(!f) return;
+    if(!f.type.startsWith('image/')){ alert('Please choose an image file.'); pick.value=''; return; }
+    const im=new Image();
+    im.onload=()=>{ img=im; base=(2*R)/Math.min(im.width,im.height); zoom.value=1; scale=base; ox=0; oy=0; draw(); dlg.showModal(); };
+    im.src=URL.createObjectURL(f);
+  };
+  function clamp(){
+    const w=img.width*scale, h=img.height*scale;
+    ox=Math.min(Math.max(ox,R-w/2),w/2-R); oy=Math.min(Math.max(oy,R-h/2),h/2-R);
+  }
+  function draw(){
+    clamp(); ctx.clearRect(0,0,S,S);
+    const w=img.width*scale, h=img.height*scale;
+    ctx.drawImage(img,S/2-w/2+ox,S/2-h/2+oy,w,h);
+    ctx.fillStyle='rgba(15,21,51,.65)'; ctx.beginPath();
+    ctx.rect(0,0,S,S); ctx.arc(S/2,S/2,R,0,Math.PI*2,true); ctx.fill('evenodd');
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(S/2,S/2,R,0,Math.PI*2); ctx.stroke();
+  }
+  zoom.oninput=()=>{ scale=base*parseFloat(zoom.value); draw(); };
+  const pt=e=>{const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*S/r.width,y:(e.clientY-r.top)*S/r.height};};
+  cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId); const p=pt(e); drag={x:p.x-ox,y:p.y-oy};};
+  cv.onpointermove=e=>{ if(!drag) return; const p=pt(e); ox=p.x-drag.x; oy=p.y-drag.y; draw(); };
+  cv.onpointerup=cv.onpointercancel=()=>{drag=null;};
+  document.getElementById('ob-crop-cancel').onclick=()=>{dlg.close(); pick.value='';};
+  document.getElementById('ob-crop-apply').onclick=()=>{
+    const out=document.createElement('canvas'); out.width=out.height=512;
+    const o=out.getContext('2d'), k=512/(2*R);
+    const w=img.width*scale, h=img.height*scale;
+    o.drawImage(img,(S/2-w/2+ox-(S/2-R))*k,(S/2-h/2+oy-(S/2-R))*k,w*k,h*k);
+    out.toBlob(b=>{
+      const file=new File([b],'profile.webp',{type:'image/webp'});
+      const dt=new DataTransfer(); dt.items.add(file); fin.files=dt.files;
+      prev.src=URL.createObjectURL(b); prev.style.display='block'; ph.style.display='none'; rm.style.display='inline-block';
+      dlg.close();
+    },'image/webp',0.9);
+  };
+  rm.onclick=()=>{ fin.value=''; pick.value=''; prev.style.display='none'; ph.style.display='block'; rm.style.display='none'; };
+})();
 </script>
 {% endblock %}
