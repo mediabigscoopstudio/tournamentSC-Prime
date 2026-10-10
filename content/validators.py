@@ -4,8 +4,8 @@ from django.core.exceptions import ValidationError
 # uploads (existing FileFields — Tournament.banner_image, Highlight.image,
 # MediaAsset.file — are organizer/admin-only). Keep abuse-prevention minimal:
 # extension whitelist + a size cap, no transformation.
-CONTENT_MEDIA_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm']
-CONTENT_MEDIA_MAX_BYTES = 100 * 1024 * 1024  # 100MB
+CONTENT_MEDIA_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'm4v', 'avi', 'mkv', 'heic', 'heif']
+CONTENT_MEDIA_MAX_BYTES = 500 * 1024 * 1024  # 500MB
 
 
 def validate_content_media_size(file):

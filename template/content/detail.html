@@ -1,109 +1,1478 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}{{ post.title|default:post.get_content_type_display }} — {{ site_conf.site_name }}{% endblock %}
+
 {% block content %}
-<section class="section wrap two-col">
-  <div>
-    <a class="dim" href="{% url 'content_feed' %}">← Feed</a>
-    <div class="panel tblcard" style="margin-top:12px">
-      {% if post.media_file %}
-        {% if post.content_type == 'video' %}
-          <video src="{{ post.media_file.url }}" controls style="width:100%;border-radius:var(--r-lg)"></video>
+<style>
+/* ==========================================================================
+   TournamentSC Universal Content Viewer
+   Modern sports video & media layout matching official design system.
+   ========================================================================== */
+
+:root {
+  --tsc-green: #16a34a;
+  --tsc-green-hover: #15803d;
+  --tsc-green-soft: rgba(22, 163, 74, 0.1);
+  --tsc-orange: #F26A1B;
+  --tsc-blue: #0284c7;
+  --tsc-blue-soft: rgba(2, 132, 199, 0.1);
+  --tsc-navy-dark: #0f172a;
+  --tsc-card-bg: #ffffff;
+  --tsc-border: #e2e8f0;
+  --tsc-border-subtle: #f1f5f9;
+  --tsc-text-main: #0f172a;
+  --tsc-text-muted: #64748b;
+  --tsc-red: #ef4444;
+}
+
+.content-viewer-page {
+  background: #f8fafc;
+  padding: 24px 0 64px;
+  min-height: calc(100vh - 70px);
+}
+
+/* --- 2-COLUMN MAIN VIEWING LAYOUT --- */
+.content-viewer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(360px, 1.15fr);
+  gap: 32px;
+  align-items: start;
+}
+
+/* ==========================================================================
+   LEFT COLUMN: ADAPTIVE MEDIA VIEWER & RECOMMENDATIONS
+   ========================================================================== */
+.col-main-media {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* --- ASPECT-RATIO-AWARE MEDIA CONTAINERS --- */
+.media-display-card {
+  position: relative;
+  width: 100%;
+  background: #000000;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* A. 16:9 Horizontal Video */
+.media-container--16-9 {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+}
+
+.media-container--16-9 iframe,
+.media-container--16-9 video {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  object-fit: cover;
+}
+
+/* B. 9:16 Vertical Short Video */
+.media-container--9-16 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #070d18;
+  padding: 12px 0;
+  min-height: 480px;
+}
+
+.media-container--9-16-inner {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  height: 72vh;
+  max-height: 640px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.media-container--9-16-inner video,
+.media-container--9-16-inner iframe {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border: none;
+}
+
+/* C. Static Photo (1:1 and 4:5) */
+.media-container--photo {
+  background: #f1f5f9;
+  border: 1px solid var(--tsc-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: 75vh;
+  padding: 8px;
+}
+
+.media-container--photo img {
+  max-width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: 10px;
+  display: block;
+}
+
+/* D. Multi-Image Carousel */
+.media-container--carousel {
+  position: relative;
+  background: #070d18;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 480px;
+  max-height: 75vh;
+  user-select: none;
+}
+
+.carousel-slide-item {
+  display: none;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-slide-item.is-active {
+  display: flex;
+}
+
+.carousel-slide-item img,
+.carousel-slide-item video {
+  max-width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  display: block;
+}
+
+.carousel-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 6;
+  font-size: 20px;
+  transition: all 0.2s ease;
+}
+
+.carousel-nav-btn:hover {
+  background: var(--tsc-green);
+  color: #ffffff;
+  border-color: var(--tsc-green);
+}
+
+.carousel-nav-btn.prev-btn { left: 16px; }
+.carousel-nav-btn.next-btn { right: 16px; }
+
+.carousel-counter-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-family: var(--font-score, 'Rajdhani', sans-serif);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  z-index: 6;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.carousel-dots-strip {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 6;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.carousel-dot.is-active {
+  background: var(--tsc-green);
+  transform: scale(1.3);
+}
+
+/* Fallback Container */
+.media-container--fallback {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, #0e1e3b 0%, #1e3a6a 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  gap: 12px;
+}
+
+.media-container--fallback svg {
+  width: 48px;
+  height: 48px;
+}
+
+/* ==========================================================================
+   RECOMMENDATIONS SECTIONS (BELOW MAIN MEDIA)
+   ========================================================================== */
+.rec-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rec-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rec-section-title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+}
+
+.rec-section-link {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--tsc-blue);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rec-section-link:hover {
+  color: var(--tsc-green);
+  text-decoration: underline;
+}
+
+/* 4-Card Compact Grid */
+.rec-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.rec-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--tsc-border);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.rec-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--tsc-blue);
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.1);
+}
+
+.rec-card-thumb-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0a1120;
+  overflow: hidden;
+}
+
+.rec-card-thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.rec-card:hover .rec-card-thumb-wrap img {
+  transform: scale(1.05);
+}
+
+.rec-card-duration {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #ffffff;
+  font-family: var(--font-score, 'Rajdhani', sans-serif);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.rec-card-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rec-card-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  line-height: 1.32;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rec-card-creator {
+  font-size: 0.76rem;
+  color: var(--tsc-text-muted);
+}
+
+.rec-card-meta {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+/* ==========================================================================
+   RIGHT COLUMN: CREATOR & CONTENT DETAILS, ACTIONS, COMMENTS
+   ========================================================================== */
+.col-sidebar-details {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid var(--tsc-border);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Context Breadcrumb / Tournament Pill */
+.tourney-breadcrumb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--tsc-navy-dark);
+  text-decoration: none;
+  background: #f8fafc;
+  border: 1px solid var(--tsc-border);
+  padding: 6px 14px;
+  border-radius: 999px;
+  align-self: flex-start;
+  transition: all 0.15s ease;
+}
+
+.tourney-breadcrumb-pill:hover {
+  background: #ffffff;
+  border-color: var(--tsc-green);
+  color: var(--tsc-green);
+}
+
+.tourney-breadcrumb-pill svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Creator Block */
+.creator-profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.creator-profile-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.creator-profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0e1e3b 0%, #1e3a6a 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-weight: 800;
+  font-size: 1.1rem;
+  overflow: hidden;
+  border: 2px solid var(--tsc-green);
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.15);
+  flex-shrink: 0;
+}
+
+.creator-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.creator-profile-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.creator-profile-name {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  line-height: 1.2;
+}
+
+.creator-profile-sub {
+  font-size: 0.78rem;
+  color: var(--tsc-text-muted);
+}
+
+.creator-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-follow-green {
+  background: var(--tsc-green);
+  color: #ffffff !important;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+  text-decoration: none;
+}
+
+.btn-follow-green:hover {
+  background: var(--tsc-green-hover);
+  transform: translateY(-1px);
+}
+
+.btn-follow-green.is-following {
+  background: #f1f5f9;
+  color: var(--tsc-navy-dark) !important;
+  border: 1px solid var(--tsc-border);
+  box-shadow: none;
+}
+
+.btn-follow-green.is-following:hover {
+  background: #e2e8f0;
+}
+
+.btn-overflow-options {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f8fafc;
+  border: 1px solid var(--tsc-border);
+  color: var(--tsc-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-overflow-options:hover {
+  background: #ffffff;
+  color: var(--tsc-navy-dark);
+}
+
+/* Content Title */
+.viewer-content-title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1.28rem;
+  font-weight: 900;
+  color: var(--tsc-navy-dark);
+  line-height: 1.32;
+}
+
+/* Views & Metadata & Hashtags */
+.viewer-meta-row {
+  font-size: 0.84rem;
+  color: var(--tsc-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.hashtag-item {
+  color: var(--tsc-blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hashtag-item:hover {
+  text-decoration: underline;
+}
+
+/* Description Block with Toggle */
+.viewer-description-wrap {
+  font-size: 0.88rem;
+  color: var(--tsc-text-main);
+  line-height: 1.55;
+}
+
+.description-text-collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.btn-toggle-desc {
+  background: none;
+  border: none;
+  color: var(--tsc-navy-dark);
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 4px;
+  display: inline-block;
+}
+
+.btn-toggle-desc:hover {
+  color: var(--tsc-green);
+  text-decoration: underline;
+}
+
+/* Associated Tournament Box */
+.associated-tournament-box {
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid var(--tsc-border);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.84rem;
+}
+
+.tourney-info-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tsc-text-main);
+}
+
+.tourney-info-line a {
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  text-decoration: none;
+}
+
+.tourney-info-line a:hover {
+  color: var(--tsc-green);
+  text-decoration: underline;
+}
+
+.tourney-info-line svg {
+  width: 15px;
+  height: 15px;
+  color: var(--tsc-orange);
+  flex-shrink: 0;
+}
+
+/* Engagement Toolbar (Like, Comment, Share, Save, Copy) */
+.viewer-action-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--tsc-border);
+  border-bottom: 1px solid var(--tsc-border);
+  flex-wrap: wrap;
+}
+
+.action-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--tsc-text-main);
+  background: #f8fafc;
+  border: 1px solid var(--tsc-border);
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-pill-btn:hover {
+  background: #ffffff;
+  border-color: var(--tsc-green);
+  color: var(--tsc-green);
+}
+
+.action-pill-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.action-pill-btn.is-liked {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--tsc-red);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.action-pill-btn.is-liked svg {
+  fill: var(--tsc-red);
+}
+
+.action-pill-btn.is-bookmarked {
+  background: var(--tsc-green-soft);
+  color: var(--tsc-green);
+  border-color: var(--tsc-green);
+}
+
+.action-pill-btn.is-bookmarked svg {
+  fill: var(--tsc-green);
+}
+
+/* Comments Section */
+.viewer-comments-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.comments-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.comments-count-title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+}
+
+.comments-sort-select {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--tsc-text-muted);
+}
+
+.comment-compose-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid var(--tsc-border);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.comment-compose-row input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.86rem;
+  font-family: inherit;
+  color: var(--tsc-text-main);
+}
+
+.btn-submit-comment {
+  background: var(--tsc-green);
+  color: #ffffff;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 7px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-submit-comment:hover {
+  background: var(--tsc-green-hover);
+}
+
+.comments-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 520px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.comment-card-item {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--tsc-border-subtle);
+}
+
+.comment-card-item:last-child {
+  border-bottom: none;
+}
+
+.comment-author-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: var(--tsc-navy-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.comment-item-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.comment-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.comment-item-author {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+}
+
+.comment-item-time {
+  font-size: 0.74rem;
+  color: var(--tsc-text-muted);
+}
+
+.comment-item-text {
+  font-size: 0.86rem;
+  color: var(--tsc-text-main);
+  line-height: 1.35;
+}
+
+.comment-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.76rem;
+  color: var(--tsc-text-muted);
+  margin-top: 4px;
+}
+
+.comment-item-actions button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.comment-item-actions button:hover {
+  color: var(--tsc-green);
+}
+
+.btn-view-more-comments {
+  background: none;
+  border: none;
+  color: var(--tsc-green);
+  font-weight: 800;
+  font-size: 0.86rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.btn-view-more-comments:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   RESPONSIVE MOBILE STYLES (SECTION 9)
+   ========================================================================== */
+@media (max-width: 1080px) {
+  .content-viewer-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .rec-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .content-viewer-page {
+    padding: 12px 0 48px;
+  }
+  .media-display-card {
+    border-radius: 0;
+    margin-inline: -28px;
+    width: calc(100% + 56px);
+  }
+  .media-container--9-16-inner {
+    height: 70vh;
+  }
+  .col-sidebar-details {
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .rec-cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .viewer-action-toolbar {
+    gap: 8px;
+  }
+}
+</style>
+
+<div class="content-viewer-page">
+  <div class="wrap content-viewer-grid">
+    
+    <!-- =======================================================================
+         LEFT COLUMN: ADAPTIVE MEDIA PRESENTATION & RECOMMENDATIONS
+         ======================================================================= -->
+    <div class="col-main-media">
+      
+      <!-- Adaptive Media Card -->
+      <div class="media-display-card">
+        
+        <!-- A. 16:9 Horizontal Video -->
+        {% if post.aspect_ratio == '16/9' or post.content_type == 'full_video' or post.youtube_url %}
+          <div class="media-container--16-9">
+            {% if post.youtube_url and post.youtube_embed_url %}
+              <iframe 
+                src="{{ post.youtube_embed_url }}?autoplay=1&rel=0&modestbranding=1" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowfullscreen>
+              </iframe>
+            {% elif post.media_file and post.is_video %}
+              <video src="{{ post.media_file.url }}" controls autoplay playsinline loop></video>
+            {% elif post.primary_thumbnail_url %}
+              <img src="{{ post.primary_thumbnail_url }}" alt="{{ post.title }}" style="width:100%;height:100%;object-fit:cover;">
+            {% else %}
+              <div class="media-container--fallback">
+                <svg class="ico"><use href="#i-play"/></svg>
+                <span>Video unavailable</span>
+              </div>
+            {% endif %}
+          </div>
+
+        <!-- B. 9:16 Vertical Short Video -->
+        {% elif post.aspect_ratio == '9/16' or post.content_type == 'short' %}
+          <div class="media-container--9-16">
+            <div class="media-container--9-16-inner">
+              {% if post.media_file %}
+                <video src="{{ post.media_file.url }}" controls autoplay playsinline loop></video>
+              {% elif post.youtube_url and post.youtube_embed_url %}
+                <iframe src="{{ post.youtube_embed_url }}?autoplay=1&rel=0" allowfullscreen></iframe>
+              {% elif post.primary_thumbnail_url %}
+                <img src="{{ post.primary_thumbnail_url }}" alt="{{ post.title }}" style="width:100%;height:100%;object-fit:cover;">
+              {% else %}
+                <div class="media-container--fallback">
+                  <svg class="ico"><use href="#i-play"/></svg>
+                  <span>Short video unavailable</span>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+        <!-- C. Multi-Image Carousel -->
+        {% elif post.is_carousel or post.media_items.all.count > 1 %}
+          <div class="media-container--carousel" id="carouselViewer">
+            {% for item in post.media_items.all %}
+              <div class="carousel-slide-item {% if forloop.first %}is-active{% endif %}" data-slide-index="{{ forloop.counter0 }}">
+                {% if item.is_video %}
+                  <video src="{{ item.media_file.url }}" controls {% if forloop.first %}autoplay{% endif %} loop playsinline></video>
+                {% else %}
+                  <img src="{{ item.media_file.url }}" alt="{{ post.title }}">
+                {% endif %}
+              </div>
+            {% endfor %}
+
+            <button type="button" class="carousel-nav-btn prev-btn" id="prevSlideBtn" onclick="changeSlide(-1)">&#10094;</button>
+            <button type="button" class="carousel-nav-btn next-btn" id="nextSlideBtn" onclick="changeSlide(1)">&#10095;</button>
+
+            <div class="carousel-counter-badge" id="slideCounterBadge">1/{{ post.media_items.all.count }}</div>
+
+            <div class="carousel-dots-strip" id="carouselDots">
+              {% for item in post.media_items.all %}
+                <span class="carousel-dot {% if forloop.first %}is-active{% endif %}" onclick="goToSlide({{ forloop.counter0 }})"></span>
+              {% endfor %}
+            </div>
+          </div>
+
+        <!-- D. Static Photo (1:1 and 4:5) -->
+        {% elif post.content_type == 'photo' or post.content_type == 'post' %}
+          <div class="media-container--photo">
+            {% if post.primary_thumbnail_url %}
+              <img src="{{ post.primary_thumbnail_url }}" alt="{{ post.title }}">
+            {% else %}
+              <div class="media-container--fallback">
+                <svg class="ico"><use href="#i-image"/></svg>
+                <span>Image unavailable</span>
+              </div>
+            {% endif %}
+          </div>
+
+        <!-- E. General Fallback -->
         {% else %}
-          <img src="{{ post.media_file.url }}" alt="" style="width:100%;border-radius:var(--r-lg)">
+          <div class="media-container--fallback">
+            {% if post.primary_thumbnail_url %}
+              <img src="{{ post.primary_thumbnail_url }}" alt="{{ post.title }}" style="width:100%;height:100%;object-fit:cover;">
+            {% else %}
+              <svg class="ico"><use href="#i-image"/></svg>
+              <span>Media preview unavailable</span>
+            {% endif %}
+          </div>
         {% endif %}
+
+      </div>
+
+      <!-- Section A: More from this tournament -->
+      {% if more_from_tournament %}
+        <div class="rec-section">
+          <div class="rec-section-header">
+            <h3 class="rec-section-title">
+              {% if post.tournament %}More from this tournament{% else %}More from this creator{% endif %}
+            </h3>
+            <a href="{% if post.tournament %}{{ post.tournament.get_absolute_url }}{% else %}{% url 'content_feed' %}{% endif %}" class="rec-section-link">See all →</a>
+          </div>
+
+          <div class="rec-cards-grid">
+            {% for item in more_from_tournament %}
+              <a href="{{ item.get_absolute_url }}" class="rec-card">
+                <div class="rec-card-thumb-wrap">
+                  {% if item.primary_thumbnail_url %}
+                    <img src="{{ item.primary_thumbnail_url }}" alt="{{ item.title }}" loading="lazy">
+                  {% else %}
+                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;">
+                      <svg class="ico" style="width:24px;height:24px;"><use href="#i-play"/></svg>
+                    </div>
+                  {% endif %}
+                  {% if item.formatted_duration %}
+                    <span class="rec-card-duration">{{ item.formatted_duration }}</span>
+                  {% endif %}
+                </div>
+                <div class="rec-card-body">
+                  <h4 class="rec-card-title">{{ item.title|default:"Highlight Play" }}</h4>
+                  <div class="rec-card-creator">{% if item.tournament %}{{ item.tournament.name }}{% else %}{{ item.creator.display_name }}{% endif %}</div>
+                  <div class="rec-card-meta">{{ item.view_count }} views · {{ item.created_at|timesince }} ago</div>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
       {% endif %}
-      <div class="card-body">
-        {% if post.tournament %}<a class="tag" href="{{ post.tournament.get_absolute_url }}">{{ post.tournament.name }}</a>{% endif %}
-        <h1 style="margin:10px 0 4px">{{ post.title }}</h1>
-        <p class="muted">{{ post.description }}</p>
-        <div class="card-meta">{{ post.creator.display_name }} · {{ post.created_at|timesince }} ago · {{ post.view_count }} views</div>
-        <div class="row-flex" style="margin-top:14px" data-content-actions data-pk="{{ post.pk }}">
-          <button type="button" class="btn btn-ghost btn-sm" data-like-btn>
-            {% if liked %}♥{% else %}♡{% endif %} <span data-like-count>{{ post.like_count }}</span>
-          </button>
-          <button type="button" class="btn btn-ghost btn-sm" data-share-btn>↗ {{ post.share_count }}</button>
+
+      <!-- Section B: Related content -->
+      {% if related_content %}
+        <div class="rec-section">
+          <div class="rec-section-header">
+            <h3 class="rec-section-title">Related content</h3>
+            <a href="{% url 'content_feed' %}" class="rec-section-link">See all →</a>
+          </div>
+
+          <div class="rec-cards-grid">
+            {% for rel in related_content %}
+              <a href="{{ rel.get_absolute_url }}" class="rec-card">
+                <div class="rec-card-thumb-wrap">
+                  {% if rel.primary_thumbnail_url %}
+                    <img src="{{ rel.primary_thumbnail_url }}" alt="{{ rel.title }}" loading="lazy">
+                  {% else %}
+                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;">
+                      <svg class="ico" style="width:24px;height:24px;"><use href="#i-play"/></svg>
+                    </div>
+                  {% endif %}
+                  {% if rel.formatted_duration %}
+                    <span class="rec-card-duration">{{ rel.formatted_duration }}</span>
+                  {% endif %}
+                </div>
+                <div class="rec-card-body">
+                  <h4 class="rec-card-title">{{ rel.title|default:"Community Highlight" }}</h4>
+                  <div class="rec-card-creator">{{ rel.creator.display_name }}</div>
+                  <div class="rec-card-meta">{{ rel.view_count }} views · {{ rel.created_at|timesince }} ago</div>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+    </div>
+
+    <!-- =======================================================================
+         RIGHT COLUMN: CREATOR IDENTITY, INFO, ACTIONS & COMMENTS
+         ======================================================================= -->
+    <div class="col-sidebar-details">
+      
+      <!-- Context Breadcrumb Pill -->
+      {% if post.tournament %}
+        <a href="{{ post.tournament.get_absolute_url }}" class="tourney-breadcrumb-pill">
+          <span>🏀</span>
+          <span>{{ post.tournament.name }}</span>
+          <svg class="ico"><use href="#i-chev"/></svg>
+        </a>
+      {% endif %}
+
+      <!-- Creator Identity Header -->
+      <div class="creator-profile-header">
+        <a href="{{ post.creator.profile_url }}" class="creator-profile-left">
+          <div class="creator-profile-avatar">
+            {% if post.creator.player_profile.profile_photo %}
+              <img src="{{ post.creator.player_profile.profile_photo.url }}" alt="{{ post.creator.display_name }}">
+            {% elif post.creator.organizer_profile.profile_photo %}
+              <img src="{{ post.creator.organizer_profile.profile_photo.url }}" alt="{{ post.creator.display_name }}">
+            {% elif post.team_author and post.team_author.logo %}
+              <img src="{{ post.team_author.logo.url }}" alt="{{ post.team_author.name }}">
+            {% else %}
+              <span>{{ post.creator.display_name|slice:":2"|upper }}</span>
+            {% endif %}
+          </div>
+          <div class="creator-profile-info">
+            <span class="creator-profile-name">
+              {% if post.team_author %}{{ post.team_author.name }}{% else %}{{ post.creator.display_name }}{% endif %}
+            </span>
+            <span class="creator-profile-sub">
+              {% if follower_count > 0 %}{{ follower_count }} subscriber{{ follower_count|pluralize }}{% else %}TournamentSC Member{% endif %}
+            </span>
+          </div>
+        </a>
+
+        <div class="creator-actions-group">
+          {% if user.is_authenticated and user != post.creator %}
+            <button 
+              type="button" 
+              class="btn-follow-green {% if is_following %}is-following{% endif %}" 
+              id="followBtn" 
+              onclick="toggleFollow({{ post.creator.pk }})">
+              {% if is_following %}Following{% else %}Follow{% endif %}
+            </button>
+          {% elif not user.is_authenticated %}
+            <a href="{% url 'login' %}?next={{ request.path }}" class="btn-follow-green">Follow</a>
+          {% endif %}
+          <button type="button" class="btn-overflow-options" title="More options" onclick="copyShareLink()">···</button>
         </div>
       </div>
-    </div>
 
-    <div class="panel tblcard" id="comments" style="margin-top:16px">
-      <h3>Comments ({{ post.comment_count }})</h3>
-      {% if user.is_authenticated %}
-        <form data-comment-form data-pk="{{ post.pk }}" class="row-flex" style="margin-top:10px;align-items:flex-start">
-          {{ comment_form.text }}
-          <button class="btn btn-primary btn-sm" type="submit">Post</button>
-        </form>
-      {% endif %}
-      <ul class="kv" style="margin-top:14px" data-comment-list>
-        {% for c in comments %}
-          <li style="grid-column:1/-1;list-style:none;border-bottom:1px solid var(--line);padding:8px 0">
-            <strong>{{ c.commenter.display_name }}</strong> <span class="muted">{{ c.created_at|timesince }} ago</span>
-            <div>{{ c.text }}</div>
-          </li>
-        {% empty %}
-          <li style="grid-column:1/-1;list-style:none" class="muted">No comments yet.</li>
+      <!-- Content Title -->
+      <h1 class="viewer-content-title">{{ post.title|default:"Full Match Highlights" }}</h1>
+
+      <!-- Views & Date Metadata & Hashtags -->
+      <div class="viewer-meta-row">
+        <span>{{ post.view_count }} views</span>
+        <span>·</span>
+        <span>{{ post.created_at|timesince }} ago</span>
+        {% for tag in hashtags %}
+          <span class="hashtag-item">{{ tag }}</span>
         {% endfor %}
-      </ul>
+      </div>
+
+      <!-- Description Block with ...more Toggle -->
+      <div class="viewer-description-wrap">
+        <div id="descText" class="description-text-collapsed">
+          {{ post.description|urlize|linebreaksbr|default:"Relive the best moments and key plays on TournamentSC. Follow tournament highlights, scores and player statistics." }}
+        </div>
+        <button type="button" class="btn-toggle-desc" id="descToggleBtn" onclick="toggleDescription()">...more</button>
+      </div>
+
+      <!-- Associated Tournament Box (If linked) -->
+      {% if post.tournament %}
+        <div class="associated-tournament-box">
+          <div class="tourney-info-line">
+            <svg class="ico"><use href="#i-trophy"/></svg>
+            <span>Tournament: <a href="{{ post.tournament.get_absolute_url }}">{{ post.tournament.name }}</a></span>
+          </div>
+          {% if post.tournament.venue or post.tournament.city %}
+            <div class="tourney-info-line">
+              <svg class="ico"><use href="#i-pin"/></svg>
+              <span>Venue: {% if post.tournament.venue %}{{ post.tournament.venue.name }}{% else %}{{ post.tournament.city }}{% endif %}</span>
+            </div>
+          {% endif %}
+          <div class="tourney-info-line">
+            <svg class="ico"><use href="#i-cal"/></svg>
+            <span>Date: {{ post.tournament.start_date|date:"M j, Y" }}{% if post.tournament.end_date != post.tournament.start_date %} – {{ post.tournament.end_date|date:"M j, Y" }}{% endif %}</span>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Engagement Action Bar (Like, Comment, Share, Save, Copy) -->
+      <div class="viewer-action-toolbar">
+        <button 
+          type="button" 
+          class="action-pill-btn {% if liked %}is-liked{% endif %}" 
+          id="likeBtn" 
+          onclick="toggleLike({{ post.pk }})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+          <span id="likeCount">{{ post.like_count }}</span>
+        </button>
+
+        <button 
+          type="button" 
+          class="action-pill-btn" 
+          onclick="document.getElementById('commentInput').focus();">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span id="commentHeaderCount">{{ post.comment_count }}</span>
+        </button>
+
+        <button 
+          type="button" 
+          class="action-pill-btn" 
+          onclick="copyShareLink()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+          <span>Share</span>
+        </button>
+
+        <button 
+          type="button" 
+          class="action-pill-btn {% if bookmarked %}is-bookmarked{% endif %}" 
+          id="bookmarkBtn" 
+          onclick="toggleBookmark({{ post.pk }})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Save</span>
+        </button>
+
+        <button 
+          type="button" 
+          class="action-pill-btn" 
+          title="Copy link"
+          onclick="copyShareLink()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Comments Section -->
+      <div class="viewer-comments-block">
+        <div class="comments-header-row">
+          <h4 class="comments-count-title">Comments (<span id="totalCommentCount">{{ comments|length }}</span>)</h4>
+          <span class="comments-sort-select">Sort by: Latest ▾</span>
+        </div>
+
+        <!-- Add Comment Input Box -->
+        {% if user.is_authenticated %}
+          <form id="commentForm" onsubmit="submitComment(event, {{ post.pk }});" class="comment-compose-row">
+            {% csrf_token %}
+            <input type="text" id="commentInput" name="text" placeholder="Add a comment..." required autocomplete="off">
+            <button type="submit" class="btn-submit-comment">Post</button>
+          </form>
+        {% else %}
+          <div class="comment-compose-row">
+            <input type="text" placeholder="Log in to add a comment..." onclick="window.location.href='{% url 'login' %}?next={{ request.path }}'" readonly style="cursor:pointer;">
+            <a href="{% url 'login' %}?next={{ request.path }}" class="btn-submit-comment" style="text-decoration:none;">Log In</a>
+          </div>
+        {% endif %}
+
+        <!-- Comments Feed -->
+        <div class="comments-feed-list" id="commentsFeed">
+          {% for c in comments %}
+            <div class="comment-card-item">
+              <div class="comment-author-avatar">
+                {{ c.commenter.display_name|slice:":2"|upper }}
+              </div>
+              <div class="comment-item-body">
+                <div class="comment-item-top">
+                  <span class="comment-item-author">{{ c.commenter.display_name }}</span>
+                  <span class="comment-item-time">{{ c.created_at|timesince }} ago</span>
+                </div>
+                <div class="comment-item-text">{{ c.text }}</div>
+                <div class="comment-item-actions">
+                  <button type="button">👍 42</button>
+                  <button type="button">👎</button>
+                  <button type="button">Reply</button>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div style="text-align:center;padding:24px 0;color:var(--tsc-text-muted);font-size:0.86rem;" id="noCommentsMsg">
+              No comments yet. Be the first to join the conversation!
+            </div>
+          {% endfor %}
+        </div>
+
+        {% if comments|length > 3 %}
+          <button type="button" class="btn-view-more-comments">View more comments →</button>
+        {% endif %}
+      </div>
+
     </div>
+
   </div>
-</section>
-{% endblock %}
+</div>
 
-{% block scripts %}
 <script>
-(function () {
-  function getCookie(name) {
-    var match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return match ? match.pop() : '';
-  }
-  var pk = {{ post.pk }};
-  fetch('/content/' + pk + '/view', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+// View Ping
+(function() {
+  fetch('{% url "content_view_ping" post.pk %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+  }).catch(() => {});
+})();
 
-  var likeBtn = document.querySelector('[data-like-btn]');
-  if (likeBtn) {
-    likeBtn.addEventListener('click', function () {
-      fetch('/content/' + pk + '/like', {
-        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      }).then(function (r) { return r.json(); }).then(function (data) {
-        likeBtn.querySelector('[data-like-count]').textContent = data.like_count;
-        likeBtn.firstChild.textContent = data.liked ? '♥ ' : '♡ ';
-      });
-    });
+// Description Show More / Show Less Toggle
+function toggleDescription() {
+  const desc = document.getElementById('descText');
+  const btn = document.getElementById('descToggleBtn');
+  if (desc.classList.contains('description-text-collapsed')) {
+    desc.classList.remove('description-text-collapsed');
+    btn.innerText = 'Show less';
+  } else {
+    desc.classList.add('description-text-collapsed');
+    btn.innerText = '...more';
   }
+}
 
-  var shareBtn = document.querySelector('[data-share-btn]');
-  if (shareBtn) {
-    shareBtn.addEventListener('click', function () {
-      fetch('/content/' + pk + '/share', {
-        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      }).then(function (r) { return r.json(); }).then(function (data) {
-        if (navigator.share) { navigator.share({ url: data.url }).catch(function () {}); }
-        else { navigator.clipboard && navigator.clipboard.writeText(data.url); }
-      });
-    });
-  }
+// Like Action
+function toggleLike(pk) {
+  fetch(`/content/${pk}/like`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+  })
+  .then(res => {
+    if (res.status === 401 || res.redirected) {
+      window.location.href = '{% url "login" %}?next={{ request.path }}';
+      return;
+    }
+    return res.json();
+  })
+  .then(data => {
+    if (data && data.like_count !== undefined) {
+      document.getElementById('likeCount').innerText = data.like_count;
+      const btn = document.getElementById('likeBtn');
+      if (data.liked) {
+        btn.classList.add('is-liked');
+      } else {
+        btn.classList.remove('is-liked');
+      }
+    }
+  });
+}
 
-  var commentForm = document.querySelector('[data-comment-form]');
-  if (commentForm) {
-    commentForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var formData = new FormData(commentForm);
-      fetch('/content/' + pk + '/comment', {
-        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: formData,
-      }).then(function (r) { return r.json(); }).then(function (data) {
-        if (data.errors) return;
-        var list = document.querySelector('[data-comment-list]');
-        var li = document.createElement('li');
-        li.style.cssText = 'grid-column:1/-1;list-style:none;border-bottom:1px solid var(--line);padding:8px 0';
-        li.innerHTML = '<strong></strong> <span class="muted"></span><div></div>';
-        li.querySelector('strong').textContent = data.comment.commenter;
-        li.querySelector('.muted').textContent = 'just now';
-        li.querySelector('div').textContent = data.comment.text;
-        list.prepend(li);
-        commentForm.reset();
-      });
+// Bookmark / Save Action
+function toggleBookmark(pk) {
+  fetch(`/content/${pk}/bookmark`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+  })
+  .then(res => {
+    if (res.status === 401 || res.redirected) {
+      window.location.href = '{% url "login" %}?next={{ request.path }}';
+      return;
+    }
+    return res.json();
+  })
+  .then(data => {
+    if (data && data.bookmarked !== undefined) {
+      const btn = document.getElementById('bookmarkBtn');
+      if (data.bookmarked) {
+        btn.classList.add('is-bookmarked');
+      } else {
+        btn.classList.remove('is-bookmarked');
+      }
+    }
+  });
+}
+
+// Follow Toggle
+function toggleFollow(userId) {
+  fetch(`/users/${userId}/toggle-follow`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+  })
+  .then(res => {
+    if (res.status === 401 || res.redirected) {
+      window.location.href = '{% url "login" %}?next={{ request.path }}';
+      return;
+    }
+    return res.json();
+  })
+  .then(data => {
+    if (data && data.is_following !== undefined) {
+      const btn = document.getElementById('followBtn');
+      if (data.is_following) {
+        btn.classList.add('is-following');
+        btn.innerText = 'Following';
+      } else {
+        btn.classList.remove('is-following');
+        btn.innerText = 'Follow';
+      }
+    }
+  });
+}
+
+// Copy Share Link
+function copyShareLink() {
+  const url = window.location.href;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Link copied to clipboard!');
     });
+  } else {
+    prompt('Copy this link:', url);
   }
+}
+
+// Post Comment AJAX
+function submitComment(e, pk) {
+  e.preventDefault();
+  const input = document.getElementById('commentInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const formData = new FormData();
+  formData.append('text', text);
+
+  fetch(`/content/${pk}/comment`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.comment) {
+      input.value = '';
+      const noMsg = document.getElementById('noCommentsMsg');
+      if (noMsg) noMsg.remove();
+
+      const feed = document.getElementById('commentsFeed');
+      const item = document.createElement('div');
+      item.className = 'comment-card-item';
+      item.innerHTML = `
+        <div class="comment-author-avatar">${data.comment.commenter.substring(0, 2).toUpperCase()}</div>
+        <div class="comment-item-body">
+          <div class="comment-item-top">
+            <span class="comment-item-author">${data.comment.commenter}</span>
+            <span class="comment-item-time">Just now</span>
+          </div>
+          <div class="comment-item-text">${data.comment.text}</div>
+          <div class="comment-item-actions">
+            <button type="button">👍 0</button>
+            <button type="button">👎</button>
+            <button type="button">Reply</button>
+          </div>
+        </div>
+      `;
+      feed.prepend(item);
+
+      const totalCount = document.getElementById('totalCommentCount');
+      if (totalCount) totalCount.innerText = parseInt(totalCount.innerText || 0) + 1;
+      const headerCount = document.getElementById('commentHeaderCount');
+      if (headerCount) headerCount.innerText = parseInt(headerCount.innerText || 0) + 1;
+    }
+  });
+}
+
+// Carousel Controls
+let currentSlide = 0;
+const slides = document.querySelectorAll('.carousel-slide-item');
+const totalSlides = slides.length;
+
+function changeSlide(direction) {
+  if (totalSlides <= 1) return;
+  goToSlide((currentSlide + direction + totalSlides) % totalSlides);
+}
+
+function goToSlide(index) {
+  if (totalSlides <= 1) return;
+  slides[currentSlide].classList.remove('is-active');
+  const dots = document.querySelectorAll('.carousel-dot');
+  if (dots.length) dots[currentSlide].classList.remove('is-active');
+
+  currentSlide = index;
+  slides[currentSlide].classList.add('is-active');
+  if (dots.length) dots[currentSlide].classList.add('is-active');
+
+  const badge = document.getElementById('slideCounterBadge');
+  if (badge) badge.innerText = `${currentSlide + 1}/${totalSlides}`;
+}
+
+// Touch swipe support for carousel
+(function initTouchSwipe() {
+  const container = document.getElementById('carouselViewer');
+  if (!container || totalSlides <= 1) return;
+
+  let startX = 0;
+  container.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+  }, { passive: true });
+
+  container.addEventListener('touchend', e => {
+    const endX = e.changedTouches[0].clientX;
+    const diff = startX - endX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) changeSlide(1);
+      else changeSlide(-1);
+    }
+  }, { passive: true });
 })();
 </script>
 {% endblock %}

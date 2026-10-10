@@ -161,6 +161,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'  # only used while USE_S3_MEDIA is off — S3 generates its own URLs
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Allow up to 500MB uploads for videos and multi-image carousels
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760   # 10 MB in-memory threshold before streaming to disk
+
 if USE_S3_MEDIA:
     # Bucket stays private (no ACLs — modern buckets have them disabled by
     # default anyway) and every URL is presigned. That's needed regardless

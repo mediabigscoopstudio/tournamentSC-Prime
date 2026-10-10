@@ -125,3 +125,67 @@ class AchievementAwardingTests(TestCase):
         Achievement.objects.create(name='Ten Wins', criteria={'wins': 10})
         check_and_award_achievements_task(user.pk)
         self.assertEqual(UserAchievement.objects.filter(user=user).count(), 0)
+
+
+class ContentBookmarkToggleTests(TestCase):
+    def setUp(self):
+        from content.models import ContentBookmark
+        self.ContentBookmark = ContentBookmark
+        self.creator, _ = _make_user('creator_bm@example.com')
+        self.user, _ = _make_user('bookmarker@example.com')
+        self.post = Content.objects.create(creator=self.creator, content_type='post', title='Bookmark Test')
+
+    def test_bookmark_then_unbookmark_toggles(self):
+        self.client.force_login(self.user)
+        url = reverse('content_bookmark', args=[self.post.pk])
+
+        # First toggle: bookmark
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['bookmarked'], True)
+        self.assertTrue(self.ContentBookmark.objects.filter(content=self.post, user=self.user).exists())
+
+        # Second toggle: unbookmark
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['bookmarked'], False)
+        self.assertFalse(self.ContentBookmark.objects.filter(content=self.post, user=self.user).exists())
+
+    def test_bookmark_unauthenticated_returns_401(self):
+        url = reverse('content_bookmark', args=[self.post.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+
+
+class FeedViewTests(TestCase):
+    def setUp(self):
+        self.user, _ = _make_user('feeduser@example.com')
+        self.post = Content.objects.create(creator=self.user, content_type='post', title='Post 1', description='Hello feed')
+
+    def test_feed_page_loads_with_context(self):
+        resp = self.client.get(reverse('content_feed'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('page', resp.context)
+        self.assertIn('live_matches', resp.context)
+        self.assertIn('popular_tournaments', resp.context)
+        self.assertIn('popular_sports', resp.context)
+        self.assertIn('suggested_entities', resp.context)
+        self.assertIn('category', resp.context)
+        self.assertIn('media_type', resp.context)
+
+    def test_feed_filtering_parameters(self):
+        self.client.force_login(self.user)
+        # Test category filter
+        resp = self.client.get(reverse('content_feed'), {'category': 'players'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['category'], 'players')
+
+        # Test media_type filter
+        resp = self.client.get(reverse('content_feed'), {'media_type': 'highlights'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['media_type'], 'highlights')
+
+        # Test saved category filter
+        resp = self.client.get(reverse('content_feed'), {'category': 'saved'})
+        self.assertEqual(resp.status_code, 200)
+

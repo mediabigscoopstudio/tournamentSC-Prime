@@ -1,86 +1,2130 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Feed — {{ site_conf.site_name }}{% endblock %}
-{% block content %}
-<section class="section wrap">
-  <div class="sec-head">
-    <div><h2>Feed</h2><p>Photos, clips and updates from players and organizers.</p></div>
-    {% if user.is_authenticated %}
-      <a class="btn btn-primary" href="{% url 'content_upload' %}">+ Post</a>
-    {% endif %}
-  </div>
 
-  {% if page.object_list %}
-    <div class="card-grid" style="margin-top:20px">
-      {% for post in page.object_list %}
-        <div class="card" id="content-{{ post.pk }}">
-          <a href="{{ post.get_absolute_url }}">
-            {% if post.content_type == 'photo' and post.media_file %}
-              <div class="card-cover"><img src="{{ post.media_file.url }}" alt=""></div>
-            {% elif post.content_type == 'video' and post.media_file %}
-              <div class="card-cover"><video src="{{ post.media_file.url }}" muted></video></div>
-            {% endif %}
+{% block content %}
+<div class="feed-page-wrap">
+  <div class="feed-layout">
+
+    <!-- ================================================================= -->
+    <!-- LEFT COLUMN: Desktop Navigation & Sport Discovery                -->
+    <!-- ================================================================= -->
+    <aside class="feed-left-col">
+      <div class="feed-nav-card">
+        <nav class="feed-sidebar-nav">
+          <a href="{% url 'home' %}" class="feed-nav-link">
+            <span class="feed-nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </span>
+            <span>Home</span>
           </a>
-          <div class="card-body">
-            {% if post.tournament %}<span class="tag">{{ post.tournament.name }}</span>{% endif %}
-            <div class="card-title"><a href="{{ post.get_absolute_url }}">{{ post.title|default:post.get_content_type_display }}</a></div>
-            <div class="card-meta">{{ post.creator.display_name }} · {{ post.created_at|timesince }} ago</div>
-            <div class="row-flex" style="margin-top:12px" data-content-actions data-pk="{{ post.pk }}">
-              <button type="button" class="btn btn-ghost btn-sm" data-like-btn>
-                {% if post.pk in liked_ids %}♥{% else %}♡{% endif %} <span data-like-count>{{ post.like_count }}</span>
-              </button>
-              <a class="btn btn-ghost btn-sm" href="{{ post.get_absolute_url }}#comments">💬 {{ post.comment_count }}</a>
-              <button type="button" class="btn btn-ghost btn-sm" data-share-btn>↗ {{ post.share_count }}</button>
-            </div>
+          <a href="{% url 'live_list' %}" class="feed-nav-link">
+            <span class="feed-nav-ico" style="color: #ef4444;">
+              <span class="feed-live-dot-mini"></span>
+            </span>
+            <span>Live Now</span>
+          </a>
+          <a href="{% url 'browse' %}" class="feed-nav-link">
+            <span class="feed-nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M9 14.5V18h6v-3.5M8 21h8"/></svg>
+            </span>
+            <span>Tournaments</span>
+          </a>
+          <a href="{% url 'teams_list' %}" class="feed-nav-link">
+            <span class="feed-nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <span>Teams</span>
+          </a>
+          <a href="{% url 'players_list' %}" class="feed-nav-link">
+            <span class="feed-nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <span>Players</span>
+          </a>
+          <a href="{% url 'search' %}?type=organizers" class="feed-nav-link">
+            <span class="feed-nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <span>Organizers</span>
+          </a>
+          <a href="{% url 'content_feed' %}" class="feed-nav-link {% if category != 'saved' %}is-active{% endif %}">
+            <span class="feed-nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+            </span>
+            <span>Feed</span>
+          </a>
+          <a href="{% url 'content_feed' %}?category=saved" class="feed-nav-link {% if category == 'saved' %}is-active{% endif %}">
+            <span class="feed-nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </span>
+            <span>Saved</span>
+          </a>
+        </nav>
+
+        <div class="feed-sidebar-divider"></div>
+
+        <div class="feed-sidebar-section">
+          <div class="feed-sidebar-heading">Explore by Sport</div>
+          <div class="feed-sport-nav">
+            {% for sp in all_sports|slice:":7" %}
+              <a href="{% url 'browse' %}?sport={{ sp.slug }}" class="feed-sport-link {% if sport_filter == sp.slug %}is-active{% endif %}">
+                <span class="feed-sport-ico">{{ sp.icon|default:"🏅" }}</span>
+                <span>{{ sp.name }}</span>
+              </a>
+            {% endfor %}
+            <a href="{% url 'browse' %}" class="feed-sport-link feed-more-sports">
+              <span>More Sports</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
           </div>
         </div>
-      {% endfor %}
-    </div>
-
-    {% if page.has_other_pages %}
-      <div class="pager" style="margin-top:24px">
-        {% if page.has_previous %}<a class="btn btn-secondary btn-sm" href="?page={{ page.previous_page_number }}">← Previous</a>{% endif %}
-        <span class="dim">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-        {% if page.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ page.next_page_number }}">Next →</a>{% endif %}
       </div>
-    {% endif %}
-  {% else %}
-    <div class="empty">Nothing posted yet{% if user.is_authenticated %} — be the first.{% endif %}</div>
-  {% endif %}
-</section>
-{% endblock %}
+    </aside>
 
-{% block scripts %}
+    <!-- ================================================================= -->
+    <!-- CENTRE COLUMN: Main Discovery & Content Area                      -->
+    <!-- ================================================================= -->
+    <main class="feed-center-col">
+
+      <!-- MOBILE QUICK FILTER PILLS -->
+      <div class="feed-mobile-pills">
+        <a href="{% url 'content_feed' %}?category=for_you" class="feed-m-pill {% if category == 'for_you' %}is-active{% endif %}">For You</a>
+        <a href="{% url 'live_list' %}" class="feed-m-pill">Live</a>
+        <a href="{% url 'content_feed' %}?category=tournaments" class="feed-m-pill {% if category == 'tournaments' %}is-active{% endif %}">Tournaments</a>
+        <a href="{% url 'content_feed' %}?category=teams" class="feed-m-pill {% if category == 'teams' %}is-active{% endif %}">Teams</a>
+      </div>
+
+      <!-- SECTION A: LIVE MATCHES -->
+      {% if live_matches or upcoming_matches %}
+        <section class="feed-block">
+          <div class="feed-block-header">
+            <div class="feed-block-title">
+              <span class="feed-live-dot"></span>
+              <h2>Live Matches</h2>
+            </div>
+            <div class="feed-header-actions">
+              <a href="{% url 'live_list' %}" class="feed-see-all">See all live <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></a>
+              <div class="feed-carousel-ctrls">
+                <button type="button" class="feed-carousel-arrow" onclick="scrollFeedRow('feedLiveMatchesRow', -1)" aria-label="Previous live matches">‹</button>
+                <button type="button" class="feed-carousel-arrow" onclick="scrollFeedRow('feedLiveMatchesRow', 1)" aria-label="Next live matches">›</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="feed-h-scroll" id="feedLiveMatchesRow">
+            {% for fx in live_matches %}
+              {% with ps=fx.ordered_participants %}
+                <div class="feed-match-card">
+                  <div class="feed-match-card-top">
+                    <div class="feed-match-badge-row">
+                      <span class="feed-match-live-tag">
+                        <span class="feed-live-dot-mini"></span> LIVE
+                      </span>
+                      <span class="feed-match-clock-tag">
+                        {{ fx.period_display|default:"LIVE" }}
+                      </span>
+                    </div>
+
+                    <div class="feed-match-teams-row">
+                      <!-- Team A -->
+                      <div class="feed-match-team">
+                        <div class="feed-match-crest">
+                          {% if ps.0.team.logo %}
+                            <img src="{{ ps.0.team.logo.url }}" alt="" onerror="this.style.display='none'">
+                          {% endif %}
+                          <span>{{ ps.0.initials|default:"T1" }}</span>
+                        </div>
+                        <div class="feed-match-team-name" title="{{ ps.0.name }}">{{ ps.0.name }}</div>
+                      </div>
+
+                      <!-- Score -->
+                      <div class="feed-match-score">
+                        <span>{{ ps.0.score|default_if_none:"0"|floatformat:'-2' }}</span>
+                        <span class="feed-match-dash">-</span>
+                        <span>{{ ps.1.score|default_if_none:"0"|floatformat:'-2' }}</span>
+                      </div>
+
+                      <!-- Team B -->
+                      <div class="feed-match-team">
+                        <div class="feed-match-crest">
+                          {% if ps.1.team.logo %}
+                            <img src="{{ ps.1.team.logo.url }}" alt="" onerror="this.style.display='none'">
+                          {% endif %}
+                          <span>{{ ps.1.initials|default:"T2" }}</span>
+                        </div>
+                        <div class="feed-match-team-name" title="{{ ps.1.name }}">{{ ps.1.name }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="feed-match-card-bottom">
+                    <div class="feed-match-sub">
+                      {{ fx.tournament.name }} {% if fx.round_name %}· {{ fx.round_name }}{% endif %}
+                    </div>
+                    <a href="{% url 'match_detail' fx.tournament.slug fx.id %}" class="feed-match-cta">
+                      Watch Live →
+                    </a>
+                  </div>
+                </div>
+              {% endwith %}
+            {% empty %}
+              {% for fx in upcoming_matches %}
+                {% with ps=fx.ordered_participants %}
+                  <div class="feed-match-card">
+                    <div class="feed-match-card-top" style="background:#1e293b;">
+                      <div class="feed-match-badge-row">
+                        <span class="feed-match-live-tag" style="background:#e0f2fe; color:#0284c7;">
+                          UPCOMING
+                        </span>
+                        <span class="feed-match-clock-tag">
+                          {{ fx.scheduled_time|date:"H:i"|default:"TBA" }}
+                        </span>
+                      </div>
+
+                      <div class="feed-match-teams-row">
+                        <div class="feed-match-team">
+                          <div class="feed-match-crest">
+                            <span>{{ ps.0.initials|default:"T1" }}</span>
+                          </div>
+                          <div class="feed-match-team-name">{{ ps.0.name }}</div>
+                        </div>
+                        <div class="feed-match-score" style="font-size:14px; color:#94a3b8;">
+                          vs
+                        </div>
+                        <div class="feed-match-team">
+                          <div class="feed-match-crest">
+                            <span>{{ ps.1.initials|default:"T2" }}</span>
+                          </div>
+                          <div class="feed-match-team-name">{{ ps.1.name }}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="feed-match-card-bottom">
+                      <div class="feed-match-sub">
+                        {{ fx.tournament.name }}
+                      </div>
+                      <a href="{% url 'match_detail' fx.tournament.slug fx.id %}" class="feed-match-cta">
+                        Match Details →
+                      </a>
+                    </div>
+                  </div>
+                {% endwith %}
+              {% endfor %}
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      <!-- SECTION B: POPULAR TOURNAMENTS -->
+      {% if popular_tournaments %}
+        <section class="feed-block">
+          <div class="feed-block-header">
+            <div class="feed-block-title">
+              <h2>Popular Tournaments</h2>
+            </div>
+            <div class="feed-header-actions">
+              <a href="{% url 'browse' %}" class="feed-see-all">See all <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></a>
+              <div class="feed-carousel-ctrls">
+                <button type="button" class="feed-carousel-arrow" onclick="scrollFeedRow('feedTournamentsRow', -1)" aria-label="Previous tournaments">‹</button>
+                <button type="button" class="feed-carousel-arrow" onclick="scrollFeedRow('feedTournamentsRow', 1)" aria-label="Next tournaments">›</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="feed-h-scroll" id="feedTournamentsRow">
+            {% for t in popular_tournaments %}
+              <a href="{{ t.get_absolute_url }}" class="feed-tourn-card">
+                <div class="feed-tourn-thumb">
+                  {% if t.banner_image %}
+                    <img src="{{ t.banner_image.url }}" alt="{{ t.name }}" loading="lazy">
+                  {% else %}
+                    <div class="feed-tourn-fallback-thumb" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                      <span style="font-size: 28px;">{{ t.sport.icon|default:"🏆" }}</span>
+                    </div>
+                  {% endif %}
+                  <span class="feed-tourn-thumb-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.75" cy="10" r="1.6"/><path d="m4 17 4.5-4.5 3.5 3.5 3-3 5 5"/></svg>
+                  </span>
+                </div>
+
+                <div class="feed-tourn-body">
+                  <h3 class="feed-tourn-title" title="{{ t.name }}">{{ t.name }}</h3>
+
+                  <div class="feed-tourn-meta-line">
+                    <span class="feed-tourn-meta-ico">{{ t.sport.icon|default:"🏅" }}</span>
+                    <span>{{ t.sport.name }}</span>
+                  </div>
+
+                  <div class="feed-tourn-meta-line">
+                    <span class="feed-tourn-meta-ico">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>
+                    </span>
+                    <span>{{ t.start_date|date:"M j" }} - {{ t.end_date|date:"M j, Y" }}</span>
+                  </div>
+
+                  <div class="feed-tourn-meta-line">
+                    <span class="feed-tourn-meta-ico">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.3 7-11a7 7 0 1 0-14 0c0 5.7 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                    </span>
+                    <span>{{ t.venue.name|default:t.city|default:"Location TBA" }}</span>
+                  </div>
+
+                  <div class="feed-tourn-meta-line">
+                    <span class="feed-tourn-meta-ico">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 6M20.5 19a5.5 5.5 0 0 0-3.5-5.1"/></svg>
+                    </span>
+                    <span>{{ t.participant_count }} {% if t.is_team_based %}Teams{% else %}Players{% endif %}</span>
+                  </div>
+
+                  <div class="feed-tourn-status-wrap">
+                    {% if t.status == 'REGISTRATION_OPEN' %}
+                      <span class="feed-status-badge is-open">Registration Open</span>
+                    {% elif t.status == 'ONGOING' %}
+                      <span class="feed-status-badge is-ongoing">Ongoing</span>
+                    {% elif t.status == 'PUBLISHED' %}
+                      <span class="feed-status-badge is-upcoming">Upcoming</span>
+                    {% elif t.status == 'COMPLETED' %}
+                      <span class="feed-status-badge is-completed">Completed</span>
+                    {% else %}
+                      <span class="feed-status-badge is-neutral">{{ t.get_status_display }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      <!-- SECTION C: FEED FILTERS & SORTING & STREAM CONTAINER (AJAX REFLECTED) -->
+      <div id="feedStreamSection" class="feed-stream-section">
+        {% if sport_filter %}
+          <div class="feed-active-filter-bar">
+            <span class="feed-active-filter-label">Filtered by Sport:</span>
+            <span class="feed-active-filter-tag">
+              <span>{{ sport_filter|title }}</span>
+              <a href="?category={{ category }}&media_type={{ media_type }}&sort={{ sort_by }}" class="feed-filter-remove-btn" title="Clear sport filter">✕</a>
+            </span>
+          </div>
+        {% endif %}
+
+        <!-- SECTION C: FEED FILTERS & SORTING -->
+        <section class="feed-filter-bar">
+          <div class="feed-category-pills">
+            <a href="?category=for_you{% if sport_filter %}&sport={{ sport_filter }}{% endif %}{% if media_type != 'all' %}&media_type={{ media_type }}{% endif %}"
+               class="feed-cat-pill {% if category == 'for_you' %}is-active{% endif %}">
+              For You
+            </a>
+            <a href="?category=tournaments{% if sport_filter %}&sport={{ sport_filter }}{% endif %}{% if media_type != 'all' %}&media_type={{ media_type }}{% endif %}"
+               class="feed-cat-pill {% if category == 'tournaments' %}is-active{% endif %}">
+              Tournaments
+            </a>
+            <a href="?category=teams{% if sport_filter %}&sport={{ sport_filter }}{% endif %}{% if media_type != 'all' %}&media_type={{ media_type }}{% endif %}"
+               class="feed-cat-pill {% if category == 'teams' %}is-active{% endif %}">
+              Teams
+            </a>
+            <a href="?category=players{% if sport_filter %}&sport={{ sport_filter }}{% endif %}{% if media_type != 'all' %}&media_type={{ media_type }}{% endif %}"
+               class="feed-cat-pill {% if category == 'players' %}is-active{% endif %}">
+              Players
+            </a>
+            <a href="?category=organizers{% if sport_filter %}&sport={{ sport_filter }}{% endif %}{% if media_type != 'all' %}&media_type={{ media_type }}{% endif %}"
+               class="feed-cat-pill {% if category == 'organizers' %}is-active{% endif %}">
+              Organizers
+            </a>
+            <a href="?category=saved{% if sport_filter %}&sport={{ sport_filter }}{% endif %}{% if media_type != 'all' %}&media_type={{ media_type }}{% endif %}"
+               class="feed-cat-pill {% if category == 'saved' %}is-active{% endif %}">
+              Saved
+            </a>
+          </div>
+
+        <div class="feed-sort-wrap">
+          <select class="feed-sort-select" onchange="location = this.value;">
+            <option value="?category={{ category }}&sort=latest{% if sport_filter %}&sport={{ sport_filter }}{% endif %}{% if media_type != 'all' %}&media_type={{ media_type }}{% endif %}"
+                    {% if sort_by != 'popular' %}selected{% endif %}>
+              Latest ▾
+            </option>
+            <option value="?category={{ category }}&sort=popular{% if sport_filter %}&sport={{ sport_filter }}{% endif %}{% if media_type != 'all' %}&media_type={{ media_type }}{% endif %}"
+                    {% if sort_by == 'popular' %}selected{% endif %}>
+              Popular ▾
+            </option>
+          </select>
+        </div>
+      </section>
+
+      <!-- MEDIA SUB-FILTERS (MOBILE & DESKTOP) -->
+      <div class="feed-subfilter-bar">
+        <a href="?category={{ category }}&media_type=all&sort={{ sort_by }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}"
+           class="feed-sub-pill {% if media_type == 'all' %}is-active{% endif %}">All</a>
+        <a href="?category={{ category }}&media_type=posts&sort={{ sort_by }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}"
+           class="feed-sub-pill {% if media_type == 'posts' %}is-active{% endif %}">Posts</a>
+        <a href="?category={{ category }}&media_type=highlights&sort={{ sort_by }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}"
+           class="feed-sub-pill {% if media_type == 'highlights' %}is-active{% endif %}">Highlights</a>
+        <a href="?category={{ category }}&media_type=vlogs&sort={{ sort_by }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}"
+           class="feed-sub-pill {% if media_type == 'vlogs' %}is-active{% endif %}">Vlogs</a>
+      </div>
+
+      <!-- SECTION D: COMMUNITY POSTS STREAM -->
+      <div class="feed-stream" id="feedPostsStream">
+        {% for post in page.object_list %}
+          <article class="feed-post-card" id="post-{{ post.pk }}" data-pk="{{ post.pk }}">
+            <!-- Author Header -->
+            <div class="feed-post-header">
+              {% if post.team_author %}
+                <a href="{% url 'team_detail' post.team_author.pk %}" class="feed-post-avatar-link">
+                  <div class="feed-post-avatar">
+                    {% if post.team_author.logo %}
+                      <img src="{{ post.team_author.logo.url }}" alt="{{ post.team_author.name }}">
+                    {% else %}
+                      <span>{{ post.team_author.name|slice:":2"|upper }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="feed-post-author-meta">
+                    <span class="feed-post-author-name">{{ post.team_author.name }}</span>
+                    <span class="feed-post-time">Team · {{ post.created_at|timesince }} ago</span>
+                  </div>
+                </a>
+              {% elif post.organizer_author %}
+                <a href="{% url 'organizer_public' post.organizer_author.pk %}" class="feed-post-avatar-link">
+                  <div class="feed-post-avatar">
+                    {% if post.organizer_author.profile_photo %}
+                      <img src="{{ post.organizer_author.profile_photo.url }}" alt="{{ post.organizer_author.organization_name }}">
+                    {% elif post.organizer_author.logo %}
+                      <img src="{{ post.organizer_author.logo.url }}" alt="{{ post.organizer_author.organization_name }}">
+                    {% else %}
+                      <span>{{ post.organizer_author.organization_name|slice:":2"|upper|default:"OG" }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="feed-post-author-meta">
+                    <span class="feed-post-author-name">{{ post.organizer_author.organization_name|default:post.creator.display_name }}</span>
+                    <span class="feed-post-time">Organizer · {{ post.created_at|timesince }} ago</span>
+                  </div>
+                </a>
+              {% else %}
+                <a href="{% if post.creator.player_profile %}{% url 'player_public' post.creator.player_profile.pk %}{% else %}#{% endif %}" class="feed-post-avatar-link">
+                  <div class="feed-post-avatar">
+                    {% if post.creator.player_profile and post.creator.player_profile.profile_photo %}
+                      <img src="{{ post.creator.player_profile.profile_photo.url }}" alt="{{ post.creator.display_name }}">
+                    {% else %}
+                      <span>{{ post.creator.display_name|slice:":2"|upper }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="feed-post-author-meta">
+                    <span class="feed-post-author-name">{{ post.creator.display_name }}</span>
+                    <span class="feed-post-time">Player · {{ post.created_at|timesince }} ago</span>
+                  </div>
+                </a>
+              {% endif %}
+
+              <div class="feed-post-more-menu">
+                <button type="button" class="feed-meatball-btn" aria-label="More options" onclick="togglePostMenu('menu-{{ post.pk }}')">•••</button>
+                <div class="feed-post-dropdown" id="menu-{{ post.pk }}">
+                  <a href="{{ post.get_absolute_url }}">View details</a>
+                  <button type="button" onclick="navigator.clipboard.writeText(window.location.origin + '{{ post.get_absolute_url }}'); alert('Link copied to clipboard!');">Copy link</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Post Text Caption -->
+            {% if post.description or post.title %}
+              <div class="feed-post-caption">
+                {% if post.title and post.title != post.get_content_type_display %}
+                  <h4 class="feed-post-caption-title">{{ post.title }}</h4>
+                {% endif %}
+                {% if post.description %}
+                  <p>{{ post.description|linebreaksbr }}</p>
+                {% endif %}
+              </div>
+            {% endif %}
+
+            <!-- Post Media -->
+            <div class="feed-post-media-wrap">
+              {% if post.youtube_url %}
+                <!-- YouTube Video / Embed -->
+                <div class="feed-video-container" style="aspect-ratio: 16/9;">
+                  {% if post.youtube_embed_url %}
+                    <iframe src="{{ post.youtube_embed_url }}" title="{{ post.title }}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+                  {% elif post.youtube_thumbnail_url %}
+                    <a href="{{ post.youtube_url }}" target="_blank" rel="noopener" class="feed-yt-thumb-link">
+                      <img src="{{ post.youtube_thumbnail_url }}" alt="{{ post.title }}">
+                      <span class="feed-play-btn-circle">▶</span>
+                    </a>
+                  {% endif %}
+                </div>
+              {% elif post.is_carousel or post.media_items.count > 1 %}
+                <!-- Image Carousel -->
+                <div class="feed-carousel-post post-carousel" id="carousel-{{ post.pk }}">
+                  <div class="feed-carousel-slides">
+                    {% for item in post.media_items.all %}
+                      <div class="feed-carousel-slide carousel-slide" style="{% if not forloop.first %}display:none;{% endif %}">
+                        {% if item.is_video %}
+                          <video src="{{ item.media_file.url }}" controls playsinline preload="metadata" style="width:100%; max-height:540px; border-radius:12px;"></video>
+                        {% else %}
+                          <img src="{{ item.media_file.url }}" alt="{{ post.title }}" loading="lazy" style="width:100%; max-height:540px; object-fit:cover; border-radius:12px;">
+                        {% endif %}
+                      </div>
+                    {% empty %}
+                      {% if post.media_file %}
+                        <div class="feed-carousel-slide carousel-slide">
+                          <img src="{{ post.media_file.url }}" alt="{{ post.title }}" loading="lazy" style="width:100%; max-height:540px; object-fit:cover; border-radius:12px;">
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+
+                  <!-- Overlay Counter -->
+                  <div class="feed-carousel-counter carousel-counter">
+                    1/{{ post.media_items.count|default:"1" }}
+                  </div>
+
+                  <!-- Nav Arrows -->
+                  {% if post.media_items.count > 1 %}
+                    <button type="button" class="feed-carousel-slide-arrow is-prev carousel-prev" aria-label="Previous image">‹</button>
+                    <button type="button" class="feed-carousel-slide-arrow is-next carousel-next" aria-label="Next image">›</button>
+                  {% endif %}
+                </div>
+              {% elif post.media_file %}
+                <!-- Single Video / Highlight / Photo -->
+                {% if post.content_type == 'short' or post.aspect_ratio == '9/16' %}
+                  <div class="feed-highlight-container" style="aspect-ratio: 9/16; max-height: 520px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden;">
+                    <video src="{{ post.media_file.url }}" controls playsinline preload="metadata" style="width:100%; height:100%; object-fit:contain;"></video>
+                    {% if post.formatted_duration %}
+                      <span class="feed-duration-badge">{{ post.formatted_duration }}</span>
+                    {% endif %}
+                  </div>
+                {% elif post.content_type == 'video' or post.content_type == 'full_video' or post.is_video %}
+                  <div class="feed-video-container" style="aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden;">
+                    <video src="{{ post.media_file.url }}" controls playsinline preload="metadata" style="width:100%; height:100%; object-fit:contain;"></video>
+                    {% if post.formatted_duration %}
+                      <span class="feed-duration-badge">{{ post.formatted_duration }}</span>
+                    {% endif %}
+                  </div>
+                {% else %}
+                  <div class="feed-photo-container">
+                    <img src="{{ post.media_file.url }}" alt="{{ post.title }}" loading="lazy" style="width:100%; max-height:540px; object-fit:cover; border-radius:12px;">
+                  </div>
+                {% endif %}
+              {% endif %}
+            </div>
+
+            <!-- Interaction Actions Bar -->
+            <div class="feed-post-actions-bar">
+              <div class="feed-post-actions-left">
+                <!-- Like Button -->
+                <button type="button" class="feed-action-btn {% if post.pk in liked_ids %}is-liked{% endif %}"
+                        data-like-btn="{{ post.pk }}" title="Like">
+                  <svg viewBox="0 0 24 24" class="feed-action-svg" fill="{% if post.pk in liked_ids %}#ef4444{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                  <span data-like-count>{{ post.like_count }}</span>
+                </button>
+
+                <!-- Comment Button -->
+                <a href="{{ post.get_absolute_url }}#comments" class="feed-action-btn" title="Comments">
+                  <svg viewBox="0 0 24 24" class="feed-action-svg" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                  </svg>
+                  <span>{{ post.comment_count }}</span>
+                </a>
+
+                <!-- Share Button -->
+                <button type="button" class="feed-action-btn" data-share-btn="{{ post.pk }}" title="Share">
+                  <svg viewBox="0 0 24 24" class="feed-action-svg" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                  <span data-share-count>{{ post.share_count }}</span>
+                </button>
+              </div>
+
+              <div class="feed-post-actions-right">
+                <!-- Save/Bookmark Button -->
+                <button type="button" class="feed-action-btn {% if post.pk in bookmarked_ids %}is-bookmarked{% endif %}"
+                        data-bookmark-btn="{{ post.pk }}" title="Save post">
+                  <svg viewBox="0 0 24 24" class="feed-action-svg" fill="{% if post.pk in bookmarked_ids %}#F26A1B{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
+                    <path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </article>
+        {% empty %}
+          <div class="feed-empty-state">
+            <div class="feed-empty-ico">🏆</div>
+            <h3>No posts found in this section</h3>
+            <p>Be the first to share sports moments, highlights, or tournament updates with the community!</p>
+            {% if user.is_authenticated %}
+              <a href="{% url 'content_upload' %}" class="btn btn-primary" style="margin-top:12px;">+ Create Content</a>
+            {% else %}
+              <a href="{% url 'login' %}" class="btn btn-primary" style="margin-top:12px;">Log in to Post</a>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Pagination / Load More -->
+      {% if page.has_other_pages %}
+        <div class="feed-pagination">
+          {% if page.has_previous %}
+            <a href="?page={{ page.previous_page_number }}&category={{ category }}&media_type={{ media_type }}&sort={{ sort_by }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="btn btn-outline btn-sm">← Previous</a>
+          {% endif %}
+          <span class="feed-page-info">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+          {% if page.has_next %}
+            <a href="?page={{ page.next_page_number }}&category={{ category }}&media_type={{ media_type }}&sort={{ sort_by }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="btn btn-outline btn-sm">Next →</a>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      </div> <!-- /#feedStreamSection -->
+    </main>
+
+    <!-- ================================================================= -->
+    <!-- RIGHT COLUMN: Contextual Discovery                                -->
+    <!-- ================================================================= -->
+    <aside class="feed-right-col">
+
+      <!-- PROMO CARD: Find Your Next Tournament -->
+      <div class="feed-promo-card">
+        <div class="feed-promo-content">
+          <div class="feed-promo-text">
+            <h3>Find Your Next Tournament</h3>
+            <p>Explore and register for upcoming competitions.</p>
+            <a href="{% url 'browse' %}" class="feed-promo-btn">
+              Browse Tournaments →
+            </a>
+          </div>
+          <div class="feed-promo-trophy">
+            <span style="font-size: 52px; line-height: 1;">🏆</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- UPCOMING NEAR YOU -->
+      {% if upcoming_near_you %}
+        <div class="feed-sidebar-card">
+          <div class="feed-sidecard-header">
+            <h4>{% if user_city %}Upcoming Near You{% else %}Upcoming Tournaments{% endif %}</h4>
+            <a href="{% url 'browse' %}" class="feed-sidecard-more">See all <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><polyline points="9 18 15 12 9 6"/></svg></a>
+          </div>
+          <div class="feed-sidecard-list">
+            {% for t in upcoming_near_you %}
+              <a href="{{ t.get_absolute_url }}" class="feed-side-item">
+                <div class="feed-side-thumb">
+                  {% if t.banner_image %}
+                    <img src="{{ t.banner_image.url }}" alt="{{ t.name }}" loading="lazy">
+                  {% else %}
+                    <div class="feed-side-fallback-thumb">{{ t.sport.icon|default:"🏆" }}</div>
+                  {% endif %}
+                </div>
+                <div class="feed-side-info">
+                  <div class="feed-side-title" title="{{ t.name }}">{{ t.name }}</div>
+                  <div class="feed-side-sub">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18"/></svg>
+                    <span>{{ t.start_date|date:"M j" }} - {{ t.end_date|date:"M j" }}</span>
+                  </div>
+                  <div class="feed-side-sub">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;"><path d="M12 21s7-5.3 7-11a7 7 0 1 0-14 0c0 5.7 7 11 7 11Z"/></svg>
+                    <span>{{ t.venue.name|default:t.city|default:"Location TBA" }}</span>
+                  </div>
+                </div>
+                <div class="feed-side-action">
+                  {% if t.status == 'REGISTRATION_OPEN' %}
+                    <span class="feed-side-pill is-open">Open</span>
+                  {% elif t.status == 'ONGOING' %}
+                    <span class="feed-side-pill is-live">Live</span>
+                  {% else %}
+                    <span class="feed-side-pill is-upcoming">Soon</span>
+                  {% endif %}
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- SUGGESTED FOR YOU -->
+      {% if suggested_entities %}
+        <div class="feed-sidebar-card">
+          <div class="feed-sidecard-header">
+            <h4>Suggested for You</h4>
+            <a href="{% url 'players_list' %}" class="feed-sidecard-more">See all <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><polyline points="9 18 15 12 9 6"/></svg></a>
+          </div>
+          <div class="feed-sidecard-list">
+            {% for item in suggested_entities %}
+              <div class="feed-side-item feed-side-entity">
+                <a href="{{ item.url }}" class="feed-side-thumb" style="border-radius: 50%;">
+                  {% if item.avatar %}
+                    <img src="{{ item.avatar }}" alt="{{ item.name }}" style="border-radius: 50%;" loading="lazy">
+                  {% else %}
+                    <div class="feed-side-fallback-thumb" style="border-radius: 50%; background: #e0e7ff; color: #4338ca; font-weight:700;">
+                      {{ item.initials }}
+                    </div>
+                  {% endif %}
+                </a>
+                <div class="feed-side-info">
+                  <a href="{{ item.url }}" class="feed-side-title" title="{{ item.name }}">{{ item.name }}</a>
+                  <div class="feed-side-sub">{{ item.meta }}</div>
+                </div>
+                <div class="feed-side-action">
+                  {% if item.user_id %}
+                    <button type="button" class="feed-follow-btn {% if item.is_following %}is-following{% endif %}"
+                            data-follow-user-btn="{{ item.user_id }}">
+                      {% if item.is_following %}Following{% else %}Follow{% endif %}
+                    </button>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- POPULAR BY SPORT -->
+      {% if popular_sports %}
+        <div class="feed-sidebar-card">
+          <div class="feed-sidecard-header">
+            <h4>Popular by Sport</h4>
+            <a href="{% url 'browse' %}" class="feed-sidecard-more">See all <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><polyline points="9 18 15 12 9 6"/></svg></a>
+          </div>
+          <div class="feed-sports-grid">
+            {% for sp in popular_sports %}
+              <a href="{% url 'browse' %}?sport={{ sp.slug }}" class="feed-sport-tile">
+                <div class="feed-sport-tile-icon" style="background: #f1f5f9;">
+                  <span>{{ sp.icon|default:"🏅" }}</span>
+                </div>
+                <span class="feed-sport-tile-label">{{ sp.name }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+    </aside>
+
+  </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- MOBILE FIXED BOTTOM NAVIGATION                                        -->
+<!-- ===================================================================== -->
+<nav class="feed-mobile-bottom-nav">
+  <a href="{% url 'home' %}" class="feed-m-nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Home</span>
+  </a>
+  <a href="{% url 'browse' %}" class="feed-m-nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M9 14.5V18h6v-3.5M8 21h8"/></svg>
+    <span>Tournaments</span>
+  </a>
+  <a href="{% url 'content_upload' %}" class="feed-m-nav-create" aria-label="Create Post">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </a>
+  <a href="{% url 'search' %}" class="feed-m-nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span>Search</span>
+  </a>
+  <a href="{% if user.is_authenticated %}{% if user.player_profile %}{% url 'player_public' user.player_profile.pk %}{% else %}{% url 'player_dashboard' %}{% endif %}{% else %}{% url 'login' %}{% endif %}" class="feed-m-nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span>Profile</span>
+  </a>
+</nav>
+
+<!-- ===================================================================== -->
+<!-- FEED DEDICATED STYLES                                                 -->
+<!-- ===================================================================== -->
+<style>
+.feed-page-wrap {
+  width: 100%;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 18px 20px 60px;
+  box-sizing: border-box;
+}
+
+.feed-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* LEFT COLUMN NAVIGATION */
+.feed-left-col {
+  position: sticky;
+  top: 76px;
+}
+.feed-nav-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 10px;
+}
+.feed-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.feed-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: #334155;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.feed-nav-link:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+.feed-nav-link.is-active {
+  background: #fff7ed;
+  color: var(--orange, #F26A1B);
+  font-weight: 700;
+}
+.feed-nav-ico {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.feed-nav-ico svg {
+  width: 18px;
+  height: 18px;
+}
+.feed-live-dot-mini {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.25);
+}
+.feed-sidebar-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 14px 6px;
+}
+.feed-sidebar-section {
+  padding: 0 4px;
+}
+.feed-sidebar-heading {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 8px;
+  padding: 0 8px;
+}
+.feed-sport-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.feed-sport-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.feed-sport-link:hover, .feed-sport-link.is-active {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+}
+.feed-sport-ico {
+  font-size: 14px;
+}
+.feed-more-sports {
+  justify-content: space-between;
+  color: #64748b;
+  font-size: 12.5px;
+  margin-top: 4px;
+}
+
+/* CENTRE COLUMN */
+.feed-center-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.feed-mobile-pills {
+  display: none;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.feed-m-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.feed-m-pill.is-active {
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+}
+
+.feed-block {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+}
+.feed-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.feed-block-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.feed-block-title h2 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+.feed-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  display: inline-block;
+  animation: feedPulse 1.5s infinite;
+}
+@keyframes feedPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.feed-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.feed-see-all {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0284c7;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.feed-see-all svg {
+  width: 14px;
+  height: 14px;
+}
+.feed-carousel-ctrls {
+  display: flex;
+  gap: 4px;
+}
+.feed-carousel-arrow {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 15px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.feed-carousel-arrow:hover {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.feed-h-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+.feed-h-scroll::-webkit-scrollbar {
+  height: 5px;
+}
+.feed-h-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* LIVE MATCH CARD */
+.feed-match-card {
+  flex: 0 0 250px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+}
+.feed-match-card-top {
+  background: #0f172a;
+  border-radius: 12px 12px 0 0;
+  padding: 10px 12px;
+  color: #ffffff;
+}
+.feed-match-badge-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.feed-match-live-tag {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.feed-match-clock-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  font-family: monospace;
+}
+.feed-match-teams-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.feed-match-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.feed-match-crest {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  overflow: hidden;
+}
+.feed-match-crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.feed-match-team-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+.feed-match-score {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffffff;
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+.feed-match-dash {
+  color: #64748b;
+  margin: 0 1px;
+}
+.feed-match-card-bottom {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+.feed-match-sub {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feed-match-cta {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--blue, #1E88E5);
+  text-decoration: none;
+  transition: color 0.1s;
+}
+.feed-match-cta:hover {
+  color: var(--navy, #1B2340);
+}
+
+/* POPULAR TOURNAMENT CARD */
+.feed-tourn-card {
+  flex: 0 0 215px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.feed-tourn-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+.feed-tourn-thumb {
+  width: 100%;
+  height: 95px;
+  background: #0f172a;
+  position: relative;
+  overflow: hidden;
+}
+.feed-tourn-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.feed-tourn-fallback-thumb {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+.feed-tourn-thumb-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.45);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+}
+.feed-tourn-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.feed-tourn-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feed-tourn-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feed-tourn-meta-ico {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.feed-tourn-meta-ico svg {
+  width: 12px;
+  height: 12px;
+}
+.feed-tourn-status-wrap {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+}
+.feed-status-badge {
+  display: block;
+  text-align: center;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.feed-status-badge.is-open { background: #eff6ff; color: var(--blue, #1E88E5); border: 1px solid #bfdbfe; }
+.feed-status-badge.is-upcoming { background: #fff7ed; color: var(--orange, #F26A1B); border: 1px solid #fed7aa; }
+.feed-status-badge.is-ongoing { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.feed-status-badge.is-completed { background: #f1f5f9; color: #475569; }
+.feed-status-badge.is-neutral { background: #f1f5f9; color: #475569; }
+
+/* FEED STREAM CONTAINER & AJAX LOADING */
+.feed-stream-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity 0.15s ease;
+}
+.feed-stream-section.is-loading {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.feed-active-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  color: #7c2d12;
+}
+.feed-active-filter-label {
+  font-weight: 600;
+  color: #9a3412;
+}
+.feed-active-filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #fdba74;
+  color: var(--orange, #F26A1B);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.feed-filter-remove-btn {
+  color: #9a3412;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 12px;
+  transition: color 0.1s;
+}
+.feed-filter-remove-btn:hover {
+  color: #dc2626;
+}
+
+/* FEED FILTERS */
+.feed-filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 8px 12px;
+}
+.feed-category-pills {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+.feed-cat-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #f8fafc;
+  color: #475569;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.1s;
+}
+.feed-cat-pill:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.feed-cat-pill.is-active {
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  font-weight: 700;
+}
+.feed-sort-wrap {
+  position: relative;
+}
+.feed-sort-select {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.feed-subfilter-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+.feed-sub-pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  text-decoration: none;
+  transition: all 0.1s;
+}
+.feed-sub-pill:hover {
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.feed-sub-pill.is-active {
+  background: var(--orange, #F26A1B);
+  color: #ffffff;
+  border-color: var(--orange, #F26A1B);
+  font-weight: 700;
+}
+
+/* COMMUNITY POST STREAM */
+.feed-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.feed-post-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+.feed-post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.feed-post-avatar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.feed-post-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.feed-post-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.feed-post-author-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.feed-post-author-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.feed-post-time {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.feed-post-more-menu {
+  position: relative;
+}
+.feed-meatball-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+}
+.feed-post-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  width: 140px;
+  z-index: 10;
+  padding: 4px 0;
+}
+.feed-post-dropdown.is-open {
+  display: block;
+}
+.feed-post-dropdown a, .feed-post-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  color: #334155;
+  background: none;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+.feed-post-dropdown a:hover, .feed-post-dropdown button:hover {
+  background: #f8fafc;
+}
+
+.feed-post-caption {
+  margin-bottom: 12px;
+}
+.feed-post-caption-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.feed-post-caption p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.feed-post-media-wrap {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8fafc;
+  margin-bottom: 12px;
+}
+.feed-carousel-post {
+  position: relative;
+  width: 100%;
+}
+.feed-carousel-counter {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.65);
+  color: #ffffff;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  z-index: 2;
+}
+.feed-carousel-slide-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.85);
+  color: #0f172a;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.feed-carousel-slide-arrow.is-prev { left: 10px; }
+.feed-carousel-slide-arrow.is-next { right: 10px; }
+.feed-duration-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  font-size: 10px;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.feed-yt-thumb-link {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.feed-yt-thumb-link img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.feed-play-btn-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(30, 136, 229, 0.9);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+
+.feed-post-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+.feed-post-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.feed-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.feed-action-btn:hover {
+  color: #0f172a;
+  background: #f8fafc;
+}
+.feed-action-svg {
+  width: 18px;
+  height: 18px;
+}
+.feed-action-btn.is-liked { color: #ef4444; }
+.feed-action-btn.is-bookmarked { color: var(--orange, #F26A1B); }
+
+.feed-empty-state {
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  padding: 48px 24px;
+  text-align: center;
+}
+.feed-empty-ico { font-size: 40px; margin-bottom: 12px; }
+.feed-empty-state h3 { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: #0f172a; }
+.feed-empty-state p { margin: 0; font-size: 13.5px; color: #64748b; }
+
+.feed-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+}
+.feed-page-info { font-size: 13px; color: #64748b; font-weight: 600; }
+
+/* RIGHT COLUMN DISCOVERY */
+.feed-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: sticky;
+  top: 76px;
+}
+
+/* PROMO CARD */
+.feed-promo-card {
+  background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+  border: 1px solid #FED7AA;
+  border-radius: 16px;
+  padding: 18px 16px;
+  overflow: hidden;
+  position: relative;
+}
+.feed-promo-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.feed-promo-text h3 {
+  margin: 0 0 4px;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+}
+.feed-promo-text p {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #7C2D12;
+}
+.feed-promo-btn {
+  display: inline-block;
+  background: var(--orange, #F26A1B);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(242,106,27,0.3);
+  transition: background 0.1s;
+}
+.feed-promo-btn:hover { background: var(--orange-d, #d95a10); }
+.feed-promo-trophy { flex-shrink: 0; }
+
+/* SIDEBAR CARDS */
+.feed-sidebar-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+}
+.feed-sidecard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.feed-sidecard-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.feed-sidecard-more {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0284c7;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.feed-sidecard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.feed-side-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.feed-side-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #0f172a;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.feed-side-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.feed-side-fallback-thumb {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+.feed-side-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.feed-side-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+.feed-side-sub {
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feed-side-action {
+  flex-shrink: 0;
+}
+.feed-side-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.feed-side-pill.is-open { background: #eff6ff; color: var(--blue, #1E88E5); border: 1px solid #bfdbfe; }
+.feed-side-pill.is-live { background: #fee2e2; color: #dc2626; }
+.feed-side-pill.is-upcoming { background: #fff7ed; color: var(--orange, #F26A1B); border: 1px solid #fed7aa; }
+
+.feed-follow-btn {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: none;
+  background: var(--blue, #1E88E5);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.feed-follow-btn:hover { background: #1976D2; }
+.feed-follow-btn.is-following {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* POPULAR BY SPORT GRID */
+.feed-sports-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.feed-sport-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.1s;
+}
+.feed-sport-tile:hover {
+  transform: translateY(-2px);
+}
+.feed-sport-tile-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.feed-sport-tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* MOBILE BOTTOM NAV */
+.feed-mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  z-index: 100;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 12px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.04);
+}
+.feed-m-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 600;
+}
+.feed-m-nav-item.is-active {
+  color: var(--orange, #F26A1B);
+}
+.feed-m-nav-item svg { width: 20px; height: 20px; }
+.feed-m-nav-create {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--orange, #F26A1B);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 3px 8px rgba(242,106,27,0.4);
+}
+.feed-m-nav-create svg { width: 22px; height: 22px; }
+
+/* RESPONSIVENESS */
+@media (max-width: 1200px) {
+  .feed-layout {
+    grid-template-columns: 200px minmax(0, 1fr) 290px;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .feed-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .feed-left-col {
+    display: none;
+  }
+  .feed-right-col {
+    position: static;
+  }
+  .feed-mobile-pills {
+    display: flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .feed-page-wrap {
+    padding: 12px 12px 80px;
+  }
+  .feed-mobile-bottom-nav {
+    display: flex;
+  }
+  .feed-match-card {
+    flex: 0 0 230px;
+  }
+  .feed-tourn-card {
+    flex: 0 0 190px;
+  }
+}
+</style>
+
 <script>
+function scrollFeedRow(rowId, dir) {
+  var row = document.getElementById(rowId);
+  if (!row) return;
+  row.scrollBy({ left: dir * 260, behavior: 'smooth' });
+}
+
+function togglePostMenu(menuId) {
+  var m = document.getElementById(menuId);
+  if (!m) return;
+  var isOpen = m.classList.contains('is-open');
+  document.querySelectorAll('.feed-post-dropdown.is-open').forEach(function(el) {
+    el.classList.remove('is-open');
+  });
+  if (!isOpen) m.classList.add('is-open');
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.feed-post-more-menu')) {
+    document.querySelectorAll('.feed-post-dropdown.is-open').forEach(function(el) {
+      el.classList.remove('is-open');
+    });
+  }
+});
+
 (function () {
   function getCookie(name) {
     var match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
     return match ? match.pop() : '';
   }
-  document.querySelectorAll('[data-content-actions]').forEach(function (row) {
-    var pk = row.dataset.pk;
-    var likeBtn = row.querySelector('[data-like-btn]');
-    if (likeBtn) {
-      likeBtn.addEventListener('click', function () {
-        fetch('/content/' + pk + '/like', {
-          method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
-        }).then(function (r) { return r.json(); }).then(function (data) {
-          likeBtn.querySelector('[data-like-count]').textContent = data.like_count;
-          likeBtn.firstChild.textContent = data.liked ? '♥ ' : '♡ ';
+
+  // Multi-slide Carousel controller
+  function initPostCarousels() {
+    document.querySelectorAll('.post-carousel').forEach(function(carousel) {
+      if (carousel.dataset.initialized) return;
+      carousel.dataset.initialized = 'true';
+      var slides = carousel.querySelectorAll('.carousel-slide');
+      var prevBtn = carousel.querySelector('.carousel-prev');
+      var nextBtn = carousel.querySelector('.carousel-next');
+      var counter = carousel.querySelector('.carousel-counter');
+      var idx = 0;
+
+      function renderSlide() {
+        slides.forEach(function(s, i) {
+          s.style.display = (i === idx) ? 'block' : 'none';
         });
-      });
+        if (counter) counter.textContent = (idx + 1) + '/' + slides.length;
+        if (prevBtn) prevBtn.style.opacity = idx === 0 ? '0.4' : '1';
+        if (nextBtn) nextBtn.style.opacity = idx === slides.length - 1 ? '0.4' : '1';
+      }
+
+      if (prevBtn) {
+        prevBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (idx > 0) { idx--; renderSlide(); }
+        });
+      }
+      if (nextBtn) {
+        nextBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (idx < slides.length - 1) { idx++; renderSlide(); }
+        });
+      }
+      renderSlide();
+    });
+  }
+
+  // Seamless non-reloading AJAX Feed loader
+  function loadFeedAjax(url, pushState) {
+    if (typeof pushState === 'undefined') pushState = true;
+    var streamSection = document.getElementById('feedStreamSection');
+    if (!streamSection) {
+      window.location.href = url;
+      return;
     }
-    var shareBtn = row.querySelector('[data-share-btn]');
-    if (shareBtn) {
-      shareBtn.addEventListener('click', function () {
-        fetch('/content/' + pk + '/share', {
-          method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
-        }).then(function (r) { return r.json(); }).then(function (data) {
-          if (navigator.share) { navigator.share({ url: data.url }).catch(function () {}); }
-          else { navigator.clipboard && navigator.clipboard.writeText(data.url); }
-        });
-      });
+    streamSection.classList.add('is-loading');
+
+    fetch(url, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('Network response not ok: ' + res.status);
+      return res.text();
+    })
+    .then(function(html) {
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(html, 'text/html');
+      var newStreamSection = doc.getElementById('feedStreamSection');
+      if (newStreamSection) {
+        streamSection.innerHTML = newStreamSection.innerHTML;
+        initPostCarousels();
+      }
+
+      // Update mobile quick pills if present
+      var newMobilePills = doc.querySelector('.feed-mobile-pills');
+      var currentMobilePills = document.querySelector('.feed-mobile-pills');
+      if (newMobilePills && currentMobilePills) {
+        currentMobilePills.innerHTML = newMobilePills.innerHTML;
+      }
+
+      // Update left sidebar Saved / Feed nav item active indicators
+      var urlParams = new URLSearchParams(url.indexOf('?') !== -1 ? url.substring(url.indexOf('?')) : '');
+      var isSaved = urlParams.get('category') === 'saved';
+      var savedNav = document.querySelector('a.feed-nav-link[href*="category=saved"]');
+      var feedNav = document.querySelector('a.feed-nav-link:not([href*="category=saved"])');
+      if (savedNav && feedNav) {
+        if (isSaved) {
+          savedNav.classList.add('is-active');
+          feedNav.classList.remove('is-active');
+        } else {
+          savedNav.classList.remove('is-active');
+          feedNav.classList.add('is-active');
+        }
+      }
+
+      if (pushState) {
+        window.history.pushState({ url: url }, '', url);
+      }
+    })
+    .catch(function(err) {
+      console.warn('AJAX load failed, falling back to full navigation:', err);
+      window.location.href = url;
+    })
+    .finally(function() {
+      streamSection.classList.remove('is-loading');
+    });
+  }
+
+  // Intercept category pills, media sub-filters, pagination, and active filter removal
+  document.addEventListener('click', function(e) {
+    var filterEl = e.target.closest('.feed-cat-pill, .feed-m-pill, .feed-sub-pill, .feed-pagination a, .feed-filter-remove-btn');
+    if (filterEl) {
+      var href = filterEl.getAttribute('href');
+      if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+        e.preventDefault();
+        loadFeedAjax(href);
+        return;
+      }
+    }
+
+    // Left sidebar Feed and Saved quick switches without page reload
+    var sideNavLink = e.target.closest('.feed-sidebar-nav a.feed-nav-link');
+    if (sideNavLink) {
+      var navHref = sideNavLink.getAttribute('href');
+      if (navHref && (navHref.indexOf('content') !== -1 || navHref.startsWith('?'))) {
+        e.preventDefault();
+        loadFeedAjax(navHref);
+        return;
+      }
     }
   });
+
+  // Intercept sort select dropdown change without page reload
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('feed-sort-select')) {
+      e.preventDefault();
+      loadFeedAjax(e.target.value);
+    }
+  });
+
+  // Handle browser back and forward navigation
+  window.addEventListener('popstate', function(e) {
+    var url = (e.state && e.state.url) ? e.state.url : window.location.href;
+    loadFeedAjax(url, false);
+  });
+
+  // Like action (event delegation)
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-like-btn]');
+    if (!btn) return;
+    e.preventDefault();
+    var pk = btn.getAttribute('data-like-btn');
+    fetch('/content/' + pk + '/like', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      var countEl = btn.querySelector('[data-like-count]');
+      if (countEl) countEl.textContent = data.like_count;
+      var svg = btn.querySelector('svg');
+      if (data.liked) {
+        btn.classList.add('is-liked');
+        if (svg) svg.setAttribute('fill', '#ef4444');
+      } else {
+        btn.classList.remove('is-liked');
+        if (svg) svg.setAttribute('fill', 'none');
+      }
+    });
+  });
+
+  // Bookmark / Save action (event delegation with brand flame orange accent)
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-bookmark-btn]');
+    if (!btn) return;
+    e.preventDefault();
+    var pk = btn.getAttribute('data-bookmark-btn');
+    fetch('/content/' + pk + '/bookmark', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      var svg = btn.querySelector('svg');
+      if (data.bookmarked) {
+        btn.classList.add('is-bookmarked');
+        if (svg) svg.setAttribute('fill', '#F26A1B');
+      } else {
+        btn.classList.remove('is-bookmarked');
+        if (svg) svg.setAttribute('fill', 'none');
+      }
+    });
+  });
+
+  // Share action (event delegation)
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-share-btn]');
+    if (!btn) return;
+    e.preventDefault();
+    var pk = btn.getAttribute('data-share-btn');
+    fetch('/content/' + pk + '/share', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      var countEl = btn.querySelector('[data-share-count]');
+      if (countEl) countEl.textContent = parseInt(countEl.textContent || '0', 10) + 1;
+      if (navigator.share) {
+        navigator.share({ url: data.url }).catch(function () {});
+      } else {
+        navigator.clipboard && navigator.clipboard.writeText(data.url);
+        alert('Link copied to clipboard!');
+      }
+    });
+  });
+
+  // Follow action (Suggested for You)
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-follow-user-btn]');
+    if (!btn) return;
+    e.preventDefault();
+    var userId = btn.getAttribute('data-follow-user-btn');
+    fetch('/users/' + userId + '/toggle-follow', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data.is_following) {
+        btn.textContent = 'Following';
+        btn.classList.add('is-following');
+      } else {
+        btn.textContent = 'Follow';
+        btn.classList.remove('is-following');
+      }
+    });
+  });
+
+  // Initialize carousels on initial page render
+  initPostCarousels();
 })();
 </script>
 {% endblock %}
