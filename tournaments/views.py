@@ -11,14 +11,17 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from accounts.decorators import approved_organizer_required, player_required
+from accounts.decorators import approved_organizer_required, player_required, login_required_msg
 from accounts.models import Follow, Notification, PlayerProfile
 from . import constants as C
 from .emails import send_fixtures_created, send_player_welcome, send_tournament_published
 from .forms import (FixtureScheduleForm, HighlightForm, IndividualEntryForm, TeamForm,
                     TournamentForm)
 from .models import (EventCategory, Fixture, FixtureParticipant, IndividualRegistration, ScoreEvent, Team,
-                     TeamMembership, Tournament, TournamentTeamEntry)
+                     TeamMembership, Tournament, TournamentTeamEntry,
+                     FixtureRefereeAssignment, TournamentRefereeRegistration,
+                     FixtureCommentatorAssignment, TournamentCommentatorRegistration,
+                     TournamentCoOrganizer, TournamentCoOrganizerInvitation, MatchAuditLog)
 from .services import apply_result, sync_tournament_status
 from .utils import format_ms, parse_time_to_ms
 
@@ -27,14 +30,18 @@ from .utils import format_ms, parse_time_to_ms
 # Ownership guard
 # ======================================================================
 def _owned(request, slug):
-    """An organizer may only manage tournaments they own.
+    """An organizer or active co-organizer may manage tournaments they own or co-organize.
 
     Platform admins do NOT get a back door here — they manage every tournament
     from the admin console. Keeping this check strict is what makes the two
     applications genuinely separate.
     """
     t = get_object_or_404(Tournament, slug=slug)
-    if t.organizer.user_id != request.user.id:
+    if not request.user.is_authenticated:
+        raise PermissionDenied('You must be signed in to manage this tournament.')
+    is_owner = (t.organizer.user_id == request.user.id)
+    is_co_organizer = t.co_organizers.filter(user=request.user, is_active=True).exists()
+    if not (is_owner or is_co_organizer):
         raise PermissionDenied('You do not manage this tournament.')
     return t
 
@@ -75,8 +82,9 @@ def tournament_create(request):
     if request.method == 'POST' and form.is_valid():
         t = form.save(commit=False)
         t.organizer = request.user.organizer_profile
+        t.status = 'PUBLISHED'
         t.save()
-        messages.success(request, 'Tournament created as a draft. Add participants next.')
+        messages.success(request, 'Tournament published! Share the link to start collecting registrations.')
         return redirect('tournament_manage', slug=t.slug)
     return render(request, 'organizer/tournament_form.html', {'form': form, 'create': True})
 
@@ -105,6 +113,10 @@ def tournament_manage(request, slug):
         'pool_mode': t.is_pool_stage,
         'pending_team_members': TeamMembership.objects.filter(
             team__entries__tournament=t, is_approved=False).select_related('team', 'player__user'),
+        'co_organizers': t.co_organizers.filter(is_active=True).select_related('user'),
+        'pending_co_organizer_invitations': t.co_organizer_invitations.filter(
+            status='PENDING', expires_at__gt=timezone.now()).select_related('user'),
+        'is_tournament_owner': (t.organizer.user_id == request.user.id),
     })
 
 
@@ -116,8 +128,6 @@ def tournament_publish(request, slug):
     t = _owned(request, slug)
     if t.status != 'DRAFT':
         messages.info(request, f'"{t.name}" is already published.')
-    elif t.participant_count() < 2:
-        messages.error(request, 'Add at least two participants before publishing.')
     else:
         t.status = 'PUBLISHED'
         t.save(update_fields=['status', 'updated_at'])
@@ -159,12 +169,15 @@ def participants_manage(request, slug):
     t = _owned(request, slug)
     ctx = {'tournament': t, 'is_racket_sport': t.sport.slug in C.RACKET_SPORTS}
     if t.is_team_based:
-        ctx['entries'] = t.team_entries.select_related('team').prefetch_related(
+        ctx['entries'] = t.team_entries.filter(status='APPROVED').select_related('team').prefetch_related(
+            Prefetch('team__memberships', queryset=TeamMembership.objects.select_related('player__user')))
+        ctx['pending_entries'] = t.team_entries.filter(status='PENDING').select_related('team').prefetch_related(
             Prefetch('team__memberships',
                      queryset=TeamMembership.objects.select_related('player__user')))
         ctx['team_form'] = TeamForm()
     else:
-        ctx['registrations'] = t.registrations.select_related('player__user', 'event_category')
+        ctx['registrations'] = t.registrations.filter(status='APPROVED').select_related('player__user', 'event_category')
+        ctx['pending_registrations'] = t.registrations.filter(status='PENDING').select_related('player__user', 'event_category')
         ctx['entry_form'] = IndividualEntryForm(tournament=t)
     return render(request, 'organizer/participants.html', ctx)
 
@@ -555,14 +568,52 @@ def entry_decide(request, slug, kind, entry_id, decision):
     entry = get_object_or_404(model, tournament=t, id=entry_id)
 
     if decision == 'remove':
+        if request.method != 'POST':
+            messages.error(request, 'Removal requires submitting a reason via POST.')
+            return redirect('participants_manage', slug=slug)
+            
+        reason = request.POST.get('reason', '').strip()
+        if not reason:
+            messages.error(request, 'You must provide a reason for removal.')
+            return redirect('participants_manage', slug=slug)
+            
         if t.fixtures_generated:
             messages.warning(request, 'Fixtures already exist — regenerate them after this change.')
-        entry.delete()
-        messages.info(request, 'Entry removed.')
+            
+        entry.status = 'REMOVED'
+        entry.removed_by = request.user
+        from django.utils import timezone
+        entry.removed_at = timezone.now()
+        entry.removal_reason = reason
+        # Simple refund logic placeholder
+        if entry.payment_status == 'PAYMENT_SUCCESS':
+            entry.refund_status = 'PENDING'
+            entry.refund_reference = 'REFUND_REQ_PENDING'
+        entry.save()
+        
+        user = getattr(getattr(entry, 'player', None), 'user', None)
+        if not user and kind == 'team':
+            user = getattr(getattr(entry.team, 'owner', None), 'user', None)
+            
+        if user:
+            Notification.push(user, f'You were removed from {t.name}. Reason: {reason}',
+                              url=t.get_absolute_url(), verb='registration')
+            from tournaments.tasks import _send
+            _send('emails/removal_notice', f'Removed from {t.name}', user.email, {
+                'name': user.display_name,
+                'tournament': t.name,
+                'reason': reason
+            })
+            
+        messages.info(request, 'Participant removed successfully.')
+        
     elif decision in ('approve', 'reject'):
         entry.status = 'APPROVED' if decision == 'approve' else 'REJECTED'
         entry.save(update_fields=['status'])
         user = getattr(getattr(entry, 'player', None), 'user', None)
+        if not user and kind == 'team':
+            user = getattr(getattr(entry.team, 'owner', None), 'user', None)
+            
         if user:
             verb = 'accepted' if decision == 'approve' else 'declined'
             Notification.push(user, f'Your entry to {t.name} was {verb}.',
@@ -571,7 +622,6 @@ def entry_decide(request, slug, kind, entry_id, decision):
     else:
         messages.error(request, 'Unknown action.')
     return redirect('participants_manage', slug=slug)
-
 
 @approved_organizer_required
 @require_POST
@@ -1152,7 +1202,12 @@ def fixtures_manage(request, slug):
     t = _owned(request, slug)
     fixtures = t.fixtures.filter(is_removed=False).prefetch_related(
         Prefetch('participants',
-                 queryset=FixtureParticipant.objects.select_related('team', 'player__user')))
+                 queryset=FixtureParticipant.objects.select_related('team', 'player__user')),
+        Prefetch('referee_assignments',
+                 queryset=FixtureRefereeAssignment.objects.select_related('user')),
+        Prefetch('commentator_assignments',
+                 queryset=FixtureCommentatorAssignment.objects.select_related('user__commentator_profile'))
+    )
     manual_mode = _manual_fixtures_supported(t)
     custom_mode = _custom_fixtures_active(t)
     pool_mode = t.is_pool_stage
@@ -1250,6 +1305,15 @@ def fixtures_manage(request, slug):
         # table as Swiss (see PointsTableEngine.compute_standings), just
         # generated upfront instead of round by round.
         ctx['chess_standings'] = list(t.standings.all().order_by('position'))
+    pool_refs = list(t.registered_referees.filter(is_active=True).select_related('user__referee_profile'))
+    for r in pool_refs:
+        r.assigned_fixtures_count = FixtureRefereeAssignment.objects.filter(fixture__tournament=t, user=r.user).count()
+    ctx['registered_referees'] = pool_refs
+
+    pool_comms = list(t.registered_commentators.filter(is_active=True).select_related('user__commentator_profile'))
+    for c in pool_comms:
+        c.assigned_fixtures_count = FixtureCommentatorAssignment.objects.filter(fixture__tournament=t, user=c.user).count()
+    ctx['registered_commentators'] = pool_comms
     return render(request, 'organizer/fixtures.html', ctx)
 
 
@@ -1704,16 +1768,34 @@ def _basketball_scoring_context(fixture):
     return player_choices, individual_rows, individual_rows_by_team
 
 
-@approved_organizer_required
+@login_required_msg
 def score_fixture(request, slug, fixture_id):
-    t = _owned(request, slug)
+    t = get_object_or_404(Tournament, slug=slug)
     fixture = get_object_or_404(Fixture, id=fixture_id, tournament=t)
+
+    is_owner = (t.organizer.user_id == request.user.id)
+    is_co_organizer = t.co_organizers.filter(user=request.user, is_active=True).exists()
+    is_referee = fixture.referee_assignments.filter(user=request.user).exists()
+    is_staff = request.user.is_staff
+
+    can_manage = is_owner or is_co_organizer or is_staff
+    if not (can_manage or is_referee):
+        raise PermissionDenied('You do not have permission to access match controls for this fixture.')
+
+    is_completed = (fixture.status == 'COMPLETED')
+    is_referee_only = (is_referee and not can_manage)
+
     participants = list(fixture.ordered_participants())
     is_basketball = t.sport.slug == 'basketball'
     is_racket = t.sport.slug in C.RACKET_SPORTS
     is_chess = t.sport.slug == 'chess'
 
     if request.method == 'POST':
+        # Result integrity: Once completed, referee cannot modify results
+        if is_completed and is_referee_only:
+            messages.error(request, 'This match is finalized and completed. Match results are read-only for referees.')
+            return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
         action = request.POST.get('action')
         if action == 'start':
             fixture.status = 'LIVE'
@@ -1722,6 +1804,13 @@ def score_fixture(request, slug, fixture_id):
                 now = timezone.now()
                 fixture.live_started_at = now
                 update_fields.append('live_started_at')
+                MatchAuditLog.objects.create(
+                    fixture=fixture,
+                    actor=request.user,
+                    action='MATCH_START',
+                    reason='Match marked LIVE',
+                    new_state={'status': 'LIVE'}
+                )
                 if is_basketball:
                     # Settings chosen on the pre-match setup screen (see the
                     # 'elif is_basketball' branch of score.html, only shown
@@ -2297,6 +2386,9 @@ def score_fixture(request, slug, fixture_id):
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
         # --- parse a score submission per format ---
+        previous_scores = {str(p.id): (str(p.score) if p.score is not None else None) for p in participants} if is_completed else {}
+        correction_reason = (request.POST.get('correction_reason') or '').strip()
+
         data = {'finalize': action == 'finalize'}
         fmt = t.format
         is_lobby = (fmt == C.FORMAT_ROUND_ROBIN and t.sport.slug == 'mobile-esports')
@@ -2312,7 +2404,27 @@ def score_fixture(request, slug, fixture_id):
                 raw = request.POST.get(f'score_{p.id}', '')
                 data[key] = {'score': raw if raw != '' else None}
         apply_result(fixture, data, actor=request.user)
-        messages.success(request, 'Result saved.' + (' Match finalized.' if data['finalize'] else ''))
+
+        if is_completed:
+            MatchAuditLog.objects.create(
+                fixture=fixture,
+                actor=request.user,
+                action='RESULT_CORRECTED',
+                reason=correction_reason or 'Result updated by tournament management',
+                previous_state=previous_scores,
+                new_state=data
+            )
+            messages.success(request, 'Match result correction saved and logged.')
+        else:
+            if data['finalize']:
+                MatchAuditLog.objects.create(
+                    fixture=fixture,
+                    actor=request.user,
+                    action='RESULT_DECLARED',
+                    reason='Match finalized',
+                    new_state=data
+                )
+            messages.success(request, 'Result saved.' + (' Match finalized.' if data['finalize'] else ''))
         return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
     ctx = {
@@ -2323,6 +2435,10 @@ def score_fixture(request, slug, fixture_id):
         'is_racket': is_racket,
         'events': fixture.events.exclude(event_type='score')[:30],
         'format_ms': format_ms,
+        'is_referee_only': is_referee_only,
+        'can_manage': can_manage,
+        'is_completed': is_completed,
+        'audit_logs': fixture.audit_logs.select_related('actor').all()[:20],
     }
     if is_basketball:
         player_choices, individual_rows, individual_rows_by_team = _basketball_scoring_context(fixture)
@@ -2382,12 +2498,12 @@ def tournament_join(request, slug):
                     messages.error(request, 'Team name is required.')
                     return redirect('tournament_join', slug=slug)
                 # Create the team
-                team = Team.objects.create(name=team_name, sport=t.sport, captain=profile)
+                team = Team.objects.create(name=team_name, sport=t.sport, owner=profile)
                 if 'team_logo' in request.FILES:
                     team.logo = request.FILES['team_logo']
                     team.save()
                 # Create the membership
-                TeamMembership.objects.create(team=team, player=profile, role='CAPTAIN', is_approved=True)
+                TeamMembership.objects.create(team=team, player=profile, role='OWNER', is_approved=True)
                 # Create the tournament entry (pending)
                 TournamentTeamEntry.objects.create(tournament=t, team=team, status='PENDING')
                 
@@ -2454,14 +2570,8 @@ def my_following(request):
 # ======================================================================
 # Live-score JSON API (public, polled)
 # ======================================================================
-def fixture_live_json(request, fixture_id):
-    fixture = get_object_or_404(
-        Fixture.objects.select_related('tournament__sport'), id=fixture_id, is_removed=False)
-    # Never leak an unpublished or moderated-away tournament through the API.
+def build_fixture_live_payload(fixture, request=None):
     t = fixture.tournament
-    if t.status == 'DRAFT' or t.is_removed:
-        raise PermissionDenied()
-
     participants = list(fixture.ordered_participants())
     parts = [{
         'id': p.id, 'name': p.name, 'initials': p.initials,
@@ -2476,12 +2586,6 @@ def fixture_live_json(request, fixture_id):
 
     individual_scoring_html = None
     if t.sport.slug == 'basketball':
-        # Same read-only partial the public match page renders on first load
-        # (template/public/_individual_scoring.html), fed by the exact same
-        # _basketball_scoring_context() the organizer's own Individual
-        # Scoring panel uses — so a poll refresh can never show numbers that
-        # disagree with the organizer page, and there's nothing here
-        # re-deriving player totals a second way.
         _, _, individual_rows_by_team = _basketball_scoring_context(fixture)
         individual_scoring_html = render_to_string('public/_individual_scoring.html', {
             'fixture': fixture, 'participants': participants,
@@ -2490,11 +2594,6 @@ def fixture_live_json(request, fixture_id):
 
     clock = None
     if t.sport.slug == 'basketball':
-        # Same fields + the same server-computed paused_quarter_remaining_seconds
-        # the organizer scoring page already renders — the public match page's
-        # quarter-clock AND shot-clock elements (static/js/match-clock.js) read
-        # these exact attributes, so this just keeps those two clocks in sync
-        # with the organizer's, not a second/duplicate timer implementation.
         clock = {
             'started_at': fixture.live_started_at.isoformat() if fixture.live_started_at else None,
             'extra_seconds': fixture.extra_time_seconds,
@@ -2509,18 +2608,29 @@ def fixture_live_json(request, fixture_id):
             'shot_duration_seconds': fixture.shot_clock_duration_seconds,
         }
 
-    return JsonResponse({
+    return {
         'status': fixture.status,
         'round': fixture.round_name,
         'participants': parts,
-        # Drives the win-probability bar on the live scoreboard.
         'win_probability': fixture.win_probability,
         'clock': clock,
         'individual_scoring_html': individual_scoring_html,
         'events': [{'text': e.description, 'at': e.created_at.strftime('%H:%M')}
                    for e in fixture.events.all()[:15]],
         'updated': timezone.now().isoformat(),
-    })
+    }
+
+
+def fixture_live_json(request, fixture_id):
+    fixture = get_object_or_404(
+        Fixture.objects.select_related('tournament__sport'), id=fixture_id, is_removed=False)
+    # Never leak an unpublished or moderated-away tournament through the API.
+    t = fixture.tournament
+    if t.status == 'DRAFT' or t.is_removed:
+        raise PermissionDenied()
+
+    data = build_fixture_live_payload(fixture, request=request)
+    return JsonResponse(data)
 
 @require_POST
 @approved_organizer_required

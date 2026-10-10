@@ -193,7 +193,7 @@ class EventCategoryForm(forms.ModelForm):
 class AdminTeamForm(forms.ModelForm):
     class Meta:
         model = Team
-        fields = ['name', 'sport', 'logo', 'captain']
+        fields = ['name', 'sport', 'logo', 'owner']
 
 
 class AdminFixtureForm(forms.ModelForm):

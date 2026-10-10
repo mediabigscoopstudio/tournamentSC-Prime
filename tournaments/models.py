@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Q
 from django.urls import reverse
@@ -21,6 +22,14 @@ class Sport(models.Model):
     format_type = models.CharField(max_length=12, default='TEAM')  # TEAM / INDIVIDUAL / BOTH
     default_format = models.CharField(max_length=20, choices=C.FORMAT_CHOICES, default=C.FORMAT_KNOCKOUT)
     description = models.TextField(blank=True)
+    participation_type = models.CharField(max_length=15, choices=C.PARTICIPATION_TYPES, default='TEAM')
+    max_team_members = models.PositiveIntegerField(null=True, blank=True)
+    min_active_players = models.PositiveIntegerField(null=True, blank=True)
+    max_active_players = models.PositiveIntegerField(null=True, blank=True)
+    max_bench_players = models.PositiveIntegerField(null=True, blank=True)
+    allow_substitutes = models.BooleanField(default=False)
+    allow_player_created_teams = models.BooleanField(default=True)
+    allow_pair_registration = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['name']
@@ -93,6 +102,14 @@ class Tournament(TimeStamped):
     organizer = models.ForeignKey('accounts.OrganizerProfile', on_delete=models.CASCADE,
                                   related_name='tournaments')
     description = models.TextField(blank=True)
+    participation_type = models.CharField(max_length=15, choices=C.PARTICIPATION_TYPES, default='TEAM')
+    max_team_members = models.PositiveIntegerField(null=True, blank=True)
+    min_active_players = models.PositiveIntegerField(null=True, blank=True)
+    max_active_players = models.PositiveIntegerField(null=True, blank=True)
+    max_bench_players = models.PositiveIntegerField(null=True, blank=True)
+    allow_substitutes = models.BooleanField(default=False)
+    allow_player_created_teams = models.BooleanField(default=True)
+    allow_pair_registration = models.BooleanField(default=False)
     format = models.CharField(max_length=20, choices=C.FORMAT_CHOICES)
     venue = models.ForeignKey(Venue, on_delete=models.SET_NULL, null=True, blank=True)
     city = models.CharField(max_length=120, blank=True)
@@ -307,8 +324,10 @@ class Team(TimeStamped):
     name = models.CharField(max_length=120)
     sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='teams')
     logo = models.ImageField(upload_to='teams/', null=True, blank=True)
-    captain = models.ForeignKey('accounts.PlayerProfile', on_delete=models.SET_NULL,
-                                null=True, blank=True, related_name='captained_teams')
+    owner = models.ForeignKey('accounts.PlayerProfile', on_delete=models.SET_NULL,
+                                null=True, blank=True, related_name='owned_teams')
+    is_pair = models.BooleanField(default=False, help_text='True if this is a temporary pair rather than a permanent team')
+    description = models.TextField(blank=True)
 
     def __str__(self):
         return self.name
@@ -318,17 +337,23 @@ class Team(TimeStamped):
         parts = [p for p in self.name.split() if p]
         return (''.join(p[0] for p in parts[:2]) or self.name[:2]).upper()
 
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse('team_detail', args=[self.pk])
+
 
 class TeamMembership(models.Model):
-    ROLE_CHOICES = [('CAPTAIN', 'Captain'), ('MEMBER', 'Member')]
+    ROLE_CHOICES = [('OWNER', 'Owner'), ('CAPTAIN', 'Captain'), ('MEMBER', 'Member')]
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships')
     player = models.ForeignKey('accounts.PlayerProfile', on_delete=models.CASCADE,
                                related_name='team_memberships', null=True, blank=True)
     display_name = models.CharField(max_length=120, blank=True,
                                     help_text='For roster entries without a platform account')
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='MEMBER')
+    roster_status = models.CharField(max_length=10, choices=C.ROSTER_STATUS, default='ACTIVE')
     jersey_number = models.CharField(max_length=8, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, help_text='Optional contact number')
+    email = models.EmailField(blank=True, help_text='Contact email address')
     is_approved = models.BooleanField(default=True, help_text='False = pending player join request')
     joined_at = models.DateTimeField(auto_now_add=True)
 
@@ -351,10 +376,17 @@ class TeamMembership(models.Model):
 class TournamentTeamEntry(models.Model):
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='team_entries')
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='entries')
-    status = models.CharField(max_length=10, choices=C.ENTRY_STATUS, default='APPROVED')
+    status = models.CharField(max_length=20, choices=C.ENTRY_STATUS, default='APPROVED')
     seed = models.PositiveIntegerField(null=True, blank=True)
     group_name = models.CharField(max_length=40, blank=True)
     registered_at = models.DateTimeField(auto_now_add=True)
+    removed_at = models.DateTimeField(null=True, blank=True)
+    removed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    removal_reason = models.TextField(blank=True)
+    payment_status = models.CharField(max_length=20, default='PENDING')
+    refund_status = models.CharField(max_length=20, blank=True)
+    refund_reference = models.CharField(max_length=120, blank=True)
+    payment_reference = models.CharField(max_length=120, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['tournament', 'team'], name='uniq_tournament_team')]
@@ -373,14 +405,22 @@ class IndividualRegistration(models.Model):
                                     help_text='For entrants added by the organizer without an account')
     bib_number = models.CharField(max_length=12, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, help_text='Optional contact number')
+    email = models.EmailField(blank=True, help_text='Contact email address')
     rating = models.PositiveIntegerField(
         null=True, blank=True,
         help_text='Manually entered skill rating for entrants without an account '
                   '(e.g. chess FIDE rating).')
     seed = models.PositiveIntegerField(null=True, blank=True)
-    status = models.CharField(max_length=10, choices=C.ENTRY_STATUS, default='APPROVED')
+    status = models.CharField(max_length=20, choices=C.ENTRY_STATUS, default='APPROVED')
     group_name = models.CharField(max_length=40, blank=True)
     registered_at = models.DateTimeField(auto_now_add=True)
+    removed_at = models.DateTimeField(null=True, blank=True)
+    removed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    removal_reason = models.TextField(blank=True)
+    payment_status = models.CharField(max_length=20, default='PENDING')
+    refund_status = models.CharField(max_length=20, blank=True)
+    refund_reference = models.CharField(max_length=120, blank=True)
+    payment_reference = models.CharField(max_length=120, blank=True)
 
     class Meta:
         constraints = [
@@ -510,6 +550,11 @@ class Fixture(TimeStamped):
     @property
     def effective_youtube_url(self):
         return self.youtube_url or self.tournament.youtube_url
+
+    @property
+    def youtube_video_id(self):
+        from tournaments.utils import youtube_id
+        return youtube_id(self.effective_youtube_url)
 
     @property
     def is_live(self):
@@ -784,8 +829,16 @@ class Highlight(TimeStamped):
 
 
 class FixtureRefereeAssignment(models.Model):
+    ROLE_CHOICES = [
+        ('PRIMARY', 'Primary Referee / Umpire'),
+        ('ASSISTANT', 'Assistant Referee / Line Judge'),
+        ('TABLE', 'Table Official / Timekeeper'),
+    ]
+
     fixture = models.ForeignKey('Fixture', on_delete=models.CASCADE, related_name='referee_assignments')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='referee_assignments')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='PRIMARY')
+    notes = models.CharField(max_length=255, blank=True)
     assigned_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -794,12 +847,125 @@ class FixtureRefereeAssignment(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.user.username} - {self.fixture}'
+        return f'{self.user.username} ({self.role}) - {self.fixture}'
+
+
+class TournamentRefereeRegistration(TimeStamped):
+    """Referees registered into a specific tournament's pool by the organizer."""
+    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE, related_name='registered_referees')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tournament_referee_registrations')
+    registered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='referees_registered')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['tournament', 'user'], name='uniq_tournament_referee_registration')
+        ]
+
+    def __str__(self):
+        return f'{self.user.username} in {self.tournament.name} referee pool'
+
+
+class TournamentCoOrganizer(TimeStamped):
+    """Active co-organizer delegation for a specific tournament."""
+    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE, related_name='co_organizers')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='co_organized_tournaments')
+    granted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='co_organizers_granted')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['tournament', 'user'], name='uniq_tournament_co_organizer')
+        ]
+
+    def __str__(self):
+        return f'{self.user.username} (Co-organizer of {self.tournament.name})'
+
+
+class TournamentCoOrganizerInvitation(TimeStamped):
+    """Secure invitation sent to an existing user to co-organize a specific tournament."""
+    STATUS_PENDING = 'PENDING'
+    STATUS_ACCEPTED = 'ACCEPTED'
+    STATUS_REVOKED = 'REVOKED'
+    STATUS_EXPIRED = 'EXPIRED'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_ACCEPTED, 'Accepted'),
+        (STATUS_REVOKED, 'Revoked'),
+        (STATUS_EXPIRED, 'Expired'),
+    ]
+
+    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE, related_name='co_organizer_invitations')
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_co_organizer_invitations')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_co_organizer_invitations')
+    token_hash = models.CharField(max_length=64, unique=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Invitation to {self.user.username} for {self.tournament.name} ({self.status})'
+
+    def is_valid_for_acceptance(self, current_user):
+        if self.status != self.STATUS_PENDING:
+            return False, f'This invitation is {self.status.lower()}.'
+        if timezone.now() > self.expires_at:
+            self.status = self.STATUS_EXPIRED
+            self.save(update_fields=['status'])
+            return False, 'This invitation has expired.'
+        if self.user_id != current_user.id:
+            return False, 'This invitation was addressed to a different account.'
+        return True, ''
+
+
+class MatchAuditLog(TimeStamped):
+    """Audit log for match starts, scoring, declarations, and corrections."""
+    fixture = models.ForeignKey('Fixture', on_delete=models.CASCADE, related_name='audit_logs')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='match_audit_actions')
+    action = models.CharField(max_length=60)  # MATCH_START, SCORE_UPDATE, RESULT_DECLARED, RESULT_CORRECTED
+    reason = models.TextField(blank=True)
+    previous_state = models.JSONField(default=dict, blank=True, encoder=DjangoJSONEncoder)
+    new_state = models.JSONField(default=dict, blank=True, encoder=DjangoJSONEncoder)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.action} on fixture {self.fixture_id} by {self.actor}'
+
+
+class TournamentCommentatorRegistration(TimeStamped):
+    """Commentators registered into a specific tournament's pool by the organizer."""
+    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE, related_name='registered_commentators')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tournament_commentator_registrations')
+    registered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='commentators_registered')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['tournament', 'user'], name='uniq_tournament_commentator_registration')
+        ]
+
+    def __str__(self):
+        return f'{self.user.username} in {self.tournament.name} commentator pool'
 
 
 class FixtureCommentatorAssignment(models.Model):
+    ROLE_CHOICES = [
+        ('LEAD', 'Lead Play-by-Play Caster'),
+        ('COLOR', 'Color Analyst / Co-Host'),
+        ('SIDELINE', 'Sideline Reporter / Guest'),
+    ]
     fixture = models.ForeignKey('Fixture', on_delete=models.CASCADE, related_name='commentator_assignments')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='commentator_assignments')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='LEAD')
+    notes = models.CharField(max_length=255, blank=True)
     assigned_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -808,4 +974,49 @@ class FixtureCommentatorAssignment(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.user.username} - {self.fixture}'
+        return f'{self.user.username} ({self.role}) - {self.fixture}'
+
+
+class CommentaryEntry(TimeStamped):
+    CATEGORY_GENERAL = 'GENERAL'
+    CATEGORY_KEY_MOMENT = 'KEY_MOMENT'
+    CATEGORY_MATCH_UPDATE = 'MATCH_UPDATE'
+    CATEGORY_ANALYSIS = 'ANALYSIS'
+
+    CATEGORY_CHOICES = [
+        (CATEGORY_GENERAL, 'General Commentary'),
+        (CATEGORY_KEY_MOMENT, 'Key Moment'),
+        (CATEGORY_MATCH_UPDATE, 'Match Update'),
+        (CATEGORY_ANALYSIS, 'Match Analysis'),
+    ]
+
+    fixture = models.ForeignKey('Fixture', on_delete=models.CASCADE, related_name='commentary_entries')
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='commentary_entries')
+    text = models.TextField()
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default=CATEGORY_GENERAL)
+    score_snapshot = models.JSONField(default=dict, blank=True, encoder=DjangoJSONEncoder)
+    match_clock = models.CharField(max_length=60, blank=True)
+    is_deleted = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        indexes = [
+            models.Index(fields=['fixture', 'created_at']),
+            models.Index(fields=['fixture', 'is_deleted']),
+        ]
+
+    def __str__(self):
+        return f'[{self.category}] {self.fixture_id} by {self.author}: {self.text[:30]}'
+
+class TeamJoinRequest(TimeStamped):
+    STATUS_CHOICES = [('PENDING', 'Pending'), ('ACCEPTED', 'Accepted'), ('REJECTED', 'Rejected')]
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='join_requests')
+    player = models.ForeignKey('accounts.PlayerProfile', on_delete=models.CASCADE, related_name='team_join_requests')
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='team_join_requests', null=True, blank=True)
+    phone_number = models.CharField(max_length=20)
+    email = models.EmailField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+
+    class Meta:
+        ordering = ['-created_at']

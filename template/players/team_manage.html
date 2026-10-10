@@ -1,0 +1,401 @@
+{% extends 'base.html' %}
+{% block title %}Manage {{ team.name }} — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 2rem auto; padding: 0 1rem;">
+  <div style="margin-bottom: 1rem;">
+    <a href="{% url 'my_teams' %}" style="display: inline-flex; align-items: center; gap: 6px; color: #555; text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: color 0.2s;" onmouseover="this.style.color='#0f1533'" onmouseout="this.style.color='#555'">
+      <svg class="ico" style="width: 16px; height: 16px; transform: rotate(180deg);"><use href="#i-arrow"/></svg>
+      Back to My Teams
+    </a>
+  </div>
+  <div class="panel" style="padding: 2rem;">
+    
+    <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 2rem; text-align: center;">
+      <!-- Logo Section -->
+      <div style="position: relative; width: 120px; height: 120px; margin-bottom: 1rem; border-radius: 20px; overflow: hidden; background: #152036; color: white; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; font-weight: 700; border: 1px solid var(--b-l3); box-shadow: 0 8px 24px rgba(0,0,0,0.1);">
+        {% if team.logo %}
+          <img src="{{ team.logo.url }}" alt="{{ team.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+        {% else %}
+          {{ team.name|slice:":1"|upper }}
+        {% endif %}
+        <!-- Edit Overlay -->
+        <button onclick="document.getElementById('edit-logo-modal').showModal()" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); color: white; border: none; padding: 6px 0; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+          <svg class="ico" style="width: 12px; height: 12px;"><use href="#i-upload"/></svg> Upload
+        </button>
+      </div>
+
+      <h1 style="margin: 0 0 6px 0; font-size: 1.75rem;">{{ team.name }}</h1>
+      <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+        <span class="badge" style="background: var(--b-l3); padding: 4px 12px; border-radius: 12px;">
+          <svg class="ico" style="width: 12px; height: 12px; margin-right: 4px;"><use href="#i-{{ team.sport.slug }}"/></svg>
+          {{ team.sport.name }}
+        </span>
+      </div>
+      {% if team.description %}
+        <p class="dim" style="margin-top: 1rem;">{{ team.description }}</p>
+      {% endif %}
+      <a href="{% url 'team_detail' team.id %}" class="btn btn-primary" style="margin-top: 1rem;">Manage Content</a>
+    </div>
+    
+    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+      <div class="stat-card" style="background: var(--b-l1); padding: 1rem; border-radius: 8px; flex: 1;">
+        <div class="dim" style="font-size: 0.85rem;">Active Roster</div>
+        <div style="font-size: 1.5rem; font-weight: 600;">{{ active_count }} <span class="dim" style="font-size: 0.9rem;">/ {{ team.sport.max_active_players|default:"∞" }}</span></div>
+      </div>
+      <div class="stat-card" style="background: var(--b-l1); padding: 1rem; border-radius: 8px; flex: 1;">
+        <div class="dim" style="font-size: 0.85rem;">Bench</div>
+        <div style="font-size: 1.5rem; font-weight: 600;">{{ bench_count }} <span class="dim" style="font-size: 0.9rem;">/ {{ team.sport.max_bench_players|default:"∞" }}</span></div>
+      </div>
+    </div>
+    
+    
+    <div class="panel" style="margin-top: 3rem; padding: 1.5rem; background: #fff; border-radius: 12px; border: 1px solid var(--b-l3);">
+      <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.25rem;">Add Team Members</h3>
+      <p class="dim" style="margin-bottom: 1rem;">Search by ID, username, or name to invite players.</p>
+      
+      <div style="position: relative; max-width: 500px;">
+        <input type="text" id="memberSearchInput" class="input" placeholder="Search for players..." autocomplete="off" style="width: 100%; padding-left: 40px; border-radius: 100px;">
+        <svg class="ico" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #888; width: 16px; height: 16px;"><use href="#i-search"/></svg>
+        
+        <div id="searchResults" style="display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 100%; background: #fff; border: 1px solid var(--b-l3); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 100; max-height: 300px; overflow-y: auto;">
+          <!-- Results populated here -->
+        </div>
+      </div>
+    </div>
+
+    
+    {% if join_requests %}
+    <div style="margin-top: 3rem; margin-bottom: 3rem;">
+      <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #0f1533; border-left: 4px solid var(--orange); padding-left: 8px;">New Players Approaching ({{ join_requests|length }})</h3>
+      <div class="tblcard" style="border: 1px solid var(--orange);">
+        <div style="overflow-x: auto; width: 100%;">
+          <table class="tbl" style="min-width: 500px;">
+            <thead style="background: #fff8f1;">
+              <tr>
+                <th>Player</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in join_requests %}
+              <tr id="req-row-{{ req.id }}">
+                <td>
+                  <div style="font-weight: 500;">{{ req.player.user.display_name }}</div>
+                  <div class="dim" style="font-size: 0.85rem;">@{{ req.player.user.username }}</div>
+                </td>
+                <td>{{ req.phone_number }}</td>
+                <td>{{ req.email }}</td>
+                <td>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" onclick="respondRequest({{ req.id }}, 'ACCEPT')" class="btn btn-secondary btn-sm" style="border-radius: 100px; padding: 6px 16px; background: #10b981; color: white; border: none; font-weight: 600;" title="Accept">Accept</button>
+                    <button type="button" onclick="respondRequest({{ req.id }}, 'REJECT')" class="btn btn-secondary btn-sm" style="border-radius: 100px; padding: 6px 16px; background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; font-weight: 600;" title="Reject">Reject</button>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <h3 style="margin-top: 3rem; margin-bottom: 1rem;">Team Members</h3>
+
+    
+    <div class="tblcard">
+      <div style="overflow-x: auto; width: 100%;"><table class="tbl" style="min-width: 500px;">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="membersTableBody">
+          {% for member in members %}
+          <tr id="member-row-{{ member.id }}">
+            <td>
+              <div style="font-weight: 500;">{{ member.display_name }}</div>
+              {% if member.player %}<div class="dim" style="font-size: 0.85rem;">@{{ member.player.user.username }}</div>{% endif %}
+            </td>
+            <td>
+              {% if member.role == 'OWNER' %}
+                <span class="badge" style="background: #e6f6ec; color: #158a43; font-weight: bold;">Owner</span>
+              {% else %}
+                <span class="badge" id="role-badge-{{ member.id }}">{{ member.get_role_display }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge {% if member.roster_status == 'ACTIVE' %}badge-success{% else %}badge-warning{% endif %}" id="status-badge-{{ member.id }}">
+                {{ member.get_roster_status_display }}
+              </span>
+            </td>
+            <td>
+              {% if member.role != 'OWNER' %}
+              <div style="display: flex; gap: 8px;">
+                <button id="btn-role-{{ member.id }}" onclick="updateRole({{ member.id }}, '{% if member.role == 'CAPTAIN' %}MEMBER{% else %}CAPTAIN{% endif %}')" type="button" class="btn btn-secondary btn-sm" style="border-radius: 100px; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" title="{% if member.role == 'CAPTAIN' %}Remove Captain{% else %}Make Captain{% endif %}">
+                  <svg class="ico" style="width: 16px; height: 16px; color: {% if member.role == 'CAPTAIN' %}#eab308{% else %}#888{% endif %}; {% if member.role == 'CAPTAIN' %}fill: currentColor;{% endif %}"><use href="#i-star"/></svg>
+                </button>
+                <button id="btn-status-{{ member.id }}" onclick="updateStatus({{ member.id }}, '{% if member.roster_status == 'ACTIVE' %}BENCHED{% else %}ACTIVE{% endif %}')" type="button" class="btn btn-secondary btn-sm" style="border-radius: 100px; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" title="{% if member.roster_status == 'ACTIVE' %}Bench{% else %}Make Active{% endif %}">
+                  {% if member.roster_status == 'ACTIVE' %}
+                    <svg class="ico" style="width: 16px; height: 16px; color: #f59e0b;"><use href="#i-archive"/></svg>
+                  {% else %}
+                    <svg class="ico" style="width: 16px; height: 16px; color: #10b981;"><use href="#i-play"/></svg>
+                  {% endif %}
+                </button>
+                <button onclick="removeMember({{ member.id }})" type="button" class="btn btn-sm" style="border-radius: 100px; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;" title="Remove">
+                  <svg class="ico" style="width: 16px; height: 16px;"><use href="#i-trash"/></svg>
+                </button>
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Dialog for Logo Upload -->
+<dialog id="edit-logo-modal" style="max-width: 440px; width: 100%; padding: 2rem; border-radius: 20px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_logo">
+    
+    <h2 style="margin: 0 0 4px 0; font-size: 1.5rem; color: #0f1533; font-weight: 800;">Update Team Logo</h2>
+    <p style="margin: 0 0 1.5rem 0; font-size: 1rem; color: #0f1533; font-weight: 600;">Choose an Image</p>
+    
+    <div style="margin-bottom: 2rem;">
+      <input type="file" name="logo" accept="image/*" required 
+             style="width: 100%; padding: 12px; border: 2px solid #ff6b35; border-radius: 12px; outline: none; font-family: inherit; font-size: 0.95rem;">
+    </div>
+    
+    <div style="display: flex; justify-content: center; gap: 12px; margin-top: 2rem;">
+      <button type="button" onclick="document.getElementById('edit-logo-modal').close()" 
+              style="padding: 12px 28px; border-radius: 100px; border: 2px solid #e5e7eb; background: white; color: #0f1533; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.2s;">
+        Cancel
+      </button>
+      <button type="submit" 
+              style="padding: 12px 28px; border-radius: 100px; border: none; background: #ea580c; color: white; font-weight: 700; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3); transition: transform 0.2s;">
+        Upload Logo
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+function updateStatus(membershipId, status) {
+  const fd = new FormData();
+  fd.append('status', status);
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  
+  fetch(`/teams/{{ team.id }}/member/${membershipId}/status`, {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()).then(data => {
+    if (data.error) {
+      alert(data.error);
+    } else {
+      const badge = document.getElementById(`status-badge-${membershipId}`);
+      badge.textContent = status === 'ACTIVE' ? 'Active' : 'Benched';
+      badge.className = status === 'ACTIVE' ? 'badge badge-success' : 'badge badge-warning';
+      
+      const btn = document.getElementById(`btn-status-${membershipId}`);
+      if(btn) {
+          btn.innerHTML = status === 'ACTIVE' 
+            ? '<svg class="ico" style="width: 16px; height: 16px; color: #f59e0b;"><use href="#i-archive"/></svg>'
+            : '<svg class="ico" style="width: 16px; height: 16px; color: #10b981;"><use href="#i-play"/></svg>';
+          btn.title = status === 'ACTIVE' ? 'Bench' : 'Make Active';
+          btn.setAttribute('onclick', `updateStatus(${membershipId}, '${status === 'ACTIVE' ? 'BENCHED' : 'ACTIVE'}')`);
+      }
+    }
+  });
+}
+
+function updateRole(membershipId, role) {
+  const fd = new FormData();
+  fd.append('role', role);
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  
+  fetch(`/teams/{{ team.id }}/member/${membershipId}/role`, {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()).then(data => {
+    if (data.error) {
+      alert(data.error);
+    } else {
+      const badge = document.getElementById(`role-badge-${membershipId}`);
+      badge.textContent = role === 'CAPTAIN' ? 'Captain' : 'Member';
+      
+      const btn = document.getElementById(`btn-role-${membershipId}`);
+      if(btn) {
+          btn.innerHTML = role === 'CAPTAIN'
+            ? '<svg class="ico" style="width: 16px; height: 16px; color: #eab308; fill: currentColor;"><use href="#i-star"/></svg>'
+            : '<svg class="ico" style="width: 16px; height: 16px; color: #888;"><use href="#i-star"/></svg>';
+          btn.title = role === 'CAPTAIN' ? 'Remove Captain' : 'Make Captain';
+          btn.setAttribute('onclick', `updateRole(${membershipId}, '${role === 'CAPTAIN' ? 'MEMBER' : 'CAPTAIN'}')`);
+      }
+    }
+  });
+}
+
+function removeMember(membershipId) {
+  if (!confirm("Are you sure you want to remove this player?")) return;
+  const fd = new FormData();
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  fetch(`/teams/{{ team.id }}/member/${membershipId}/remove`, {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()).then(data => {
+    if (data.error) {
+      alert(data.error);
+    } else {
+      const row = document.getElementById(`member-row-${membershipId}`);
+      if(row) row.remove();
+    }
+  });
+}
+
+let searchTimeout = null;
+const searchInput = document.getElementById('memberSearchInput');
+const searchResults = document.getElementById('searchResults');
+
+if (searchInput) {
+  searchInput.addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    if (query.length < 2) {
+      searchResults.style.display = 'none';
+      return;
+    }
+    searchTimeout = setTimeout(() => {
+      fetch(`/api/search_users?q=${encodeURIComponent(query)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.results || data.results.length === 0) {
+            searchResults.innerHTML = '<div style="padding: 12px 16px; color: #888; text-align: center;">No users found</div>';
+            searchResults.style.display = 'block';
+            return;
+          }
+          let html = '';
+          data.results.forEach(user => {
+            const avatar = user.avatar ? `<img src="${user.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">` : `<div style="width:36px;height:36px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:600;color:#555;">${user.name.charAt(0).toUpperCase()}</div>`;
+            html += `
+              <div onclick="addMember(${user.player_profile_id})" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid #f4f5f7;transition:background 0.2s;" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background='transparent'">
+                ${avatar}
+                <div style="flex-grow:1;">
+                  <div style="font-weight:600;color:#0f1533;">${user.name}</div>
+                  <div style="font-size:0.8rem;color:#888;">@${user.username}</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" style="border-radius:100px;padding:4px 12px;">Add</button>
+              </div>
+            `;
+          });
+          searchResults.innerHTML = html;
+          searchResults.style.display = 'block';
+        });
+    }, 300);
+  });
+  
+  document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+      searchResults.style.display = 'none';
+    }
+  });
+}
+
+function addMember(profileId) {
+  if (!profileId) return alert('User does not have a player profile.');
+  const fd = new FormData();
+  fd.append('profile_id', profileId);
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  
+  fetch(`/teams/{{ team.id }}/member/add`, {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()).then(data => {
+    if (data.error) {
+      alert(data.error);
+    } else if (data.success && data.member) {
+      const tbody = document.getElementById('membersTableBody');
+      const m = data.member;
+      const statusBadge = m.status === 'ACTIVE' ? 'badge-success' : 'badge-warning';
+      const statusText = m.status === 'ACTIVE' ? 'Active' : 'Benched';
+      const roleText = m.role === 'CAPTAIN' ? 'Captain' : 'Member';
+      
+      const roleOpposite = m.role === 'CAPTAIN' ? 'MEMBER' : 'CAPTAIN';
+      const roleBtnText = m.role === 'CAPTAIN' ? 'Remove Captain' : 'Make Captain';
+      
+      const statusOpposite = m.status === 'ACTIVE' ? 'BENCHED' : 'ACTIVE';
+      const statusBtnText = m.status === 'ACTIVE' ? 'Bench' : 'Make Active';
+      
+      const tr = document.createElement('tr');
+      tr.id = `member-row-${m.id}`;
+      tr.innerHTML = `
+        <td>
+          <div style="font-weight: 500;">${m.display_name}</div>
+          <div class="dim" style="font-size: 0.85rem;">@${m.username}</div>
+        </td>
+        <td>
+          <span class="badge" id="role-badge-${m.id}">${roleText}</span>
+        </td>
+        <td>
+          <span class="badge ${statusBadge}" id="status-badge-${m.id}">${statusText}</span>
+        </td>
+        <td>
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-role-${m.id}" onclick="updateRole(${m.id}, '${roleOpposite}')" type="button" class="btn btn-secondary btn-sm" style="border-radius: 100px; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" title="${roleBtnText}">
+              <svg class="ico" style="width: 16px; height: 16px; color: ${m.role === 'CAPTAIN' ? '#eab308' : '#888'}; ${m.role === 'CAPTAIN' ? 'fill: currentColor;' : ''}"><use href="#i-star"/></svg>
+            </button>
+            <button id="btn-status-${m.id}" onclick="updateStatus(${m.id}, '${statusOpposite}')" type="button" class="btn btn-secondary btn-sm" style="border-radius: 100px; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" title="${statusBtnText}">
+              ${m.status === 'ACTIVE' 
+                ? '<svg class="ico" style="width: 16px; height: 16px; color: #f59e0b;"><use href="#i-archive"/></svg>' 
+                : '<svg class="ico" style="width: 16px; height: 16px; color: #10b981;"><use href="#i-play"/></svg>'}
+            </button>
+            <button onclick="removeMember(${m.id})" type="button" class="btn btn-sm" style="border-radius: 100px; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;" title="Remove">
+              <svg class="ico" style="width: 16px; height: 16px;"><use href="#i-trash"/></svg>
+            </button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      
+      // Clear search
+      searchInput.value = '';
+      searchResults.style.display = 'none';
+    }
+  });
+}
+
+function respondRequest(reqId, action) {
+  if (!confirm(`Are you sure you want to ${action.toLowerCase()} this player?`)) return;
+  const fd = new FormData();
+  fd.append('action', action);
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  
+  fetch(`/teams/{{ team.id }}/request/${reqId}`, {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()).then(data => {
+    if (data.error) {
+      alert(data.error);
+    } else {
+      const row = document.getElementById(`req-row-${reqId}`);
+      if(row) row.remove();
+      if (action === 'ACCEPT') {
+        window.location.reload(); // Quickest way to update the roster table
+      }
+    }
+  });
+}
+</script>
+
+
+
+{% endblock %}

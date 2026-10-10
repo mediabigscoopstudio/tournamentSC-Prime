@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}My Teams — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<div class="page-min-center" style="padding: 0 1rem;">
+  <div class="panel" style="padding: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+      <h2 style="margin: 0;">My Teams</h2>
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('create-team-modal').showModal()">+ Create Team</button>
+    </div>
+    
+    {% if not memberships %}
+      <div class="empty" style="text-align: center; padding: 3rem 1rem;">
+        <p class="dim">You don't belong to any permanent teams yet.</p>
+        <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('create-team-modal').showModal()">Create a Team</button>
+      </div>
+    {% else %}
+      <div class="card-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+        {% for m in memberships %}
+          <div class="card team-card" style="padding: 1.5rem; border: 1px solid var(--b-l3); border-radius: 12px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            
+            <div style="display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1.25rem;">
+              <!-- Logo Section -->
+              <div style="flex-shrink: 0; width: 72px; height: 72px; border-radius: 12px; overflow: hidden; background: #152036; color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700;">
+                {% if m.team.logo %}
+                  <img src="{{ m.team.logo.url }}" alt="{{ m.team.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                  {{ m.team.name|slice:":1"|upper }}
+                {% endif %}
+              </div>
+              
+              <!-- Title and Status -->
+              <div style="flex-grow: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <h3 style="margin: 0 0 6px 0; font-size: 1.25rem; color: #0f1533; font-weight: 700; line-height: 1.2;">{{ m.team.name }}</h3>
+                  
+                  {% if m.role == 'OWNER' %}
+                  <button onclick="document.getElementById('edit-team-modal-{{ m.team.id }}').showModal()" style="background: #f4f5f7; border: none; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #444;">
+                    <svg class="ico" style="width: 16px; height: 16px;"><use href="#i-edit"/></svg>
+                  </button>
+                  {% endif %}
+                </div>
+                
+                <!-- Status Badge -->
+                <div style="display: inline-flex; align-items: center; gap: 6px; background: #e6f6ec; color: #158a43; padding: 4px 10px; border-radius: 100px; font-size: 0.8rem; font-weight: 600; margin-bottom: 8px;">
+                  <span style="width: 8px; height: 8px; background: #158a43; border-radius: 50%;"></span>
+                  Active
+                </div>
+                
+                
+              </div>
+            </div>
+            
+            <!-- Sport Section -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem;">
+              <div style="width: 32px; height: 32px; background: #ffe8d6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ff6b35;">
+                <svg class="ico" style="width: 18px; height: 18px; stroke-width: 2;"><use href="#i-{{ m.team.sport.slug }}"/></svg>
+              </div>
+              <span style="font-size: 0.8rem; font-weight: 700; letter-spacing: 0.5px; color: #555; text-transform: uppercase;">{{ m.team.sport.name }}</span>
+            </div>
+            
+            <!-- Manage Team Button -->
+            {% if m.role == 'OWNER' %}
+              <a href="{% url 'team_manage' m.team.id %}" class="btn" style="width: 100%; border: 1px solid var(--b-l3); background: #fff; color: #0f1533; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg class="ico" style="width: 18px; height: 18px;"><use href="#i-users"/></svg>
+                Manage Team
+                <svg class="ico" style="width: 16px; height: 16px; margin-left: auto; opacity: 0.5;"><use href="#i-chev" style="transform: rotate(-90deg);"/></svg>
+              </a>
+            {% else %}
+              <button class="btn" style="width: 100%; border: 1px solid var(--b-l3); background: #f8f9fb; color: #888; font-weight: 600; display: flex; align-items: center; justify-content: center;" disabled>
+                Member View
+              </button>
+            {% endif %}
+          </div>
+          
+          <!-- Edit Team Modal -->
+          <dialog id="edit-team-modal-{{ m.team.id }}" class="poolassign-dialog" style="max-width: 500px; width: 100%; padding: 2rem; border-radius: 12px;">
+            <form method="POST" action="{% url 'my_teams' %}">
+              {% csrf_token %}
+              <input type="hidden" name="team_id" value="{{ m.team.id }}">
+              <h3 class="fxpanel__h" style="margin-top: 0; font-size: 1.25rem;">Edit Team</h3>
+              
+              <div class="field" style="margin-bottom: 1.5rem;">
+                <label style="font-weight: 600;">Team Name *</label>
+                <input type="text" name="name" class="input" value="{{ m.team.name }}" required style="margin-top: 6px;">
+              </div>
+              
+              <div class="field" style="margin-bottom: 2rem;">
+                <label style="font-weight: 600;">Description</label>
+                <textarea name="description" class="input" rows="3" style="margin-top: 6px;">{{ m.team.description }}</textarea>
+              </div>
+              
+              <div class="row-flex" style="justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-team-modal-{{ m.team.id }}').close()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </dialog>
+          
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal Dialog for Creating a Team -->
+<dialog id="create-team-modal" class="poolassign-dialog" style="max-width: 500px; width: 100%; padding: 2rem; border-radius: 12px;">
+  <form method="POST" action="{% url 'my_teams' %}">
+    {% csrf_token %}
+    <h3 class="fxpanel__h" style="margin-top: 0; font-size: 1.25rem;">Create a New Team</h3>
+    <p class="dim" style="margin-bottom: 2rem;">Set up a permanent team roster to register for team tournaments.</p>
+    
+    <div class="field" style="margin-bottom: 1.5rem;">
+      <label style="font-weight: 600;">Team Name *</label>
+      <input type="text" name="name" class="input" required style="margin-top: 6px;">
+    </div>
+    
+    <div class="field" style="margin-bottom: 1.5rem;">
+      <label style="font-weight: 600;">Sport *</label>
+      <div class="select-wrapper" style="margin-top: 6px;">
+        <select name="sport_id" class="input" required>
+          <option value="" disabled selected>Select Sport</option>
+          {% for sport in sports %}
+            <option value="{{ sport.id }}">{{ sport.name }} (Max {{ sport.max_team_members|default:"Unlimited" }} members)</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    
+    <div class="field" style="margin-bottom: 2rem;">
+      <label style="font-weight: 600;">Description (Optional)</label>
+      <textarea name="description" class="input" rows="3" placeholder="Tell us about your team..." style="margin-top: 6px;"></textarea>
+    </div>
+    
+    <div class="row-flex" style="justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('create-team-modal').close()">Cancel</button>
+      <button type="submit" class="btn btn-primary">Create Team</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

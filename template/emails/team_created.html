@@ -1,0 +1,41 @@
+{% load static %}<!doctype html>
+<html>
+<body style="margin:0; padding:0; background:#f4f5f7; font-family:Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7; padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0"
+            style="background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
+        <tr><td style="background:#0f1533; padding:20px 28px;">
+          <img src="{{ site_url }}{% static 'images/logo.png' %}" alt="TournamentSC" height="28" style="display:block;">
+        </td></tr>
+        <tr><td style="padding:28px;">
+          <h2 style="margin:0 0 12px; color:#0f1533;">Your Team is Ready! 🏆</h2>
+          <p style="color:#444; line-height:1.5;">Hi {{ name }},</p>
+          <p style="color:#444; line-height:1.5;">
+            Congratulations, your new team <strong>{{ team_name }}</strong> has been successfully created on TournamentSC.
+          </p>
+          <table role="presentation" width="100%" cellpadding="6" cellspacing="0"
+                style="background:#f8f9fb; border-radius:8px; margin:16px 0; font-size:14px; color:#333;">
+            <tr><td><strong>Team Name</strong></td><td>{{ team_name }}</td></tr>
+            <tr><td><strong>Sport</strong></td><td>{{ sport_name }}</td></tr>
+            <tr><td><strong>Role</strong></td><td>Owner</td></tr>
+          </table>
+          <p style="color:#444; line-height:1.5;">
+            As the Team Captain, you can now add members to your active roster and register for upcoming tournaments.
+          </p>
+          <p style="margin-top:20px;">
+            <a href="{{ site_url }}/my-teams/"
+              style="background:#FF6B35; color:#fff; padding:10px 18px; border-radius:6px; text-decoration:none; font-weight:bold;">
+              Manage Your Team
+            </a>
+          </p>
+          <p style="color:#888; font-size:13px; margin-top:24px;">Good luck!</p>
+        </td></tr>
+        <tr><td style="padding:16px 28px; background:#f8f9fb; color:#888; font-size:12px;">
+          Team TournamentSC · <a href="{{ site_url }}" style="color:#888;">{{ site_url }}</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

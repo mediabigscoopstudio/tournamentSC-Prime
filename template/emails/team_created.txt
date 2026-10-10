@@ -1,0 +1,10 @@
+Hi {{ name }},
+
+Congratulations, your new team "{{ team_name }}" has been successfully created on TournamentSC!
+
+As the Team Captain, you can now add members to your active roster and register for upcoming {{ sport_name }} tournaments.
+
+Go to your dashboard to manage your team: {{ site_conf.url }}/teams/
+
+Good luck!
+The TournamentSC Team

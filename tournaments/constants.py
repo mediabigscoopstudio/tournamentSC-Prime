@@ -122,9 +122,27 @@ FIXTURE_STATUS = [
 ]
 
 ENTRY_STATUS = [
+    ('DRAFT', 'Draft'),
     ('PENDING', 'Pending'),
-    ('APPROVED', 'Approved'),
+    ('PAYMENT_PENDING', 'Payment Pending'),
+    ('PAYMENT_SUCCESS', 'Payment Success'),
+    ('APPROVED', 'Approved'),  # Legacy mapping for CONFIRMED
+    ('CONFIRMED', 'Confirmed'),
     ('REJECTED', 'Rejected'),
+    ('REMOVED', 'Removed'),
+    ('CANCELLED', 'Cancelled'),
+    ('COMPLETED', 'Completed'),
+]
+
+PARTICIPATION_TYPES = [
+    ('INDIVIDUAL', 'Individual'),
+    ('PAIR', 'Pair / Joint'),
+    ('TEAM', 'Team'),
+]
+
+ROSTER_STATUS = [
+    ('ACTIVE', 'Active'),
+    ('BENCHED', 'Benched'),
 ]
 
 RESULT_STATE = [

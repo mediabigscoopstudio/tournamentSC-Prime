@@ -8,15 +8,35 @@ page. Player participation lives under `/player/`.
 from django.urls import path
 
 from . import views
+from . import team_views
+from . import registration_views
+from . import referee_views
+from . import co_organizer_views
+from . import commentator_views
+from . import commentary_views
 
 urlpatterns = [
     # --- Public live-score JSON (polled by audience pages, no auth) ---
     path('api/fixtures/<int:fixture_id>/live', views.fixture_live_json, name='fixture_live_json'),
 
     # --- Player participation ---
-    path('player/join/<slug:slug>', views.tournament_join, name='tournament_join'),
+    path('player/join/<slug:slug>', registration_views.tournament_join_dispatch, name='tournament_join'),
+    path('player/apply-to-team/<slug:slug>', registration_views.apply_to_team, name='apply_to_team'),
     path('player/follow/<slug:slug>', views.tournament_follow, name='tournament_follow'),
     path('player/following', views.my_following, name='my_following'),
+    path('api/search_partner', registration_views.api_search_partner, name='api_search_partner'),
+    path('api/search_users', team_views.api_search_users, name='api_search_users'),
+
+    
+    # --- Player Team Management ---
+    path('my-teams/', team_views.my_teams, name='my_teams'),
+    
+    path('teams/<int:team_id>/manage', team_views.team_manage, name='team_manage'),
+    path('teams/<int:team_id>/member/<int:membership_id>/status', team_views.team_member_status, name='team_member_status'),
+    path('teams/<int:team_id>/member/<int:membership_id>/role', team_views.team_member_role, name='team_member_role'),
+    path('teams/<int:team_id>/member/<int:membership_id>/remove', team_views.team_member_remove, name='team_member_remove'),
+    path('teams/<int:team_id>/request/<int:request_id>', team_views.team_join_request_respond, name='team_join_request_respond'),
+    path('teams/<int:team_id>/member/add', team_views.team_add_member, name='team_add_member'),
 
     # --- Organizer dashboard ---
     path('organizer/', views.organizer_dashboard, name='organizer_dashboard'),
@@ -31,6 +51,10 @@ urlpatterns = [
 
     # Participants / teams / registrations
     path('organizer/t/<slug:slug>/participants', views.participants_manage, name='participants_manage'),
+    path('organizer/t/<slug:slug>/entry/<int:entry_id>/approve', registration_views.entry_approve, name='entry_approve'),
+    path('organizer/t/<slug:slug>/entry/<int:entry_id>/reject', registration_views.entry_reject, name='entry_reject'),
+    path('organizer/t/<slug:slug>/individual/<int:reg_id>/approve', registration_views.individual_approve, name='individual_approve'),
+    path('organizer/t/<slug:slug>/individual/<int:reg_id>/reject', registration_views.individual_reject, name='individual_reject'),
     path('organizer/t/<slug:slug>/participants/team/add', views.team_add, name='team_add'),
     path('organizer/t/<slug:slug>/participants/team/import', views.teams_bulk_import, name='teams_bulk_import'),
     path('organizer/t/<slug:slug>/participants/team/<int:team_id>/member/add',
@@ -101,4 +125,56 @@ urlpatterns = [
          views.score_fixture, name='score_fixture'),
     path('organizer/t/<slug:slug>/fixtures/<int:fixture_id>/highlight',
          views.highlight_manage, name='highlight_manage'),
+
+    # --- Co-Organizer Management ---
+    path('organizer/t/<slug:slug>/co-organizers/invite',
+         co_organizer_views.tournament_co_organizer_invite, name='tournament_co_organizer_invite'),
+    path('organizer/t/<slug:slug>/co-organizers/<int:user_id>/revoke',
+         co_organizer_views.tournament_co_organizer_revoke, name='tournament_co_organizer_revoke'),
+    path('organizer/t/<slug:slug>/co-organizers/invitations/<int:invite_id>/cancel',
+         co_organizer_views.tournament_co_organizer_cancel_invite, name='tournament_co_organizer_cancel_invite'),
+    path('co-organizers/accept/<str:token>',
+         co_organizer_views.co_organizer_accept, name='co_organizer_accept'),
+
+    # --- Tournament Referee Management ---
+    path('organizer/t/<slug:slug>/referees/search-api',
+         referee_views.tournament_referees_search_api, name='tournament_referees_search_api'),
+    path('organizer/t/<slug:slug>/referees/add',
+         referee_views.tournament_referee_add, name='tournament_referee_add'),
+    path('organizer/t/<slug:slug>/referees/<int:user_id>/remove',
+         referee_views.tournament_referee_remove, name='tournament_referee_remove'),
+    path('organizer/t/<slug:slug>/referees/auto-assign',
+         referee_views.tournament_referees_auto_assign, name='tournament_referees_auto_assign'),
+    path('organizer/t/<slug:slug>/fixtures/<int:fixture_id>/referees/assign',
+         referee_views.fixture_referee_assign, name='fixture_referee_assign'),
+    path('organizer/t/<slug:slug>/fixtures/<int:fixture_id>/referees/<int:user_id>/unassign',
+         referee_views.fixture_referee_unassign, name='fixture_referee_unassign'),
+
+    # --- Tournament Commentator Management ---
+    path('organizer/t/<slug:slug>/commentators/search-api',
+         commentator_views.tournament_commentators_search_api, name='tournament_commentators_search_api'),
+    path('organizer/t/<slug:slug>/commentators/add',
+         commentator_views.tournament_commentator_add, name='tournament_commentator_add'),
+    path('organizer/t/<slug:slug>/commentators/<int:user_id>/remove',
+         commentator_views.tournament_commentator_remove, name='tournament_commentator_remove'),
+    path('organizer/t/<slug:slug>/commentators/auto-assign',
+         commentator_views.tournament_commentators_auto_assign, name='tournament_commentators_auto_assign'),
+    path('organizer/t/<slug:slug>/fixtures/<int:fixture_id>/commentators/assign',
+         commentator_views.fixture_commentator_assign, name='fixture_commentator_assign'),
+    path('organizer/t/<slug:slug>/fixtures/<int:fixture_id>/commentators/<int:user_id>/unassign',
+         commentator_views.fixture_commentator_unassign, name='fixture_commentator_unassign'),
+
+    # --- Live Commentary Workspace & Real-Time Sync ---
+    path('t/<slug:slug>/fixtures/<int:fixture_id>/commentary',
+         commentary_views.fixture_commentary_workspace, name='fixture_commentary_workspace'),
+    path('api/t/<slug:slug>/fixtures/<int:fixture_id>/commentary/publish',
+         commentary_views.commentary_publish_api, name='commentary_publish_api'),
+    path('api/t/<slug:slug>/fixtures/<int:fixture_id>/commentary/<int:entry_id>/edit',
+         commentary_views.commentary_edit_api, name='commentary_edit_api'),
+    path('api/t/<slug:slug>/fixtures/<int:fixture_id>/commentary/<int:entry_id>/delete',
+         commentary_views.commentary_delete_api, name='commentary_delete_api'),
+    path('api/t/<slug:slug>/fixtures/<int:fixture_id>/commentary/sync',
+         commentary_views.commentary_sync_api, name='commentary_sync_api'),
+    path('api/t/<slug:slug>/fixtures/<int:fixture_id>/commentary/stream',
+         commentary_views.commentary_stream_api, name='commentary_stream_api'),
 ]

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Register Pair for {{ tournament.name }} — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<div class="page-min-center">
+  <div class="panel" style="padding: 2rem; max-width: 500px;">
+    <h2>Register as a Pair</h2>
+    <p class="dim" style="margin-bottom: 2rem;">Select your partner for {{ tournament.name }}.</p>
+    
+    <form method="POST">
+      {% csrf_token %}
+      
+      <div class="field" style="margin-bottom: 2rem; position: relative;">
+        <label>Search Partner (Username or Name) *</label>
+        <input type="text" id="partner-search" class="input" placeholder="Type to search..." autocomplete="off">
+        <input type="hidden" name="partner_username" id="partner-username-val" required>
+        
+        <div id="partner-results" style="position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--b-l3); border-radius:8px; max-height:200px; overflow-y:auto; display:none; z-index:10;">
+        </div>
+      </div>
+      
+      <div id="selected-partner" class="tblcard" style="padding:1rem; margin-bottom:2rem; display:none;">
+        <h4 style="margin:0; font-size:0.9rem;" class="dim">Selected Partner:</h4>
+        <div style="font-weight:600; font-size:1.1rem; margin-top:0.5rem;" id="sp-name"></div>
+        <div class="dim" id="sp-user"></div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" style="width: 100%;">Register Pair</button>
+    </form>
+  </div>
+</div>
+
+<script>
+const input = document.getElementById('partner-search');
+const resultsBox = document.getElementById('partner-results');
+const hiddenVal = document.getElementById('partner-username-val');
+const selBox = document.getElementById('selected-partner');
+let timeout = null;
+
+input.addEventListener('input', (e) => {
+  clearTimeout(timeout);
+  const q = e.target.value.trim();
+  if (q.length < 2) {
+    resultsBox.style.display = 'none';
+    return;
+  }
+  
+  timeout = setTimeout(() => {
+    fetch(`/api/search_partner?q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(data => {
+        resultsBox.innerHTML = '';
+        if (data.results.length === 0) {
+          resultsBox.innerHTML = '<div style="padding:10px; color:#64748b;">No players found.</div>';
+        } else {
+          data.results.forEach(u => {
+            const div = document.createElement('div');
+            div.style = 'padding:10px; cursor:pointer; border-bottom:1px solid #f1f5f9;';
+            div.innerHTML = `<strong>${u.name}</strong> <span class="dim">@${u.username}</span>`;
+            div.onclick = () => {
+              hiddenVal.value = u.username;
+              input.value = '';
+              resultsBox.style.display = 'none';
+              selBox.style.display = 'block';
+              document.getElementById('sp-name').textContent = u.name;
+              document.getElementById('sp-user').textContent = '@' + u.username;
+            };
+            resultsBox.appendChild(div);
+          });
+        }
+        resultsBox.style.display = 'block';
+      });
+  }, 300);
+});
+</script>
+{% endblock %}

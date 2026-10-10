@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Register Team for {{ tournament.name }} — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<div class="page-min-center">
+  <div class="panel" style="padding: 2rem; max-width: 600px;">
+    <h2>Register Team</h2>
+    <p class="dim" style="margin-bottom: 2rem;">Select an eligible team for {{ tournament.name }}.</p>
+    
+    <div style="background:var(--b-l1); padding:1rem; border-radius:8px; margin-bottom:2rem;">
+      <strong>Requirements:</strong>
+      <ul style="margin:8px 0 0; padding-left:20px; font-size:0.9rem;" class="dim">
+        {% if tournament.min_active_players %}<li>Min active players: {{ tournament.min_active_players }}</li>{% endif %}
+        {% if tournament.max_active_players %}<li>Max active players: {{ tournament.max_active_players }}</li>{% endif %}
+        <li>Must be a {{ tournament.sport.name }} team.</li>
+      </ul>
+    </div>
+    
+    {% if not teams %}
+      <div class="msg warning" style="margin-bottom: 2rem;">
+        You don't manage any eligible {{ tournament.sport.name }} teams.
+      </div>
+      <a href="{% url 'my_teams' %}" class="btn btn-primary" style="width:100%;">Create a Team First</a>
+    {% else %}
+      <form method="POST">
+        {% csrf_token %}
+        <div class="field" style="margin-bottom: 2rem;">
+          <label>Select Team *</label>
+          <div class="select-wrapper">
+            <select name="team_id" class="input" required>
+              <option value="" disabled selected>Select...</option>
+              {% for team in teams %}
+                <option value="{{ team.id }}">{{ team.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Register Team</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

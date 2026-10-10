@@ -1,0 +1,11 @@
+Hi {{ name }},
+
+You have been removed from the tournament {{ tournament }}.
+
+Reason provided by the organizer:
+{{ reason }}
+
+If you were charged an entry fee, a refund request has been initiated automatically.
+
+Regards,
+TournamentSC Support

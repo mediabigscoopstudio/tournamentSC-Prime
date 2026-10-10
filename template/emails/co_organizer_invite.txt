@@ -1,0 +1,14 @@
+Hi {{ invitee.display_name }},
+
+{{ invited_by.display_name }} (@{{ invited_by.username }}) has invited you to co-organize {{ tournament.name }} on TournamentSC.
+
+As a co-organizer, you'll be able to manage tournament fixtures, assign match referees, schedule games, and enter official results.
+
+To accept this invitation and begin managing the tournament, click the link below:
+{{ accept_url }}
+
+This invitation will expire in 72 hours ({{ expires_at|date:"D, d M Y H:i" }}).
+
+Best regards,
+TournamentSC Team
+
