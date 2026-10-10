@@ -1,18 +1,182 @@
 {% extends 'base.html' %}
-{% block title %}Live scores — {{ site_conf.site_name }}{% endblock %}
+{% block title %}Live Scores — {{ site_conf.site_name }}{% endblock %}
+
 {% block content %}
-<section class="section wrap">
-  <div class="sec-head">
-    <div><h2>Live right now</h2><p>Every match in play, across every sport. No account needed.</p></div>
-    <a class="sec-head__link" href="{% url 'browse' %}?status=ONGOING">Live tournaments</a>
+<section class="section wrap" style="max-width:1200px; margin:0 auto; padding:24px 20px 60px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; flex-wrap:wrap; gap:14px; border-bottom:1px solid #e2e8f0; padding-bottom:18px;">
+    <div>
+      <div style="display:inline-flex; align-items:center; gap:8px; margin-bottom:6px;">
+        <span style="display:inline-flex; align-items:center; gap:5px; background:#dc2626; color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px; letter-spacing:0.04em;">
+          <span style="width:6px; height:6px; border-radius:50%; background:#fff; animation:pulse 1.2s infinite;"></span> LIVE NOW
+        </span>
+        <h1 style="margin:0; font-size:26px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Live Arena</h1>
+      </div>
+      <p style="margin:0; font-size:14px; color:#64748b;">Every live match in play across all sports with real-time updates.</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="btn btn-sm" href="{% url 'browse' %}?status=ONGOING" style="font-size:12.5px; font-weight:700; color:#1e293b; background:#fff; border:1px solid #cbd5e1; padding:7px 14px; border-radius:8px; text-decoration:none;">
+        Ongoing Tournaments
+      </a>
+      <a class="btn btn-sm" href="{% url 'results_list' %}" style="font-size:12.5px; font-weight:700; color:#F26A1B; background:#fff7ed; border:1px solid #fed7aa; padding:7px 14px; border-radius:8px; text-decoration:none;">
+        Completed Results →
+      </a>
+    </div>
   </div>
 
   {% if fixtures %}
-    {% include 'public/_fixture_list.html' with fixtures=fixtures %}
+    <div class="live-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+      {% for fx in fixtures %}
+        {% with ps=fx.ordered_participants %}
+          <div class="fixture-tile-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden; box-shadow:0 3px 12px rgba(0,0,0,0.03); display:flex; flex-direction:column; transition:transform 0.15s ease, box-shadow 0.15s ease;">
+            
+            <!-- Top Strip: Sport, Tournament & Live Indicator -->
+            <div style="background:#0f172a; padding:12px 16px; color:#ffffff; display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                <span style="font-size:16px;">{{ fx.tournament.sport.icon|default:"🏆" }}</span>
+                <div style="min-width:0;">
+                  <a href="{{ fx.tournament.get_absolute_url }}" style="color:#ffffff; font-size:13px; font-weight:700; text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">
+                    {{ fx.tournament.name }}
+                  </a>
+                  <span style="font-size:11px; color:#94a3b8; display:block;">
+                    {{ fx.round_name }}{% if fx.venue_detail %} · {{ fx.venue_detail }}{% endif %}
+                  </span>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:800; color:#fff; background:#dc2626; padding:2px 8px; border-radius:999px;">
+                  <span style="width:5px; height:5px; border-radius:50%; background:#fff; animation:pulse 1.2s infinite;"></span> LIVE
+                </span>
+                {% if fx.period_display %}
+                  <span style="font-size:11px; font-weight:700; color:#cbd5e1; background:rgba(255,255,255,0.12); padding:2px 7px; border-radius:6px; font-family:monospace;">
+                    {{ fx.period_display }}
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Match Center: Participants & Scores -->
+            <div style="padding:18px 16px; display:flex; flex-direction:column; gap:12px; flex:1;">
+              {% if ps|length == 2 %}
+                <!-- 2-Team Head-to-Head -->
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                  <!-- Team 1 -->
+                  <div style="flex:1; display:flex; align-items:center; gap:10px; min-width:0;">
+                    <div style="width:38px; height:38px; border-radius:50%; background:#fff7ed; border:1.5px solid #fed7aa; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:13px; color:#F26A1B; flex-shrink:0;">
+                      {% if ps.0.team.logo %}
+                        <img src="{{ ps.0.team.logo.url }}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.remove()">
+                      {% else %}
+                        {{ ps.0.initials }}
+                      {% endif %}
+                    </div>
+                    <span style="font-size:14px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ ps.0.name }}">
+                      {{ ps.0.name }}
+                    </span>
+                  </div>
+
+                  <!-- Scores -->
+                  <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; background:#f8fafc; border:1px solid #e2e8f0; padding:6px 12px; border-radius:10px;">
+                    <span style="font-size:20px; font-weight:900; color:#0f172a; font-family:monospace;">
+                      {{ ps.0.score|default_if_none:'0'|floatformat:'-2' }}
+                    </span>
+                    <span style="font-size:12px; color:#94a3b8; font-weight:700;">-</span>
+                    <span style="font-size:20px; font-weight:900; color:#0f172a; font-family:monospace;">
+                      {{ ps.1.score|default_if_none:'0'|floatformat:'-2' }}
+                    </span>
+                  </div>
+
+                  <!-- Team 2 -->
+                  <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:10px; min-width:0; text-align:right;">
+                    <span style="font-size:14px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ ps.1.name }}">
+                      {{ ps.1.name }}
+                    </span>
+                    <div style="width:38px; height:38px; border-radius:50%; background:#f1f5f9; border:1.5px solid #cbd5e1; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:13px; color:#1e293b; flex-shrink:0;">
+                      {% if ps.1.team.logo %}
+                        <img src="{{ ps.1.team.logo.url }}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.remove()">
+                      {% else %}
+                        {{ ps.1.initials }}
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Win Probability preview if available -->
+                {% if fx.win_probability %}
+                  <div style="margin-top:4px;">
+                    <div style="height:4px; border-radius:999px; background:#e2e8f0; overflow:hidden; display:flex;">
+                      <div style="width:{{ fx.win_probability }}%; background:#F26A1B;"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:10.5px; color:#64748b; margin-top:4px; font-weight:600;">
+                      <span>{{ fx.win_probability }}% win prob</span>
+                      <span>{{ fx.win_probability_other }}%</span>
+                    </div>
+                  </div>
+                {% endif %}
+
+              {% else %}
+                <!-- Multi-Participant / Lobby List -->
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  {% for p in ps|slice:':4' %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:4px 0; border-bottom:1px solid #f1f5f9;">
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; font-weight:700; color:#64748b; font-family:monospace; width:16px;">#{{ forloop.counter }}</span>
+                        <span style="font-weight:700; color:#0f172a;">{{ p.name }}</span>
+                      </div>
+                      <span style="font-weight:800; font-family:monospace; color:#0f172a;">
+                        {% if p.score is not None %}{{ p.score|floatformat:'-2' }}{% elif p.time %}{{ p.time }}{% else %}—{% endif %}
+                      </span>
+                    </div>
+                  {% endfor %}
+                  {% if ps|length > 4 %}
+                    <div style="font-size:11px; color:#64748b; text-align:center; margin-top:2px;">
+                      + {{ ps|length|add:"-4" }} more competitors
+                    </div>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Bottom CTA Button -->
+            <div style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11.5px; color:#64748b; font-weight:600;">
+                Official Scoreboard
+              </span>
+              <a href="{{ fx.get_absolute_url }}" style="font-size:12px; font-weight:800; color:#ffffff; background:#F26A1B; padding:5px 12px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s ease;">
+                Watch & Score →
+              </a>
+            </div>
+
+          </div>
+        {% endwith %}
+      {% endfor %}
+    </div>
+
   {% else %}
-    <div class="empty">
-      Nothing is live at the moment. <a href="{% url 'browse' %}">See what's coming up.</a>
+    <div style="text-align:center; padding:60px 20px; background:#fff; border-radius:16px; border:1px dashed #cbd5e1; margin-top:10px;">
+      <div style="font-size:42px; margin-bottom:12px;">🏟️</div>
+      <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 6px;">Nothing is live at the moment</h3>
+      <p style="font-size:14px; color:#64748b; margin:0 0 20px;">Matches appear here automatically as soon as their tip-off or whistle blows.</p>
+      <div style="display:flex; justify-content:center; gap:12px;">
+        <a href="{% url 'browse' %}" class="btn" style="background:#F26A1B; color:#fff; font-size:13px; font-weight:700; padding:8px 18px; border-radius:8px; text-decoration:none;">
+          Browse Upcoming Tournaments
+        </a>
+        <a href="{% url 'results_list' %}" class="btn" style="background:#fff; border:1px solid #cbd5e1; color:#0f172a; font-size:13px; font-weight:700; padding:8px 18px; border-radius:8px; text-decoration:none;">
+          View Recent Results
+        </a>
+      </div>
     </div>
   {% endif %}
 </section>
+
+<style>
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+.fixture-tile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06) !important;
+}
+</style>
 {% endblock %}

@@ -1,0 +1,1411 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ organizer.organization_name|default:organizer_user.display_name }} — Organizer Profile — {{ site_conf.site_name }}{% endblock %}
+
+{% block content %}
+<style>
+  /* ==========================================================================
+     TournamentSC — Organizer Profile Page
+     Clean Sports Organizer Portfolio & Community Publishing Platform
+     Theme: Navy (#1B2340), Emerald Green (#10B981 / #3FA33C), Light Neutrals
+     ========================================================================== */
+
+  .tsc-org-page {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+    font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    color: var(--navy, #1B2340);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .tsc-card-panel {
+    background: #ffffff;
+    border: 1px solid var(--line, #e4e7ef);
+    border-radius: 20px;
+    padding: 26px 30px;
+    box-shadow: 0 2px 12px rgba(27, 35, 64, 0.04);
+  }
+
+  /* --------------------------------------------------------------------------
+     SECTION A & B: ORGANIZER IDENTITY & STATISTICS
+     -------------------------------------------------------------------------- */
+  .tsc-org-identity {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 32px;
+  }
+
+  .tsc-org-identity-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tsc-org-avatar-wrap {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #0F172A;
+    border: 3px solid #ffffff;
+    box-shadow: 0 6px 20px rgba(27, 35, 64, 0.12);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .tsc-org-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .tsc-org-avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1B2340 0%, #2D3768 100%);
+    color: #ffffff;
+    font-family: var(--font-display, inherit);
+    font-size: 38px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .tsc-org-meta-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .tsc-org-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tsc-org-name {
+    font-family: var(--font-display, inherit);
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--navy, #1B2340);
+    margin: 0;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .tsc-verified-badge {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #10B981;
+    color: #ffffff;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .tsc-verified-badge svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 3;
+  }
+
+  .tsc-org-subline {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13.5px;
+    color: #64748B;
+    font-weight: 500;
+    flex-wrap: wrap;
+  }
+
+  .tsc-org-subline-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .tsc-org-desc {
+    font-size: 14px;
+    line-height: 1.55;
+    color: #334155;
+    margin: 4px 0 0;
+    max-width: 600px;
+  }
+
+  /* Sports Chips */
+  .tsc-org-sports-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tsc-org-sport-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+  }
+  .tsc-org-sport-chip .ico {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+  }
+
+  /* Identity Right: Actions + 4-Box Stats */
+  .tsc-org-identity-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 18px;
+    flex-shrink: 0;
+  }
+
+  .tsc-org-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tsc-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 20px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    border: none;
+  }
+
+  .tsc-btn-follow {
+    background: #111827;
+    color: #ffffff;
+  }
+  .tsc-btn-follow:hover {
+    background: #1f2937;
+    transform: translateY(-1px);
+  }
+  .tsc-btn-follow.active {
+    background: #E2E8F0;
+    color: #0F172A;
+  }
+
+  .tsc-btn-contact {
+    background: #F8FAFC;
+    color: #0F172A;
+    border: 1px solid #CBD5E1;
+  }
+  .tsc-btn-contact:hover {
+    background: #F1F5F9;
+    border-color: #94A3B8;
+  }
+
+  .tsc-btn-manage {
+    background: var(--green, #3FA33C);
+    color: #ffffff;
+  }
+  .tsc-btn-manage:hover {
+    background: #2E7D32;
+    transform: translateY(-1px);
+  }
+
+  .tsc-btn-icon-more {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tsc-btn-icon-more:hover {
+    background: #F1F5F9;
+    color: #0F172A;
+  }
+
+  /* 4 Metric Stats Cards */
+  .tsc-org-stats-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    min-width: 340px;
+  }
+
+  .tsc-stat-box {
+    background: #F8FAFC;
+    border: 1px solid #F1F5F9;
+    border-radius: 12px;
+    padding: 12px 14px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 78px;
+  }
+
+  .tsc-stat-icon-wrap {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2px;
+  }
+  .tsc-stat-icon-wrap.tourneys { background: #FEF3C7; color: #D97706; }
+  .tsc-stat-icon-wrap.completed { background: #DCFCE7; color: #16A34A; }
+  .tsc-stat-icon-wrap.teams { background: #DBEAFE; color: #2563EB; }
+  .tsc-stat-icon-wrap.participants { background: #F3E8FF; color: #9333EA; }
+
+  .tsc-stat-number {
+    font-family: var(--font-display, inherit);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--navy, #1B2340);
+    line-height: 1;
+  }
+
+  .tsc-stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748B;
+  }
+
+  /* --------------------------------------------------------------------------
+     SECTION C, D, E: TOURNAMENT PORTFOLIO
+     -------------------------------------------------------------------------- */
+  .tsc-sec-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .tsc-sec-title {
+    font-family: var(--font-display, inherit);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--navy, #1B2340);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tsc-sec-see-all {
+    font-size: 13px;
+    font-weight: 700;
+    color: #2563EB;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s;
+  }
+  .tsc-sec-see-all:hover {
+    color: #1D4ED8;
+    text-decoration: underline;
+  }
+
+  /* Upcoming Tournaments Grid (Landscape Cards) */
+  .tsc-tourney-grid-upcoming {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 16px;
+  }
+
+  .tsc-tourney-card {
+    background: #ffffff;
+    border: 1px solid var(--line, #E4E7EF);
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+  }
+  .tsc-tourney-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -6px rgba(27, 35, 64, 0.08);
+    border-color: #CBD5E1;
+  }
+
+  .tsc-tourney-card__cover {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #0F172A;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tsc-tourney-card__cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .tsc-tourney-card__cover-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+    color: #94A3B8;
+  }
+
+  .tsc-tourney-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(8px);
+  }
+  .tsc-badge-open {
+    background: rgba(16, 185, 129, 0.9);
+    color: #ffffff;
+  }
+  .tsc-badge-upcoming {
+    background: rgba(59, 130, 246, 0.9);
+    color: #ffffff;
+  }
+  .tsc-badge-ongoing {
+    background: rgba(225, 40, 26, 0.92);
+    color: #ffffff;
+  }
+  .tsc-badge-completed {
+    background: rgba(100, 116, 139, 0.9);
+    color: #ffffff;
+  }
+
+  .tsc-tourney-card__body {
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 8px;
+  }
+
+  .tsc-tourney-card__title {
+    font-family: var(--font-display, inherit);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy, #1B2340);
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  .tsc-tourney-card__meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #64748B;
+  }
+
+  .tsc-tourney-card__meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tsc-tourney-card__meta-item .ico {
+    width: 14px;
+    height: 14px;
+    color: #94A3B8;
+    flex-shrink: 0;
+  }
+
+  .tsc-tourney-card__foot {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #F1F5F9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  /* Two Column Portfolio Layout: Ongoing & Completed side-by-side */
+  .tsc-tourney-dual-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .tsc-compact-tourney-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  .tsc-compact-tourney-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid var(--line, #E4E7EF);
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.15s;
+  }
+  .tsc-compact-tourney-card:hover {
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(27, 35, 64, 0.05);
+  }
+
+  .tsc-compact-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    background: #0F172A;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tsc-compact-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .tsc-compact-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .tsc-compact-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--navy, #1B2340);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    margin-bottom: 3px;
+  }
+
+  .tsc-compact-sub {
+    font-size: 11.5px;
+    color: #64748B;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+
+  /* --------------------------------------------------------------------------
+     SECTION F & G: ORGANIZER CONTENT (VLOGS, HIGHLIGHTS, POSTS)
+     -------------------------------------------------------------------------- */
+  .tsc-content-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .tsc-content-filters {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #F1F5F9;
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .tsc-content-tab {
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border: none;
+    background: transparent;
+    color: #64748B;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tsc-content-tab:hover {
+    color: #0F172A;
+  }
+  .tsc-content-tab.active {
+    background: #0F172A;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+
+  /* Content Stream Grid */
+  .tsc-media-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .tsc-media-card {
+    background: #ffffff;
+    border: 1px solid var(--line, #E4E7EF);
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .tsc-media-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -6px rgba(27, 35, 64, 0.08);
+  }
+
+  .tsc-media-thumb-box {
+    position: relative;
+    width: 100%;
+    background: #0F172A;
+    overflow: hidden;
+  }
+
+  /* Format aspect ratios */
+  .tsc-media-thumb-box.vlog { aspect-ratio: 16 / 9; }
+  .tsc-media-thumb-box.highlight { aspect-ratio: 9 / 16; }
+  .tsc-media-thumb-box.post { aspect-ratio: 1 / 1; }
+
+  .tsc-media-thumb-box img,
+  .tsc-media-thumb-box video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .tsc-play-overlay-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    color: #ffffff;
+    pointer-events: none;
+  }
+  .tsc-play-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .tsc-play-circle svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+    margin-left: 2px;
+  }
+
+  .tsc-duration-pill {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tsc-media-body {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .tsc-media-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--navy, #1B2340);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .tsc-media-meta {
+    font-size: 11.5px;
+    color: #64748B;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tsc-media-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-top: 4px;
+    width: fit-content;
+  }
+  .tsc-tag-vlog { background: #FEE2E2; color: #DC2626; }
+  .tsc-tag-highlight { background: #DCFCE7; color: #16A34A; }
+  .tsc-tag-post { background: #DBEAFE; color: #2563EB; }
+
+  /* --------------------------------------------------------------------------
+     SECTION H: COLLABORATION & CONTACT
+     -------------------------------------------------------------------------- */
+  .tsc-collab-section {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 24px;
+    align-items: stretch;
+  }
+
+  .tsc-collab-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .tsc-collab-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .tsc-collab-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #DCFCE7;
+    color: #10B981;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .tsc-collab-icon-box .ico {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tsc-collab-text h3 {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy, #1B2340);
+    margin: 0 0 4px;
+  }
+
+  .tsc-collab-text p {
+    font-size: 13px;
+    color: #64748B;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .tsc-contact-card {
+    background: #ffffff;
+    border: 1px solid var(--line, #E4E7EF);
+    border-radius: 16px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .tsc-contact-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748B;
+    margin: 0;
+  }
+
+  .tsc-contact-links-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 13.5px;
+    color: #334155;
+  }
+
+  .tsc-contact-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: color 0.15s;
+  }
+  .tsc-contact-item:hover {
+    color: #2563EB;
+  }
+  .tsc-contact-item .ico {
+    width: 16px;
+    height: 16px;
+    color: #94A3B8;
+  }
+
+  /* --------------------------------------------------------------------------
+     EMPTY & SPARSE STATES
+     -------------------------------------------------------------------------- */
+  .tsc-empty-shelf {
+    padding: 28px 20px;
+    background: #F8FAFC;
+    border: 1px dashed #CBD5E1;
+    border-radius: 14px;
+    text-align: center;
+    color: #64748B;
+  }
+
+  .tsc-empty-shelf-title {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--navy, #1B2340);
+    margin-bottom: 4px;
+  }
+
+  .tsc-empty-shelf-sub {
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  /* --------------------------------------------------------------------------
+     RESPONSIVE MEDIA QUERIES
+     -------------------------------------------------------------------------- */
+  @media (max-width: 992px) {
+    .tsc-org-identity {
+      flex-direction: column;
+      gap: 22px;
+    }
+    .tsc-org-identity-right {
+      align-items: flex-start;
+      width: 100%;
+    }
+    .tsc-org-stats-cards {
+      width: 100%;
+      min-width: 0;
+    }
+    .tsc-tourney-dual-col {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .tsc-media-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .tsc-collab-section {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .tsc-org-page {
+      padding: 16px 14px 44px;
+      gap: 20px;
+    }
+    .tsc-card-panel {
+      padding: 18px 16px;
+      border-radius: 16px;
+    }
+    .tsc-org-avatar-wrap {
+      width: 80px;
+      height: 80px;
+    }
+    .tsc-org-avatar-fallback {
+      font-size: 28px;
+    }
+    .tsc-org-name {
+      font-size: 22px;
+    }
+    .tsc-org-stats-cards {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .tsc-tourney-grid-upcoming {
+      grid-template-columns: 1fr;
+    }
+    .tsc-media-grid {
+      grid-template-columns: 1fr;
+    }
+    .tsc-collab-card {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+
+<div class="tsc-org-page">
+
+  <!-- ========================================================================
+       SECTION A & B: ORGANIZER IDENTITY & STATISTICS
+       ======================================================================== -->
+  <section class="tsc-card-panel">
+    <div class="tsc-org-identity">
+      
+      <!-- Identity Left: Avatar, Name, Handle, Description, Sports -->
+      <div class="tsc-org-identity-left">
+        <div class="tsc-org-avatar-wrap">
+          {% if organizer.profile_photo %}
+            <img src="{{ organizer.profile_photo.url }}" alt="{{ organizer.organization_name }}" class="tsc-org-avatar-img">
+          {% else %}
+            <div class="tsc-org-avatar-fallback">
+              {{ organizer.organization_name|slice:":1"|default:organizer_user.username|slice:":1"|upper }}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="tsc-org-meta-body">
+          <div class="tsc-org-name-row">
+            <h1 class="tsc-org-name">{{ organizer.organization_name|default:organizer_user.display_name }}</h1>
+            {% if organizer_user.is_verified %}
+              <span class="tsc-verified-badge" title="Verified Organizer" aria-label="Verified">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            {% endif %}
+          </div>
+
+          <div class="tsc-org-subline">
+            <span class="tsc-org-subline-item">
+              @{{ organizer_user.username }}
+            </span>
+            {% if organizer_location %}
+              <span>•</span>
+              <span class="tsc-org-subline-item">
+                <svg class="ico" style="width:14px;height:14px;"><use href="#i-pin"/></svg>
+                {{ organizer_location }}
+              </span>
+            {% endif %}
+          </div>
+
+          <p class="tsc-org-desc">
+            {% if organizer.bio %}
+              {{ organizer.bio }}
+            {% else %}
+              Organizing competitive tournaments and sports leagues on TournamentSC.
+            {% endif %}
+          </p>
+
+          <!-- Sports chips -->
+          <div class="tsc-org-sports-row">
+            {% for s in sports %}
+              <span class="tsc-org-sport-chip">
+                <svg class="ico"><use href="#{{ s.icon_symbol|default:'i-trophy' }}"/></svg>
+                {{ s.name }}
+              </span>
+            {% empty %}
+              <span class="tsc-org-sport-chip">
+                <svg class="ico"><use href="#i-trophy"/></svg>
+                Multi-Sport
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Identity Right: Actions + 4 Stats Cards -->
+      <div class="tsc-org-identity-right">
+        <div class="tsc-org-actions-row">
+          {% if not is_owner %}
+            <button 
+              type="button" 
+              class="tsc-action-btn tsc-btn-follow {% if is_following %}active{% endif %}"
+              id="orgFollowBtn"
+              onclick="toggleOrgFollow(this, {{ organizer_user.pk }})"
+            >
+              {% if is_following %}Following{% else %}Follow{% endif %}
+            </button>
+            <a href="mailto:{{ organizer_user.email }}" class="tsc-action-btn tsc-btn-contact">
+              Message
+            </a>
+          {% else %}
+            <a href="{% url 'organizer_profile_edit' %}" class="tsc-action-btn tsc-btn-contact">
+              <svg class="ico" style="width:14px;height:14px;"><use href="#i-edit"/></svg> Edit Profile
+            </a>
+            <button type="button" class="tsc-action-btn tsc-btn-manage" onclick="document.getElementById('create-post-modal').showModal()">
+              <svg class="ico" style="width:14px;height:14px;"><use href="#i-plus"/></svg> Publish Content
+            </button>
+            <a href="{% url 'organizer_dashboard' %}" class="tsc-action-btn tsc-btn-follow">
+              Dashboard
+            </a>
+          {% endif %}
+        </div>
+
+        <!-- 4 Stats Cards -->
+        <div class="tsc-org-stats-cards">
+          <div class="tsc-stat-box">
+            <div class="tsc-stat-icon-wrap tourneys">
+              <svg class="ico" style="width:16px;height:16px;"><use href="#i-trophy"/></svg>
+            </div>
+            <span class="tsc-stat-number">{{ stats.tournaments }}</span>
+            <span class="tsc-stat-label">Tournaments</span>
+          </div>
+
+          <div class="tsc-stat-box">
+            <div class="tsc-stat-icon-wrap completed">
+              <svg class="ico" style="width:16px;height:16px;"><use href="#i-check"/></svg>
+            </div>
+            <span class="tsc-stat-number">{{ stats.completed }}</span>
+            <span class="tsc-stat-label">Completed</span>
+          </div>
+
+          <div class="tsc-stat-box">
+            <div class="tsc-stat-icon-wrap teams">
+              <svg class="ico" style="width:16px;height:16px;"><use href="#i-shield"/></svg>
+            </div>
+            <span class="tsc-stat-number">{{ stats.teams }}</span>
+            <span class="tsc-stat-label">Teams</span>
+          </div>
+
+          <div class="tsc-stat-box">
+            <div class="tsc-stat-icon-wrap participants">
+              <svg class="ico" style="width:16px;height:16px;"><use href="#i-users"/></svg>
+            </div>
+            <span class="tsc-stat-number">{{ stats.participants }}</span>
+            <span class="tsc-stat-label">Participants</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       SECTION C: UPCOMING TOURNAMENTS
+       ======================================================================== -->
+  <section class="tsc-card-panel">
+    <div class="tsc-sec-header">
+      <h2 class="tsc-sec-title">
+        <svg class="ico" style="width:20px;height:20px;stroke:var(--green)"><use href="#i-trophy"/></svg>
+        Upcoming Tournaments
+      </h2>
+      {% if upcoming_tournaments|length > 4 %}
+        <a href="{% url 'browse' %}" class="tsc-sec-see-all">
+          See all <svg class="ico" style="width:14px;height:14px;"><use href="#i-arrow"/></svg>
+        </a>
+      {% endif %}
+    </div>
+
+    {% if upcoming_tournaments %}
+      <div class="tsc-tourney-grid-upcoming">
+        {% for t in upcoming_tournaments %}
+          <a class="tsc-tourney-card" href="{{ t.get_absolute_url }}">
+            <div class="tsc-tourney-card__cover">
+              {% if t.banner_image %}
+                <img src="{{ t.banner_image.url }}" alt="{{ t.name }}">
+              {% else %}
+                <div class="tsc-tourney-card__cover-fallback">
+                  <svg class="ico" style="width:40px;height:40px;"><use href="#{{ t.sport.icon_symbol|default:'i-trophy' }}"/></svg>
+                </div>
+              {% endif %}
+
+              <!-- Status Badge -->
+              <span class="tsc-tourney-badge {% if t.status == 'PUBLISHED' %}tsc-badge-open{% else %}tsc-badge-upcoming{% endif %}">
+                {% if t.status == 'PUBLISHED' %}Registration Open{% else %}{{ t.get_status_display }}{% endif %}
+              </span>
+            </div>
+
+            <div class="tsc-tourney-card__body">
+              <h3 class="tsc-tourney-card__title">{{ t.name }}</h3>
+              
+              <div class="tsc-tourney-card__meta-list">
+                <div class="tsc-tourney-card__meta-item">
+                  <svg class="ico"><use href="#{{ t.sport.icon_symbol|default:'i-trophy' }}"/></svg>
+                  <span>{{ t.sport.name }} {% if t.city %}• {{ t.city }}{% endif %}</span>
+                </div>
+                <div class="tsc-tourney-card__meta-item">
+                  <svg class="ico"><use href="#i-cal"/></svg>
+                  <span>{{ t.start_date|date:"M j" }}{% if t.end_date and t.end_date != t.start_date %} – {{ t.end_date|date:"M j, Y" }}{% endif %}</span>
+                </div>
+                {% if t.venue %}
+                  <div class="tsc-tourney-card__meta-item">
+                    <svg class="ico"><use href="#i-pin"/></svg>
+                    <span>{{ t.venue.name }}</span>
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="tsc-tourney-card__foot">
+                <span>
+                  <b>{{ t.participant_count }}</b> {% if t.is_team_based %}Teams{% else %}Players{% endif %}
+                </span>
+                <span style="color:var(--green); display:flex; align-items:center; gap:3px;">
+                  View <svg class="ico" style="width:13px;height:13px;"><use href="#i-arrow"/></svg>
+                </span>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="tsc-empty-shelf">
+        {% if is_owner %}
+          <div class="tsc-empty-shelf-title">Your next tournament starts here.</div>
+          <div class="tsc-empty-shelf-sub">Create and publish an upcoming tournament to start accepting registrations.</div>
+          <a href="{% url 'tournament_create' %}" class="tsc-action-btn tsc-btn-manage">
+            <svg class="ico" style="width:14px;height:14px;"><use href="#i-plus"/></svg> Create Tournament
+          </a>
+        {% else %}
+          <div class="tsc-empty-shelf-title">No upcoming tournaments scheduled</div>
+          <div class="tsc-empty-shelf-sub">Follow this organizer to get notified as soon as new competitions are announced.</div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- ========================================================================
+       SECTION D & E: ONGOING & COMPLETED TOURNAMENTS
+       ======================================================================== -->
+  <div class="tsc-tourney-dual-col">
+    <!-- Ongoing Tournaments -->
+    <section class="tsc-card-panel">
+      <div class="tsc-sec-header">
+        <h2 class="tsc-sec-title">
+          <svg class="ico" style="width:18px;height:18px;stroke:var(--live)"><use href="#i-bolt"/></svg>
+          Ongoing Tournaments
+        </h2>
+        {% if ongoing_tournaments|length > 3 %}
+          <a href="{% url 'live_list' %}" class="tsc-sec-see-all">See all</a>
+        {% endif %}
+      </div>
+
+      {% if ongoing_tournaments %}
+        <div class="tsc-compact-tourney-grid">
+          {% for t in ongoing_tournaments %}
+            <a class="tsc-compact-tourney-card" href="{{ t.get_absolute_url }}">
+              <div class="tsc-compact-thumb">
+                {% if t.banner_image %}
+                  <img src="{{ t.banner_image.url }}" alt="{{ t.name }}">
+                {% else %}
+                  <svg class="ico" style="width:24px;height:24px;stroke:#ffffff;"><use href="#{{ t.sport.icon_symbol|default:'i-trophy' }}"/></svg>
+                {% endif %}
+              </div>
+              <div class="tsc-compact-info">
+                <div class="tsc-compact-title">{{ t.name }}</div>
+                <div class="tsc-compact-sub">
+                  <svg class="ico" style="width:12px;height:12px;"><use href="#{{ t.sport.icon_symbol|default:'i-trophy' }}"/></svg>
+                  <span>{{ t.sport.name }}</span>
+                </div>
+                <span class="tag tag-live" style="font-size:10px; padding:2px 6px;">Live Ongoing</span>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="tsc-empty-shelf" style="padding: 20px;">
+          <div class="tsc-empty-shelf-title">No competitions live right now</div>
+          <div class="tsc-empty-shelf-sub">Active match results and standings will appear here once underway.</div>
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- Completed Tournaments Portfolio -->
+    <section class="tsc-card-panel">
+      <div class="tsc-sec-header">
+        <h2 class="tsc-sec-title">
+          <svg class="ico" style="width:18px;height:18px;stroke:var(--gold)"><use href="#i-trophy"/></svg>
+          Completed Tournaments
+        </h2>
+        {% if completed_tournaments|length > 3 %}
+          <a href="{% url 'results_list' %}" class="tsc-sec-see-all">See all</a>
+        {% endif %}
+      </div>
+
+      {% if completed_tournaments %}
+        <div class="tsc-compact-tourney-grid">
+          {% for t in completed_tournaments %}
+            <a class="tsc-compact-tourney-card" href="{{ t.get_absolute_url }}">
+              <div class="tsc-compact-thumb">
+                {% if t.banner_image %}
+                  <img src="{{ t.banner_image.url }}" alt="{{ t.name }}">
+                {% else %}
+                  <svg class="ico" style="width:24px;height:24px;stroke:#F2A413;"><use href="#i-trophy"/></svg>
+                {% endif %}
+              </div>
+              <div class="tsc-compact-info">
+                <div class="tsc-compact-title">{{ t.name }}</div>
+                <div class="tsc-compact-sub">
+                  <span>{{ t.sport.name }}</span>
+                  {% if t.end_date %}<span>• {{ t.end_date|date:"M Y" }}</span>{% endif %}
+                </div>
+                <span class="tag tag--plain" style="font-size:10px; padding:2px 6px;">Completed</span>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="tsc-empty-shelf" style="padding: 20px;">
+          <div class="tsc-empty-shelf-title">No past tournaments yet</div>
+          <div class="tsc-empty-shelf-sub">Historical events, champions, and brackets will be archived here.</div>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <!-- ========================================================================
+       SECTION F & G: ORGANIZER CONTENT (VLOGS, HIGHLIGHTS, POSTS)
+       ======================================================================== -->
+  <section class="tsc-card-panel">
+    <div class="tsc-content-toolbar">
+      <h2 class="tsc-sec-title" style="margin: 0;">
+        Latest from {{ organizer.organization_name|default:organizer_user.display_name }}
+      </h2>
+
+      <!-- Content Type Filters -->
+      <div class="tsc-content-filters">
+        <button type="button" class="tsc-content-tab active" data-filter="all">All</button>
+        <button type="button" class="tsc-content-tab" data-filter="vlogs">Vlogs</button>
+        <button type="button" class="tsc-content-tab" data-filter="highlights">Highlights</button>
+        <button type="button" class="tsc-content-tab" data-filter="posts">Posts</button>
+      </div>
+
+      {% if has_any_content and content_posts|length > 4 %}
+        <a href="{% url 'content_feed' %}" class="tsc-sec-see-all">
+          See all <svg class="ico" style="width:14px;height:14px;"><use href="#i-arrow"/></svg>
+        </a>
+      {% endif %}
+    </div>
+
+    {% if has_any_content %}
+      <div class="tsc-media-grid" id="organizerMediaGrid">
+        {% for post in content_posts %}
+          {% with ctype=post.content_type %}
+            <a 
+              class="tsc-media-card js-media-card" 
+              href="{{ post.get_absolute_url }}"
+              data-type="{% if ctype == 'full_video' or post.aspect_ratio == '16/9' or post.youtube_url %}vlogs{% elif ctype == 'short' or post.aspect_ratio == '9/16' %}highlights{% else %}posts{% endif %}"
+            >
+              <!-- Media Thumbnail -->
+              <div class="tsc-media-thumb-box {% if ctype == 'full_video' or post.aspect_ratio == '16/9' or post.youtube_url %}vlog{% elif ctype == 'short' or post.aspect_ratio == '9/16' %}highlight{% else %}post{% endif %}">
+                {% if post.youtube_thumbnail_url %}
+                  <img src="{{ post.youtube_thumbnail_url }}" alt="{{ post.title }}">
+                  <div class="tsc-play-overlay-icon">
+                    <div class="tsc-play-circle"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                  </div>
+                {% elif post.media_file %}
+                  {% if post.is_video or ctype == 'full_video' or ctype == 'short' %}
+                    <video src="{{ post.media_file.url }}" muted></video>
+                    <div class="tsc-play-overlay-icon">
+                      <div class="tsc-play-circle"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                    </div>
+                  {% else %}
+                    <img src="{{ post.media_file.url }}" alt="{{ post.title }}">
+                  {% endif %}
+                {% else %}
+                  <div style="width:100%;height:100%;background:#1E293B;display:flex;align-items:center;justify-content:center;color:#94A3B8;">
+                    <svg class="ico" style="width:32px;height:32px;"><use href="#i-image"/></svg>
+                  </div>
+                {% endif %}
+
+                {% if post.video_duration %}
+                  <span class="tsc-duration-pill">{{ post.formatted_duration }}</span>
+                {% endif %}
+              </div>
+
+              <!-- Media Details -->
+              <div class="tsc-media-body">
+                <div class="tsc-media-title">
+                  {{ post.title|default:post.description|truncatechars:65 }}
+                </div>
+                <div class="tsc-media-meta">
+                  <span>{{ post.created_at|timesince }} ago</span>
+                  {% if post.view_count > 0 %}
+                    <span>• {{ post.view_count }} views</span>
+                  {% endif %}
+                </div>
+
+                <!-- Type Tag -->
+                {% if ctype == 'full_video' or post.aspect_ratio == '16/9' or post.youtube_url %}
+                  <span class="tsc-media-tag tsc-tag-vlog">
+                    <svg class="ico" style="width:11px;height:11px;"><use href="#i-play"/></svg> Vlog
+                  </span>
+                {% elif ctype == 'short' or post.aspect_ratio == '9/16' %}
+                  <span class="tsc-media-tag tsc-tag-highlight">
+                    <svg class="ico" style="width:11px;height:11px;"><use href="#i-bolt"/></svg> Highlight
+                  </span>
+                {% else %}
+                  <span class="tsc-media-tag tsc-tag-post">
+                    <svg class="ico" style="width:11px;height:11px;"><use href="#i-image"/></svg> Post
+                  </span>
+                {% endif %}
+              </div>
+            </a>
+          {% endwith %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="tsc-empty-shelf">
+        {% if is_owner %}
+          <div class="tsc-empty-shelf-title">Show the community what you're organizing.</div>
+          <div class="tsc-empty-shelf-sub">Publish event announcements, fixture vlogs, or competition highlights.</div>
+          <button type="button" class="tsc-action-btn tsc-btn-manage" onclick="document.getElementById('create-post-modal').showModal()">
+            <svg class="ico" style="width:14px;height:14px;"><use href="#i-plus"/></svg> Share your first post
+          </button>
+        {% else %}
+          <div class="tsc-empty-shelf-title">No content published yet</div>
+          <div class="tsc-empty-shelf-sub">Updates, match clips, and highlights will appear here once shared.</div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- ========================================================================
+       SECTION H: COLLABORATION & CONTACT
+       ======================================================================== -->
+  <section class="tsc-collab-section">
+    <!-- Collaboration Card -->
+    <div class="tsc-collab-card">
+      <div class="tsc-collab-info">
+        <div class="tsc-collab-icon-box">
+          <svg class="ico"><use href="#i-users"/></svg>
+        </div>
+        <div class="tsc-collab-text">
+          <h3>Interested in collaborating?</h3>
+          <p>Partner with us to organize, sponsor or support upcoming tournaments and sporting leagues.</p>
+        </div>
+      </div>
+      <a href="mailto:{{ organizer_user.email }}?subject=Collaboration%20Inquiry%20via%20TournamentSC" class="tsc-action-btn tsc-btn-contact" style="white-space:nowrap;">
+        Get in Touch <svg class="ico" style="width:14px;height:14px;"><use href="#i-arrow"/></svg>
+      </a>
+    </div>
+
+    <!-- Contact Details Card -->
+    <div class="tsc-contact-card">
+      <h3 class="tsc-contact-title">Contact Information</h3>
+      <div class="tsc-contact-links-row">
+        {% if organizer_location %}
+          <div class="tsc-contact-item">
+            <svg class="ico"><use href="#i-pin"/></svg>
+            <span>{{ organizer_location }}</span>
+          </div>
+        {% endif %}
+
+        <a href="mailto:{{ organizer_user.email }}" class="tsc-contact-item">
+          <svg class="ico"><use href="#i-bell"/></svg>
+          <span>{{ organizer_user.email }}</span>
+        </a>
+
+        {% if organizer_user.phone_number %}
+          <div class="tsc-contact-item">
+            <svg class="ico"><use href="#i-check"/></svg>
+            <span>{{ organizer_user.phone_number }}</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+</div>
+
+{% if is_owner %}
+  <!-- Content Creation Modal Integration -->
+  {% include 'partials/create_post_modal.html' with tournaments=all_tournaments organizer_author=organizer %}
+{% endif %}
+
+<script>
+// Content filtering (All, Vlogs, Highlights, Posts)
+document.addEventListener('DOMContentLoaded', function() {
+  const tabs = document.querySelectorAll('.tsc-content-tab');
+  const cards = document.querySelectorAll('.js-media-card');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', function() {
+      tabs.forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+
+      const filter = this.dataset.filter;
+      cards.forEach(card => {
+        if (filter === 'all' || card.dataset.type === filter) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  });
+});
+
+// Follow toggle handler
+function toggleOrgFollow(btn, userId) {
+  fetch(`/users/${userId}/toggle-follow`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.is_following) {
+      btn.classList.add('active');
+      btn.textContent = 'Following';
+    } else {
+      btn.classList.remove('active');
+      btn.textContent = 'Follow';
+    }
+  })
+  .catch(err => console.error('Error toggling follow:', err));
+}
+</script>
+{% endblock %}

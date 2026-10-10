@@ -1,53 +1,1445 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}{{ team.name }} — {{ site_conf.site_name }}{% endblock %}
+
 {% block content %}
-<section class="section wrap">
-  <a class="back" href="{% url 'teams_list' %}">
-    <svg class="ico" style="width:16px;height:16px;transform:rotate(180deg)"><use href="#i-arrow"/></svg> All teams
-  </a>
+<style>
+/* ==========================================================================
+   TournamentSC — Team Profile Page
+   Clean Sports Community Design · Brand Navy (#1B2340) · Sport Green (#10b981)
+   ========================================================================== */
 
-  <div class="spread" style="margin-top:14px">
-    <div>
-      <span class="tag {{ team.sport.tag_class }}">{{ team.sport.icon }} {{ team.sport.name }}</span>
-      <h1 style="margin:10px 0 0">{{ team.name }}</h1>
-      {% if team.captain %}<p class="muted">Captain: {{ team.captain.user.display_name }}</p>{% endif %}
+.tsc-team-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  color: var(--navy, #1B2340);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.tsc-panel {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 12px rgba(27, 35, 64, 0.04);
+}
+
+/* ==========================================================================
+   SECTION A: TEAM IDENTITY & STATS
+   ========================================================================== */
+.tsc-team-identity {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.tsc-team-identity-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  flex: 1;
+}
+
+.tsc-team-crest-wrap {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 3px solid #ffffff;
+  box-shadow: 0 4px 16px rgba(27, 35, 64, 0.08);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tsc-team-crest-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tsc-team-crest-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  font-family: var(--font-display, inherit);
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.tsc-team-meta-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tsc-team-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tsc-team-name {
+  font-family: var(--font-display, inherit);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.tsc-team-subline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13.5px;
+  color: #64748b;
+  font-weight: 500;
+  flex-wrap: wrap;
+}
+
+.tsc-team-subline-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tsc-team-desc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #334155;
+  margin: 4px 0 0;
+  max-width: 540px;
+}
+
+.tsc-team-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.tsc-team-tag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* Identity Right: Actions + Stats Grid */
+.tsc-team-identity-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.tsc-team-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tsc-btn-edit-team {
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.tsc-btn-edit-team:hover {
+  background: #2d3768;
+}
+
+/* Stats 6-tile grid */
+.tsc-team-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  min-width: 290px;
+}
+
+.tsc-team-stat-tile {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tsc-team-stat-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tsc-team-stat-icon.members { background: #dcfce7; color: #16a34a; }
+.tsc-team-stat-icon.tourneys { background: #fef3c7; color: #d97706; }
+.tsc-team-stat-icon.matches { background: #dbeafe; color: #2563eb; }
+.tsc-team-stat-icon.wins { background: #dcfce7; color: #16a34a; }
+.tsc-team-stat-icon.draws { background: #ede9fe; color: #7c3aed; }
+.tsc-team-stat-icon.losses { background: #fee2e2; color: #ef4444; }
+
+.tsc-team-stat-num {
+  font-family: var(--font-display, inherit);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  line-height: 1.1;
+}
+
+.tsc-team-stat-lbl {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+
+/* ==========================================================================
+   SECTION B: SQUAD (HIGHEST PRIORITY)
+   ========================================================================== */
+.tsc-squad-sec {
+  padding: 22px 28px;
+}
+
+.tsc-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.tsc-sec-title {
+  font-family: var(--font-display, inherit);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tsc-sec-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tsc-btn-add-member {
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.tsc-btn-add-member:hover {
+  background: #2d3768;
+}
+
+.tsc-sec-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+.tsc-sec-link:hover {
+  text-decoration: underline;
+}
+
+/* Squad Carousel / Row */
+.tsc-squad-carousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.tsc-squad-carousel::-webkit-scrollbar {
+  height: 6px;
+}
+.tsc-squad-carousel::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.tsc-player-card {
+  flex: 0 0 135px;
+  width: 135px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+.tsc-player-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(27, 35, 64, 0.08);
+  border-color: #cbd5e1;
+}
+
+.tsc-player-headshot-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f1f5f9;
+  position: relative;
+  overflow: hidden;
+}
+
+.tsc-player-headshot {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tsc-player-headshot-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display, inherit);
+  font-size: 26px;
+  font-weight: 800;
+  color: #64748b;
+  background: #e2e8f0;
+}
+
+.tsc-player-jersey-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-family: var(--font-display, inherit);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.tsc-player-info {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tsc-player-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.tsc-player-role {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ==========================================================================
+   SECTION C: SHARE YOUR TEAM'S JOURNEY (CREATION PROMPTS)
+   ========================================================================== */
+.tsc-journey-banner {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 20px;
+  padding: 22px 28px;
+  box-shadow: 0 2px 12px rgba(27, 35, 64, 0.04);
+}
+
+.tsc-journey-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tsc-journey-title {
+  font-family: var(--font-display, inherit);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  margin: 0;
+}
+
+.tsc-journey-sub {
+  font-size: 13px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.tsc-journey-prompts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.tsc-journey-card {
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+.tsc-journey-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(27, 35, 64, 0.06);
+}
+
+.tsc-journey-card.vlog {
+  border: 1px solid #fecdd3;
+  background: linear-gradient(180deg, #fff1f2 0%, #ffffff 60%);
+}
+.tsc-journey-card.highlight {
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 60%);
+}
+.tsc-journey-card.post {
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 60%);
+}
+
+.tsc-journey-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tsc-journey-card.vlog .tsc-journey-icon { background: #ffe4e6; color: #e11d48; }
+.tsc-journey-card.highlight .tsc-journey-icon { background: #dcfce7; color: #16a34a; }
+.tsc-journey-card.post .tsc-journey-icon { background: #dbeafe; color: #2563eb; }
+
+.tsc-journey-name {
+  font-family: var(--font-display, inherit);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  margin: 0;
+}
+
+.tsc-journey-desc {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+
+/* ==========================================================================
+   SECTION D: TEAM CONTENT
+   ========================================================================== */
+.tsc-content-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tsc-filter-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.tsc-filter-pill {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #475569;
+  transition: all 0.15s;
+}
+.tsc-filter-pill.active {
+  background: var(--navy, #1B2340);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(27, 35, 64, 0.15);
+}
+
+.tsc-team-media-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.tsc-team-media-card {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(27, 35, 64, 0.03);
+}
+.tsc-team-media-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(27, 35, 64, 0.08);
+}
+
+.tsc-media-thumb-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  background: #0f172a;
+  overflow: hidden;
+}
+.tsc-team-media-card.is-short .tsc-media-thumb-wrap {
+  aspect-ratio: 9 / 16;
+}
+.tsc-team-media-card.is-post .tsc-media-thumb-wrap {
+  aspect-ratio: 1 / 1;
+}
+
+.tsc-media-thumb-wrap img,
+.tsc-media-thumb-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.tsc-team-media-card:hover .tsc-media-thumb-wrap img {
+  transform: scale(1.03);
+}
+
+.tsc-media-duration-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.tsc-media-carousel-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tsc-media-info {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tsc-media-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  line-height: 1.35;
+  margin: 0 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tsc-media-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: auto;
+}
+
+.tsc-media-tag-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tsc-media-tag-pill.vlog { background: #ffe4e6; color: #e11d48; }
+.tsc-media-tag-pill.highlight { background: #dcfce7; color: #16a34a; }
+.tsc-media-tag-pill.post { background: #dbeafe; color: #2563eb; }
+
+
+/* Empty Content Friendly Box */
+.tsc-content-empty-box {
+  padding: 36px 20px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px dashed #e2e8f0;
+}
+
+
+/* ==========================================================================
+   SECTIONS E, F, G: UPCOMING MATCHES, RECENT RESULTS, TOURNAMENTS
+   ========================================================================== */
+.tsc-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.tsc-bottom-col {
+  background: #ffffff;
+  border: 1px solid var(--line, #e4e7ef);
+  border-radius: 20px;
+  padding: 22px 20px;
+  box-shadow: 0 2px 12px rgba(27, 35, 64, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.tsc-bottom-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.tsc-bottom-title {
+  font-family: var(--font-display, inherit);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  margin: 0;
+}
+
+.tsc-bottom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Match / Result Card */
+.tsc-fixture-card {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.tsc-fixture-card:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+.tsc-fx-tourney-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.tsc-fx-matchup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.tsc-fx-team-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tsc-fx-team-crest {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.tsc-fx-team-crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tsc-fx-score-badge {
+  font-family: var(--font-display, inherit);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--navy, #1B2340);
+  padding: 2px 8px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.tsc-res-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+.tsc-res-chip.w { background: #16a34a; }
+.tsc-res-chip.d { background: #64748b; }
+.tsc-res-chip.l { background: #ef4444; }
+
+.tsc-fx-venue-row {
+  font-size: 11px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Tournament Item Card */
+.tsc-tourney-item-card {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: all 0.15s ease;
+}
+.tsc-tourney-item-card:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+.tsc-tourney-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tsc-tourney-item-crest {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #fffbeb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.tsc-tourney-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy, #1B2340);
+  line-height: 1.25;
+}
+
+.tsc-tourney-item-sub {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.tsc-status-chip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.tsc-status-chip.ongoing { background: #dcfce7; color: #166534; }
+.tsc-status-chip.upcoming { background: #dbeafe; color: #1e40af; }
+.tsc-status-chip.completed { background: #f1f5f9; color: #64748b; }
+
+.tsc-bottom-empty {
+  padding: 24px 10px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12.5px;
+  font-style: italic;
+}
+
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (MOBILE & TABLETS)
+   ========================================================================== */
+@media (max-width: 960px) {
+  .tsc-team-identity {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tsc-team-identity-right {
+    align-items: stretch;
+  }
+  .tsc-team-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    min-width: unset;
+  }
+  .tsc-journey-prompts {
+    grid-template-columns: 1fr;
+  }
+  .tsc-team-media-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tsc-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .tsc-team-page {
+    padding: 14px 12px 36px;
+    gap: 16px;
+  }
+  .tsc-panel,
+  .tsc-squad-sec,
+  .tsc-journey-banner,
+  .tsc-bottom-col {
+    padding: 18px 16px;
+    border-radius: 16px;
+  }
+  .tsc-team-identity-left {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .tsc-team-meta-body {
+    align-items: center;
+  }
+  .tsc-team-subline {
+    justify-content: center;
+  }
+  .tsc-team-tags {
+    justify-content: center;
+  }
+  .tsc-team-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tsc-team-media-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<div class="tsc-team-page">
+
+  <!-- ========================================================================
+       SECTION A: TEAM IDENTITY
+       ======================================================================== -->
+  <section class="tsc-panel">
+    <div class="tsc-team-identity">
+
+      <!-- Left: Crest + Identity Info -->
+      <div class="tsc-team-identity-left">
+        <div class="tsc-team-crest-wrap">
+          {% if team.logo %}
+            <img src="{{ team.logo.url }}" alt="{{ team.name }}" class="tsc-team-crest-img">
+          {% else %}
+            <div class="tsc-team-crest-fallback">{{ team.initials }}</div>
+          {% endif %}
+        </div>
+
+        <div class="tsc-team-meta-body">
+          <div class="tsc-team-name-row">
+            <h1 class="tsc-team-name">{{ team.name }}</h1>
+          </div>
+
+          <div class="tsc-team-subline">
+            <span class="tsc-team-subline-item">
+              <span>{{ team.sport.icon|default:"⚽" }}</span>
+              <span>{{ team.sport.name }} Team</span>
+            </span>
+            {% if team_location %}
+              <span class="tsc-team-subline-item">
+                <span>📍</span>
+                <span>{{ team_location }}</span>
+              </span>
+            {% endif %}
+            <span class="tsc-team-subline-item">
+              <span>📅</span>
+              <span>Est. {{ team.created_at|date:"Y" }}</span>
+            </span>
+          </div>
+
+          <p class="tsc-team-desc">
+            {{ team.description|default:"A community of passionate players. We play, compete and grow together." }}
+          </p>
+
+          <div class="tsc-team-tags">
+            <span class="tsc-team-tag">{{ team.sport.name }}</span>
+            {% if team.is_pair %}
+              <span class="tsc-team-tag">Duo / Pair Squad</span>
+            {% else %}
+              <span class="tsc-team-tag">Club / Squad</span>
+            {% endif %}
+            {% if team.owner %}
+              <span class="tsc-team-tag">Player-Led Community</span>
+            {% else %}
+              <span class="tsc-team-tag">Tournament Roster</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Action Button + 6-Tile Stats Grid -->
+      <div class="tsc-team-identity-right">
+        {% if can_manage %}
+          <div class="tsc-team-header-actions">
+            <a href="{% url 'team_manage' team.id %}" class="tsc-btn-edit-team">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Edit Team
+            </a>
+          </div>
+        {% endif %}
+
+        <!-- 6 Stats Tiles -->
+        <div class="tsc-team-stats-grid">
+          <!-- 1. Members -->
+          <div class="tsc-team-stat-tile">
+            <div class="tsc-team-stat-icon members">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <div class="tsc-team-stat-num">{{ squad_count }}</div>
+              <div class="tsc-team-stat-lbl">Members</div>
+            </div>
+          </div>
+
+          <!-- 2. Tournaments -->
+          <div class="tsc-team-stat-tile">
+            <div class="tsc-team-stat-icon tourneys">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1h12v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/></svg>
+            </div>
+            <div>
+              <div class="tsc-team-stat-num">{{ tournaments_count }}</div>
+              <div class="tsc-team-stat-lbl">Tournaments</div>
+            </div>
+          </div>
+
+          <!-- 3. Matches -->
+          <div class="tsc-team-stat-tile">
+            <div class="tsc-team-stat-icon matches">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 9.17l4.24-4.24"/><path d="M14.83 14.83l4.24 4.24"/><path d="M9.17 14.83l-4.24 4.24"/></svg>
+            </div>
+            <div>
+              <div class="tsc-team-stat-num">{{ matches_played }}</div>
+              <div class="tsc-team-stat-lbl">Matches</div>
+            </div>
+          </div>
+
+          <!-- 4. Wins -->
+          <div class="tsc-team-stat-tile">
+            <div class="tsc-team-stat-icon wins">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            </div>
+            <div>
+              <div class="tsc-team-stat-num">{{ wins }}</div>
+              <div class="tsc-team-stat-lbl">Wins</div>
+            </div>
+          </div>
+
+          <!-- 5. Draws -->
+          <div class="tsc-team-stat-tile">
+            <div class="tsc-team-stat-icon draws">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <div class="tsc-team-stat-num">{{ draws }}</div>
+              <div class="tsc-team-stat-lbl">Draws</div>
+            </div>
+          </div>
+
+          <!-- 6. Losses -->
+          <div class="tsc-team-stat-tile">
+            <div class="tsc-team-stat-icon losses">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <div>
+              <div class="tsc-team-stat-num">{{ losses }}</div>
+              <div class="tsc-team-stat-lbl">Losses</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
-    {% if team.logo %}<img src="{{ team.logo.url }}" alt="{{ team.name }}" style="width:88px;height:88px;object-fit:cover;border-radius:12px">{% endif %}
-  </div>
+  </section>
 
-  <div class="two-col" style="margin-top:26px; align-items:start">
-    <div class="panel tblcard">
-      <h3>Roster</h3>
-      <ul class="stack" style="margin-top:12px; padding-left:16px">
-        {% for m in roster %}
-          <li>
-            {% if m.player %}<a href="{% url 'player_public' m.player.pk %}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}
-            {% if m.jersey_number %}<span class="mono dim">#{{ m.jersey_number }}</span>{% endif %}
-            {% if m.role == 'CAPTAIN' %}<span class="badge badge-upcoming">Captain</span>{% endif %}
-            {% if not m.is_approved %}<span class="badge badge-draft">pending</span>{% endif %}
-          </li>
-        {% empty %}<li class="dim">No roster published.</li>{% endfor %}
-      </ul>
-    </div>
 
-    <div class="panel tblcard">
-      <h3>Tournaments</h3>
-      <div class="stack" style="margin-top:12px">
-        {% for e in entries %}
-          <a class="fixture-row" href="{{ e.tournament.get_absolute_url }}">
-            <span>{{ e.tournament.name }}</span>
-            {% include 'partials/status_badge.html' with status=e.tournament.status %}
+  <!-- ========================================================================
+       SECTION B: SQUAD (HIGHEST PRIORITY)
+       ======================================================================== -->
+  <section class="tsc-panel tsc-squad-sec">
+    <div class="tsc-sec-head">
+      <h2 class="tsc-sec-title">Squad ({{ squad_count }})</h2>
+      <div class="tsc-sec-actions">
+        {% if can_manage %}
+          <a href="{% url 'team_add_member' team.id %}" class="tsc-btn-add-member">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Member
           </a>
-        {% empty %}<p class="dim">Not entered in any tournament yet.</p>{% endfor %}
+        {% endif %}
+        {% if can_manage %}
+          <a href="{% url 'team_manage' team.id %}" class="tsc-sec-link">Manage</a>
+        {% endif %}
       </div>
     </div>
+
+    {% if roster %}
+      <div class="tsc-squad-carousel">
+        {% for m in roster %}
+          <a {% if m.player %}href="{% url 'player_public' m.player.pk %}"{% endif %} class="tsc-player-card">
+            <div class="tsc-player-headshot-wrap">
+              {% if m.player and m.player.profile_photo %}
+                <img src="{{ m.player.profile_photo.url }}" alt="{{ m.name }}" class="tsc-player-headshot" loading="lazy">
+              {% else %}
+                <div class="tsc-player-headshot-fallback">{{ m.name|slice:':1'|upper }}</div>
+              {% endif %}
+
+              <!-- Jersey Badge -->
+              {% if m.jersey_number %}
+                <div class="tsc-player-jersey-badge">{{ m.jersey_number }}</div>
+              {% endif %}
+            </div>
+
+            <div class="tsc-player-info">
+              <div class="tsc-player-name" title="{{ m.name }}">{{ m.name }}</div>
+              <div class="tsc-player-role">
+                {% if m.player and m.player.specialization %}
+                  {{ m.player.specialization }}
+                {% else %}
+                  {{ m.get_role_display }}
+                {% endif %}
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="tsc-content-empty-box">
+        <p style="font-size:14px; color:#64748b; margin:0 0 10px;">No squad members listed yet.</p>
+        {% if can_manage %}
+          <a href="{% url 'team_add_member' team.id %}" class="tsc-btn-add-member" style="margin:0 auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add First Member
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+
+  <!-- ========================================================================
+       SECTION C: SHARE YOUR TEAM'S JOURNEY (CONTENT CREATION ENTRY POINTS)
+       ======================================================================== -->
+  {% if can_manage %}
+  <section class="tsc-journey-banner">
+    <div class="tsc-journey-head">
+      <div>
+        <h2 class="tsc-journey-title">Share Your Team's Journey</h2>
+        <p class="tsc-journey-sub">Match days, training, behind the scenes, and moments worth remembering.</p>
+      </div>
+    </div>
+
+    <div class="tsc-journey-prompts">
+      <!-- 1. Vlog -->
+      <div class="tsc-journey-card vlog" onclick="openCreateModalWithType('full_video', '16/9')">
+        <div class="tsc-journey-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </div>
+        <div>
+          <h3 class="tsc-journey-name">Share a Vlog</h3>
+          <p class="tsc-journey-desc">Long videos, travel, match days</p>
+        </div>
+      </div>
+
+      <!-- 2. Highlight -->
+      <div class="tsc-journey-card highlight" onclick="openCreateModalWithType('short', '9/16')">
+        <div class="tsc-journey-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div>
+          <h3 class="tsc-journey-name">Post a Highlight</h3>
+          <p class="tsc-journey-desc">Short clips, goals, skills</p>
+        </div>
+      </div>
+
+      <!-- 3. Post -->
+      <div class="tsc-journey-card post" onclick="openCreateModalWithType('post', '1/1')">
+        <div class="tsc-journey-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <div>
+          <h3 class="tsc-journey-name">Create a Post</h3>
+          <p class="tsc-journey-desc">Photos, updates, announcements</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+
+  <!-- ========================================================================
+       SECTION D: TEAM CONTENT
+       ======================================================================== -->
+  <section class="tsc-panel">
+    <div class="tsc-content-head-row">
+      <h2 class="tsc-sec-title">Team Content</h2>
+
+      <div style="display:flex; align-items:center; gap:14px;">
+        <!-- Filter Pills -->
+        <div class="tsc-filter-pills" id="tsc-content-filters">
+          <button type="button" class="tsc-filter-pill active" onclick="filterTeamContent('all', this)">All</button>
+          <button type="button" class="tsc-filter-pill" onclick="filterTeamContent('vlog', this)">Vlogs</button>
+          <button type="button" class="tsc-filter-pill" onclick="filterTeamContent('highlight', this)">Highlights</button>
+          <button type="button" class="tsc-filter-pill" onclick="filterTeamContent('post', this)">Posts</button>
+        </div>
+      </div>
+    </div>
+
+    {% if has_any_content %}
+      <div class="tsc-team-media-grid" id="tsc-team-media-grid">
+        {% for p in all_posts %}
+          <a href="{{ p.get_absolute_url }}" class="tsc-team-media-card {% if p in vlogs %}is-vlog type-vlog{% elif p in highlights %}is-short type-highlight{% else %}is-post type-post{% endif %}" data-type="{% if p in vlogs %}vlog{% elif p in highlights %}highlight{% else %}post{% endif %}">
+            <div class="tsc-media-thumb-wrap">
+              {% if p.youtube_url and p.youtube_thumbnail_url %}
+                <img src="{{ p.youtube_thumbnail_url }}" alt="{{ p.title }}" loading="lazy">
+              {% elif p.primary_thumbnail_url %}
+                <img src="{{ p.primary_thumbnail_url }}" alt="{{ p.title }}" loading="lazy">
+              {% elif p.media_file %}
+                {% if p.is_video %}
+                  <video src="{{ p.media_file.url }}" muted></video>
+                {% else %}
+                  <img src="{{ p.media_file.url }}" alt="{{ p.title }}" loading="lazy">
+                {% endif %}
+              {% else %}
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ffffff;font-size:24px;">📹</div>
+              {% endif %}
+
+              <!-- Duration Badge for Videos -->
+              {% if p in vlogs or p in highlights %}
+                {% if p.formatted_duration %}
+                  <div class="tsc-media-duration-badge">{{ p.formatted_duration }}</div>
+                {% elif p.video_duration %}
+                  <div class="tsc-media-duration-badge">{{ p.video_duration }}s</div>
+                {% endif %}
+              {% endif %}
+
+              <!-- Carousel Badge -->
+              {% if p.is_carousel %}
+                <div class="tsc-media-carousel-badge" title="Carousel">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 21h12a2 2 0 0 0 2-2V7"/></svg>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="tsc-media-info">
+              <h4 class="tsc-media-title">{{ p.title|default:p.description|default:"Team Update" }}</h4>
+              <div class="tsc-media-meta-row">
+                <span>{{ p.view_count|default:1 }} views · {{ p.created_at|timesince }} ago</span>
+                {% if p in vlogs %}
+                  <span class="tsc-media-tag-pill vlog">📹 Vlog</span>
+                {% elif p in highlights %}
+                  <span class="tsc-media-tag-pill highlight">⚡ Highlight</span>
+                {% else %}
+                  <span class="tsc-media-tag-pill post">🖼️ Post</span>
+                {% endif %}
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="tsc-content-empty-box">
+        <div style="font-size:28px; margin-bottom:8px;">📸</div>
+        <h3 style="font-size:16px; font-weight:700; color:var(--navy); margin:0 0 4px;">Share your team's journey</h3>
+        <p style="font-size:13px; color:#64748b; margin:0 0 16px;">Match days, training, behind the scenes, and moments worth remembering.</p>
+        {% if can_manage %}
+          <button type="button" class="tsc-btn-add-member" style="margin:0 auto;" onclick="openCreateModalWithType('post', '1/1')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create First Post
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+
+  <!-- ========================================================================
+       SECTIONS E, F, G: UPCOMING MATCHES, RECENT RESULTS, TOURNAMENTS
+       ======================================================================== -->
+  <div class="tsc-bottom-grid">
+
+    <!-- 1. UPCOMING MATCHES -->
+    <div class="tsc-bottom-col">
+      <div class="tsc-bottom-head">
+        <h3 class="tsc-bottom-title">Upcoming Matches</h3>
+        <span class="tsc-sec-link" style="font-size:12px;">{{ upcoming_matches|length }} match{{ upcoming_matches|length|pluralize }}</span>
+      </div>
+
+      <div class="tsc-bottom-list">
+        {% for item in upcoming_matches %}
+          <a href="{% url 'match_detail' item.fixture.tournament.slug item.fixture.id %}" class="tsc-fixture-card">
+            <div class="tsc-fx-tourney-row">
+              <span>{{ item.fixture.tournament.name }} · {{ item.fixture.round_name }}</span>
+              <span>{{ item.fixture.scheduled_time|date:"D, j M"|default:"TBD" }}</span>
+            </div>
+
+            <div class="tsc-fx-matchup-row">
+              <div class="tsc-fx-team-item">
+                <div class="tsc-fx-team-crest">
+                  {% if team.logo %}
+                    <img src="{{ team.logo.url }}" alt="{{ team.name }}">
+                  {% else %}
+                    {{ team.initials }}
+                  {% endif %}
+                </div>
+                <span>{{ team.name }}</span>
+              </div>
+
+              <span style="font-size:11px; font-weight:700; color:#94a3b8;">vs</span>
+
+              <div class="tsc-fx-team-item" style="justify-content:flex-end;">
+                <span>{{ item.opp_part.name|default:"TBD" }}</span>
+                <div class="tsc-fx-team-crest">
+                  {% if item.opp_part.team and item.opp_part.team.logo %}
+                    <img src="{{ item.opp_part.team.logo.url }}" alt="{{ item.opp_part.name }}">
+                  {% else %}
+                    {{ item.opp_part.initials|default:"?" }}
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            {% if item.fixture.tournament.venue %}
+              <div class="tsc-fx-venue-row">
+                <span>📍</span>
+                <span>{{ item.fixture.tournament.venue.name }}</span>
+              </div>
+            {% endif %}
+          </a>
+        {% empty %}
+          <div class="tsc-bottom-empty">No upcoming matches scheduled.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 2. RECENT RESULTS -->
+    <div class="tsc-bottom-col">
+      <div class="tsc-bottom-head">
+        <h3 class="tsc-bottom-title">Recent Results</h3>
+        <span class="tsc-sec-link" style="font-size:12px;">{{ recent_results|length }} played</span>
+      </div>
+
+      <div class="tsc-bottom-list">
+        {% for item in recent_results %}
+          <a href="{% url 'match_detail' item.fixture.tournament.slug item.fixture.id %}" class="tsc-fixture-card">
+            <div class="tsc-fx-tourney-row">
+              <span>vs {{ item.opp_part.name|default:"Competitor" }}</span>
+              <span>{{ item.fixture.scheduled_time|date:"j M Y"|default:item.fixture.updated_at|date:"j M Y" }}</span>
+            </div>
+
+            <div class="tsc-fx-matchup-row">
+              <span style="font-size:11.5px; color:#64748b;">{{ item.fixture.tournament.name }}</span>
+
+              <div style="display:flex; align-items:center; gap:8px;">
+                {% if item.score_display %}
+                  <div class="tsc-fx-score-badge">{{ item.score_display }}</div>
+                {% endif %}
+
+                {% if item.result == 'W' %}
+                  <div class="tsc-res-chip w" title="Win">W</div>
+                {% elif item.result == 'D' %}
+                  <div class="tsc-res-chip d" title="Draw">D</div>
+                {% elif item.result == 'L' %}
+                  <div class="tsc-res-chip l" title="Loss">L</div>
+                {% endif %}
+              </div>
+            </div>
+          </a>
+        {% empty %}
+          <div class="tsc-bottom-empty">No recent matches completed.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 3. TOURNAMENTS -->
+    <div class="tsc-bottom-col">
+      <div class="tsc-bottom-head">
+        <h3 class="tsc-bottom-title">Tournaments</h3>
+        <span class="tsc-sec-link" style="font-size:12px;">{{ entries|length }} tournament{{ entries|length|pluralize }}</span>
+      </div>
+
+      <div class="tsc-bottom-list">
+        {% for e in entries %}
+          <a href="{% url 'tournament_detail' e.tournament.slug %}" class="tsc-tourney-item-card">
+            <div class="tsc-tourney-item-left">
+              <div class="tsc-tourney-item-crest">{{ e.tournament.sport.icon|default:"🏆" }}</div>
+              <div>
+                <div class="tsc-tourney-item-name">{{ e.tournament.name }}</div>
+                <div class="tsc-tourney-item-sub">{{ e.tournament.sport.name }} · {{ e.tournament.get_format_display }}</div>
+              </div>
+            </div>
+
+            {% if e.tournament.status == 'ONGOING' %}
+              <div class="tsc-status-chip ongoing">Ongoing</div>
+            {% elif e.tournament.status == 'SCHEDULED' %}
+              <div class="tsc-status-chip upcoming">Upcoming</div>
+            {% else %}
+              <div class="tsc-status-chip completed">{{ e.tournament.get_status_display }}</div>
+            {% endif %}
+          </a>
+        {% empty %}
+          <div class="tsc-bottom-empty">Not entered in any tournaments yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+
   </div>
 
-  <h3 style="margin-top:30px">Matches</h3>
-  {% if fixtures %}
-    {% include 'public/_fixture_list.html' with fixtures=fixtures %}
-  {% else %}
-    <div class="empty">No matches yet.</div>
-  {% endif %}
-</section>
+</div>
+
+<!-- Content Creation Modal Integration for Teams -->
+{% if can_manage %}
+  {% include 'partials/create_post_modal.html' with tournaments=team_tournaments team_author=team %}
+{% endif %}
+
+<script>
+// Open creation modal with specific format preselected
+function openCreateModalWithType(type, ratio) {
+  const modal = document.getElementById('create-post-modal');
+  if (!modal) return;
+  modal.showModal();
+
+  setTimeout(function() {
+    const cards = modal.querySelectorAll('.tsc-type-card');
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      if (ratio === '16/9' && card.innerText.includes('16:9')) {
+        card.click();
+        break;
+      } else if (ratio === '9/16' && card.innerText.includes('9:16')) {
+        card.click();
+        break;
+      } else if (ratio === '1/1' && card.innerText.includes('1:1')) {
+        card.click();
+        break;
+      }
+    }
+  }, 60);
+}
+
+// Client-side category filtering in Team Content
+function filterTeamContent(category, btn) {
+  document.querySelectorAll('#tsc-content-filters .tsc-filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const cards = document.querySelectorAll('#tsc-team-media-grid .tsc-team-media-card');
+  cards.forEach(card => {
+    const cardType = card.getAttribute('data-type');
+    if (category === 'all' || cardType === category) {
+      card.style.display = 'flex';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+</script>
 {% endblock %}

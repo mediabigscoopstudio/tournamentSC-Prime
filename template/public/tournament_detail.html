@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}{{ tournament.name }} — TournamentSC{% endblock %}
+{% block title %}{{ tournament.name }} — TournamentSC
+
+
+{% endblock %}
 {% block content %}
 <div class="wrap">
   <a class="back" href="/browse"><svg class="ico" style="width:16px;height:16px;transform:rotate(180deg)"><use href="#i-arrow"/></svg> Back to tournaments</a>
@@ -29,16 +32,48 @@
       </div>
 
       <div class="dhero__actions">
-        {% if is_owner %}
-          <a class="btn btn--primary" href="{% url 'tournament_manage' tournament.slug %}">Manage tournament</a>
-        {% elif user.is_authenticated and not user.is_staff and can_join %}
-          <a class="btn btn--primary" href="{% url 'tournament_join' tournament.slug %}">
-            {% if tournament.is_team_based %}Register a team{% else %}Register{% endif %}
+        {% if can_manage %}
+          <a class="btn btn--secondary" style="border-color: var(--orange); color: var(--orange);" href="{% url 'tournament_manage' tournament.slug %}">
+            {% if is_owner %}Manage tournament{% else %}Manage as Co-Organizer{% endif %}
           </a>
-        {% elif not user.is_authenticated and can_join %}
-          <a class="btn btn--secondary" href="{% url 'player_login' %}?next={% url 'tournament_join' tournament.slug %}">
-            <svg class="ico"><use href="#i-users"/></svg> Sign in to join
-          </a>
+        {% endif %}
+        
+        {% if user.is_authenticated and not user.is_staff and can_join %}
+          {% if tournament.is_team_based %}
+            {% if has_approved_team_entry %}
+              <button class="btn btn--secondary" disabled style="opacity: 0.7; cursor: not-allowed; border-color: #10b981; color: #10b981;">Your team is participating</button>
+            {% elif has_pending_team_entry %}
+              <button class="btn btn--secondary" disabled style="opacity: 0.7; cursor: not-allowed;">Your request is being reviewed</button>
+            {% elif eligible_teams|length > 0 %}
+              <button class="btn btn--primary" onclick="document.getElementById('participate-modal').showModal()">Participate with my team</button>
+            {% endif %}
+
+            {% if is_playing_as_member %}
+              <button class="btn btn--secondary" disabled style="opacity: 0.7; cursor: not-allowed; border-color: #10b981; color: #10b981;">Playing as a player</button>
+            {% elif has_pending_join_request %}
+              <button class="btn btn--secondary" disabled style="opacity: 0.7; cursor: not-allowed;">Join request under review</button>
+            {% else %}
+              <button class="btn btn--secondary" onclick="document.getElementById('join-team-modal').showModal()">Join a team</button>
+            {% endif %}
+          {% else %}
+            {% if is_playing_as_member %}
+              <button class="btn btn--secondary" disabled style="opacity: 0.7; cursor: not-allowed; border-color: #10b981; color: #10b981;">You are participating</button>
+            {% elif has_pending_join_request %}
+              <button class="btn btn--secondary" disabled style="opacity: 0.7; cursor: not-allowed;">Registration under review</button>
+            {% else %}
+              <button class="btn btn--primary" onclick="document.getElementById('register-individual-modal').showModal()">Register</button>
+            {% endif %}
+          {% endif %}
+        {% elif not user.is_authenticated %}
+          {% if can_join %}
+            <a class="btn btn--primary" href="{% url 'login' %}?next={{ request.path }}">
+              <svg class="ico"><use href="#i-users"/></svg> Sign in to participate
+            </a>
+          {% else %}
+            <a class="btn btn--secondary" href="{% url 'login' %}?next={{ request.path }}">
+              <svg class="ico"><use href="#i-users"/></svg> Sign in
+            </a>
+          {% endif %}
         {% endif %}
 
         {# Follow — the audience's way in. Anonymous visitors get pointed at the door. #}
@@ -51,7 +86,7 @@
             </button>
           </form>
         {% elif not user.is_authenticated %}
-          <a class="btn btn--secondary" href="{% url 'player_login' %}?next={{ request.path|urlencode }}">
+          <a class="btn btn--secondary" href="{% url 'login' %}?next={{ request.path|urlencode }}">
             <svg class="ico"><use href="#i-bell"/></svg> Follow
           </a>
         {% endif %}
@@ -263,5 +298,130 @@
     {% endif %}
   </div>
 </div>
+
+
+
+{% if tournament.is_team_based and user.is_authenticated %}
+<dialog id="participate-modal" style="max-width: 500px; width: 100%; padding: 2rem; border-radius: 20px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+  <h2 style="margin: 0 0 1.5rem 0; font-size: 1.5rem; color: #0f1533;">Participate with my team</h2>
+  <form method="POST" action="{% url 'tournament_join' tournament.slug %}">
+    {% csrf_token %}
+    <div style="margin-bottom: 2rem;">
+      <label class="mi-label">Select your team</label>
+      <div style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 8px;">
+        {% for t in eligible_teams %}
+          {% if t.id in user_entries %}
+            <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; background: #f9fafb; cursor: not-allowed;">
+              <input type="radio" disabled>
+              <div style="flex-grow: 1;">
+                <div style="font-weight: 600; color: #6b7280;">{{ t.name }}</div>
+                <div style="font-size: 0.85rem; color: #9ca3af;">Request Sent</div>
+              </div>
+            </label>
+          {% else %}
+            <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; cursor: pointer;">
+              <input type="radio" name="team_id" value="{{ t.id }}" required>
+              <div style="flex-grow: 1;">
+                <div style="font-weight: 600; color: #0f1533;">{{ t.name }}</div>
+                <div style="font-size: 0.85rem; color: #6b7280;">{{ t.memberships.count }} Members</div>
+              </div>
+            </label>
+          {% endif %}
+        {% empty %}
+          <div style="padding: 16px; text-align: center; color: #6b7280;">You have no eligible teams. Create one first!</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <button type="button" onclick="document.getElementById('participate-modal').close()" class="btn btn--secondary">Cancel</button>
+      <button type="submit" class="btn btn--primary" {% if not eligible_teams %}disabled{% endif %}>Send Request</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="join-team-modal" style="max-width: 500px; width: 100%; padding: 2rem; border-radius: 20px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+  <h2 style="margin: 0 0 1.5rem 0; font-size: 1.5rem; color: #0f1533;">Join a team</h2>
+  <form method="POST" action="{% url 'apply_to_team' tournament.slug %}">
+    {% csrf_token %}
+    <div style="margin-bottom: 1.5rem;">
+      <label class="mi-label">Select a team to join</label>
+      <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 8px;">
+        {% for t in participating_teams %}
+          {% if t.id in user_join_requests %}
+            <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; background: #f9fafb; cursor: not-allowed;">
+              <input type="radio" disabled>
+              <div style="flex-grow: 1;">
+                <div style="font-weight: 600; color: #6b7280;">{{ t.name }}</div>
+                <div style="font-size: 0.85rem; color: #9ca3af;">Request Sent</div>
+              </div>
+            </label>
+          {% else %}
+            <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; cursor: pointer;">
+              <input type="radio" name="team_id" value="{{ t.id }}" required>
+              <div style="flex-grow: 1;">
+                <div style="font-weight: 600; color: #0f1533;">{{ t.name }}</div>
+                <div style="font-size: 0.85rem; color: #6b7280;">Owner: {{ t.owner.user.display_name }}</div>
+              </div>
+            </label>
+          {% endif %}
+        {% empty %}
+          <div style="padding: 16px; text-align: center; color: #6b7280;">No teams have joined this tournament yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+    
+    <div style="margin-bottom: 1rem;">
+      <label class="mi-label">Phone Number</label>
+      <input type="tel" name="phone_number" required class="mi" placeholder="Your contact number">
+    </div>
+    
+    <div style="margin-bottom: 2rem;">
+      <label class="mi-label">Email</label>
+      <input type="email" name="email" required value="{{ request.user.email }}" class="mi" placeholder="Your email address">
+    </div>
+    
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <button type="button" onclick="document.getElementById('join-team-modal').close()" class="btn btn--secondary">Cancel</button>
+      <button type="submit" class="btn btn--primary" {% if not participating_teams %}disabled{% endif %}>Apply</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+<style>
+.mi-label{display:block;margin-bottom:8px;font-weight:700;font-size:.95rem;color:#0f1533}
+.mi{width:100%;box-sizing:border-box;padding:13px 16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;color:#0f1533;font-family:inherit;font-size:1rem;outline:none;transition:border-color .15s,box-shadow .15s}
+.mi::placeholder{color:#9aa1b2}
+.mi:focus{border-color:#ff6b35;box-shadow:0 0 0 4px rgba(255,107,53,.15)}
+</style>
+{% if not tournament.is_team_based and user.is_authenticated %}
+<dialog id="register-individual-modal" style="max-width: 500px; width: 100%; padding: 2rem; border-radius: 20px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+  <h2 style="margin: 0 0 1.5rem 0; font-size: 1.5rem; color: #0f1533;">Register for {{ tournament.name }}</h2>
+  <form method="POST" action="{% url 'tournament_join' tournament.slug %}">
+    {% csrf_token %}
+    {% if tournament.sport.slug == 'chess' %}
+    <div style="margin-bottom: 1.5rem;">
+      <label class="mi-label">FIDE Rating</label>
+      <input type="number" name="rating" class="mi" placeholder="e.g. 1500" min="1" max="3500" required>
+    </div>
+    {% endif %}
+    <div style="margin-bottom: 1.5rem;">
+      <label class="mi-label">Phone Number</label>
+      <input type="text" name="phone_number" class="mi" placeholder="Enter your phone number" required>
+    </div>
+    <div style="margin-bottom: 2rem;">
+      <label class="mi-label">Email Address</label>
+      <input type="email" name="email" class="mi" placeholder="Enter your email" required value="{{ user.email }}">
+    </div>
+    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+      <button type="button" class="btn btn--secondary" onclick="document.getElementById('register-individual-modal').close()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Submit Registration</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/pool-nav.js' %}"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/pool-nav.js' %}"></script>
+
+
+{% endblock %}

@@ -1,34 +1,180 @@
 {% extends 'base.html' %}
 {% block title %}Results — {{ site_conf.site_name }}{% endblock %}
 {% block content %}
-<section class="section wrap">
-  <div class="sec-head">
-    <div><h2>Results</h2><p>Every completed match, newest first.</p></div>
+<section class="section wrap" style="max-width:1200px; margin:0 auto; padding:24px 20px 60px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; flex-wrap:wrap; gap:14px; border-bottom:1px solid #e2e8f0; padding-bottom:18px;">
+    <div>
+      <div style="display:inline-flex; align-items:center; gap:8px; margin-bottom:6px;">
+        <span style="display:inline-flex; align-items:center; gap:5px; background:#f1f5f9; color:#475569; font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px; letter-spacing:0.04em; border:1px solid #e2e8f0;">
+          COMPLETED
+        </span>
+        <h1 style="margin:0; font-size:26px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Match Results</h1>
+      </div>
+      <p style="margin:0; font-size:14px; color:#64748b;">Every completed fixture, verified scores, and standings updates across TournamentSC.</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="btn btn-sm" href="{% url 'live_list' %}" style="font-size:12.5px; font-weight:700; color:#dc2626; background:#fee2e2; border:1px solid #fecaca; padding:7px 14px; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+        <span style="width:6px; height:6px; border-radius:50%; background:#dc2626; animation:pulse 1.2s infinite;"></span> View Live Matches
+      </a>
+      <a class="btn btn-sm" href="{% url 'browse' %}" style="font-size:12.5px; font-weight:700; color:#1e293b; background:#fff; border:1px solid #cbd5e1; padding:7px 14px; border-radius:8px; text-decoration:none;">
+        Browse Tournaments
+      </a>
+    </div>
   </div>
 
   {% if page.object_list %}
-    <div class="flist">
+    <div class="results-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:18px;">
       {% for fx in page.object_list %}
-        <a class="frow" href="{{ fx.get_absolute_url }}" style="text-decoration:none">
-          <span class="ft">{% for p in fx.participants.all|slice:':1' %}{{ p.name }}{% empty %}TBD{% endfor %}</span>
-          <span class="fm">
-            <span class="fsc">{% for p in fx.participants.all|slice:':2' %}{{ p.score|default_if_none:'–' }}{% if not forloop.last %}-{% endif %}{% endfor %}</span><br>
-            <span class="fchip done">{{ fx.tournament.name }}</span>
-          </span>
-          <span class="ft r">{% for p in fx.participants.all|slice:'1:2' %}{{ p.name }}{% empty %}—{% endfor %}</span>
-        </a>
+        {% with ps=fx.ordered_participants %}
+          <a class="result-tile-card" href="{{ fx.get_absolute_url }}" style="text-decoration:none; color:inherit; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; transition:transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;">
+            
+            <!-- Header: Sport, Tournament & Final Badge -->
+            <div style="background:#f8fafc; border-bottom:1px solid #f1f5f9; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:7px; min-width:0;">
+                <span style="font-size:15px;">{{ fx.tournament.sport.icon|default:"🏆" }}</span>
+                <div style="min-width:0;">
+                  <span style="font-size:12.5px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">
+                    {{ fx.tournament.name }}
+                  </span>
+                  <span style="font-size:11px; color:#64748b; display:block;">
+                    {{ fx.round_name }}{% if fx.venue_detail %} · {{ fx.venue_detail }}{% endif %}
+                  </span>
+                </div>
+              </div>
+              <span style="font-size:10.5px; font-weight:800; color:#475569; background:#e2e8f0; padding:2px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:0.04em;">
+                Final
+              </span>
+            </div>
+
+            <!-- Body: Participants & Score Display -->
+            <div style="padding:14px 16px; flex:1; display:flex; flex-direction:column; justify-content:center; gap:10px;">
+              {% if ps|length == 2 %}
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  
+                  <!-- Participant 1 -->
+                  <div style="flex:1; display:flex; align-items:center; gap:10px; min-width:0; {% if ps.0.is_winner %}font-weight:800;{% endif %}">
+                    <div style="width:34px; height:34px; border-radius:50%; background:#f1f5f9; border:1px solid #cbd5e1; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:12px; color:#0f172a; flex-shrink:0;">
+                      {% if ps.0.team.logo %}
+                        <img src="{{ ps.0.team.logo.url }}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.remove()">
+                      {% else %}
+                        {{ ps.0.initials }}
+                      {% endif %}
+                    </div>
+                    <div style="min-width:0;">
+                      <span style="font-size:13.5px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;" title="{{ ps.0.name }}">
+                        {{ ps.0.name }}
+                      </span>
+                      {% if ps.0.is_winner %}
+                        <span style="font-size:10px; font-weight:800; color:#15803d; display:inline-flex; align-items:center; gap:2px;">
+                          ✓ Winner
+                        </span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <!-- Scores center pill -->
+                  <div style="display:flex; align-items:center; gap:6px; background:#0f172a; color:#fff; padding:5px 12px; border-radius:8px; flex-shrink:0;">
+                    <span style="font-size:16px; font-weight:900; font-family:monospace; {% if ps.0.is_winner %}color:#34d399;{% endif %}">
+                      {{ ps.0.score|default_if_none:'0'|floatformat:'-2' }}
+                    </span>
+                    <span style="color:#64748b; font-size:11px;">-</span>
+                    <span style="font-size:16px; font-weight:900; font-family:monospace; {% if ps.1.is_winner %}color:#34d399;{% endif %}">
+                      {{ ps.1.score|default_if_none:'0'|floatformat:'-2' }}
+                    </span>
+                  </div>
+
+                  <!-- Participant 2 -->
+                  <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:10px; min-width:0; text-align:right; {% if ps.1.is_winner %}font-weight:800;{% endif %}">
+                    <div style="min-width:0;">
+                      <span style="font-size:13.5px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;" title="{{ ps.1.name }}">
+                        {{ ps.1.name }}
+                      </span>
+                      {% if ps.1.is_winner %}
+                        <span style="font-size:10px; font-weight:800; color:#15803d; display:inline-flex; align-items:center; gap:2px;">
+                          ✓ Winner
+                        </span>
+                      {% endif %}
+                    </div>
+                    <div style="width:34px; height:34px; border-radius:50%; background:#f1f5f9; border:1px solid #cbd5e1; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:12px; color:#0f172a; flex-shrink:0;">
+                      {% if ps.1.team.logo %}
+                        <img src="{{ ps.1.team.logo.url }}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.remove()">
+                      {% else %}
+                        {{ ps.1.initials }}
+                      {% endif %}
+                    </div>
+                  </div>
+
+                </div>
+              {% else %}
+                <!-- Multi-Participant Leaderboard -->
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                  {% for p in ps|slice:':3' %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px; padding:3px 0; border-bottom:1px solid #f8fafc;">
+                      <span style="font-weight:700; color:#0f172a;">
+                        <span style="color:#64748b; font-family:monospace; margin-right:4px;">#{{ forloop.counter }}</span>
+                        {{ p.name }}
+                      </span>
+                      <span style="font-family:monospace; font-weight:800; color:#0f172a;">
+                        {% if p.score is not None %}{{ p.score|floatformat:'-2' }}{% elif p.time %}{{ p.time }}{% else %}—{% endif %}
+                      </span>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Footer: Match Centre link -->
+            <div style="background:#f8fafc; border-top:1px solid #f1f5f9; padding:8px 14px; display:flex; justify-content:space-between; align-items:center; font-size:11.5px;">
+              <span style="color:#64748b;">
+                {% if fx.updated_at %}{{ fx.updated_at|date:'M j, Y' }}{% else %}Finished{% endif %}
+              </span>
+              <span style="font-weight:700; color:#F26A1B; display:inline-flex; align-items:center; gap:4px;">
+                Match Centre →
+              </span>
+            </div>
+
+          </a>
+        {% endwith %}
       {% endfor %}
     </div>
 
     {% if page.has_other_pages %}
-      <div class="pager" style="margin-top:24px">
-        {% if page.has_previous %}<a class="btn btn--secondary btn--sm" href="?page={{ page.previous_page_number }}">← Previous</a>{% endif %}
-        <span class="dim">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-        {% if page.has_next %}<a class="btn btn--secondary btn--sm" href="?page={{ page.next_page_number }}">Next →</a>{% endif %}
+      <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:36px;">
+        {% if page.has_previous %}
+          <a class="btn btn-sm" href="?page={{ page.previous_page_number }}" style="background:#fff; border:1px solid #cbd5e1; color:#0f172a; font-weight:700; padding:8px 16px; border-radius:8px; text-decoration:none;">
+            ← Previous
+          </a>
+        {% endif %}
+        <span style="font-size:13px; color:#64748b; font-weight:600;">
+          Page {{ page.number }} of {{ page.paginator.num_pages }}
+        </span>
+        {% if page.has_next %}
+          <a class="btn btn-sm" href="?page={{ page.next_page_number }}" style="background:#fff; border:1px solid #cbd5e1; color:#0f172a; font-weight:700; padding:8px 16px; border-radius:8px; text-decoration:none;">
+            Next →
+          </a>
+        {% endif %}
       </div>
     {% endif %}
+
   {% else %}
-    <div class="empty">No results published yet.</div>
+    <div style="text-align:center; padding:60px 20px; background:#fff; border-radius:16px; border:1px dashed #cbd5e1; margin-top:10px;">
+      <div style="font-size:42px; margin-bottom:12px;">🏆</div>
+      <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 6px;">No results published yet</h3>
+      <p style="font-size:14px; color:#64748b; margin:0 0 20px;">Match results and official scores will appear here once games finish.</p>
+    </div>
   {% endif %}
 </section>
+
+<style>
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+.result-tile-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06) !important;
+}
+</style>
 {% endblock %}

@@ -1,67 +1,83 @@
 {% load formtags %}
 {% if fixture.individual_scoring_enabled %}
   {% with team_a=participants.0 team_b=participants.1 %}
-  <div class="bball-indiv-switcher">
-    <button type="button" class="bball-indiv-switch-btn is-active" data-team-switch="{{ team_a.id }}"
-            aria-pressed="true" style="--team-accent:var(--orange)">
-      <span class="bball-indiv-switch-crest">
-        {% if team_a.team.logo %}<img src="{{ team_a.team.logo.url }}" alt="">{% else %}{{ team_a.initials }}{% endif %}
-      </span>
-      <span class="bball-indiv-switch-name">{{ team_a.name }}</span>
-    </button>
-    <button type="button" class="bball-indiv-switch-btn" data-team-switch="{{ team_b.id }}"
-            aria-pressed="false" style="--team-accent:var(--navy)">
-      <span class="bball-indiv-switch-crest">
-        {% if team_b.team.logo %}<img src="{{ team_b.team.logo.url }}" alt="">{% else %}{{ team_b.initials }}{% endif %}
-      </span>
-      <span class="bball-indiv-switch-name">{{ team_b.name }}</span>
-    </button>
+  <div class="scorecard-header-bar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+    <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a; letter-spacing:-0.01em;">Individual Scoring</h3>
+    <div class="bball-indiv-switcher" style="display:inline-flex; background:#f1f5f9; padding:3px; border-radius:999px; gap:4px;">
+      <button type="button" class="bball-indiv-switch-btn is-active" data-team-switch="{{ team_a.id }}"
+              aria-pressed="true" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:999px; border:none; font-size:12px; font-weight:700; cursor:pointer; background:#F26A1B; color:#ffffff; transition:all 0.15s ease;">
+        <span style="width:18px; height:18px; border-radius:50%; background:rgba(255,255,255,0.25); display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; overflow:hidden;">
+          {% if team_a.team.logo %}<img src="{{ team_a.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ team_a.initials }}{% endif %}
+        </span>
+        <span>{{ team_a.name }}</span>
+      </button>
+      <button type="button" class="bball-indiv-switch-btn" data-team-switch="{{ team_b.id }}"
+              aria-pressed="false" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:999px; border:none; font-size:12px; font-weight:700; cursor:pointer; background:transparent; color:#64748b; transition:all 0.15s ease;">
+        <span style="width:18px; height:18px; border-radius:50%; background:#e2e8f0; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; overflow:hidden;">
+          {% if team_b.team.logo %}<img src="{{ team_b.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ team_b.initials }}{% endif %}
+        </span>
+        <span>{{ team_b.name }}</span>
+      </button>
+    </div>
   </div>
 
   {% for team in participants %}
     {% with team_rows=individual_rows_by_team|lookup:team.id %}
     <div class="bball-indiv-team-panel{% if forloop.first %} is-active{% endif %}" data-team-panel="{{ team.id }}"
-         style="--team-accent:{% if forloop.first %}var(--orange){% else %}var(--navy){% endif %}">
-      <div class="bball-indiv-summary">
-        <div class="bball-indiv-summary-name">{{ team.name }}</div>
-        <div class="bball-indiv-summary-stats">
-          <div class="bball-indiv-summary-stat"><b>{{ team_rows|length }}</b><span>Players scored</span></div>
-          <div class="bball-indiv-summary-stat"><b>{{ team.score|default:0|floatformat:0 }}</b><span>Team points</span></div>
-          <div class="bball-indiv-summary-stat"><b>{{ team.fouls|default:0 }}</b><span>Total fouls</span></div>
-        </div>
-      </div>
-
+         style="{% if not forloop.first %}display:none;{% endif %}">
       {% if team_rows %}
-        <div class="bball-indiv-top">
-          <span class="bball-indiv-top-badge">🏀 Top scorer</span>
-          <span class="bball-indiv-top-name">{{ team_rows.0.name }}</span>
-          <span class="bball-indiv-top-points">{{ team_rows.0.total }} Points</span>
-        </div>
-
-        <div class="bball-indiv-cards">
-          {% for r in team_rows %}
-            <div class="bball-indiv-card">
-              <div class="bball-indiv-card-jersey">#{{ r.jersey_number|default:'—' }}</div>
-              <div class="bball-indiv-card-body">
-                <div class="bball-indiv-card-name">{{ r.name }}</div>
-                <div class="bball-indiv-card-stats">
-                  <span class="bball-indiv-points"><b>{{ r.total }}</b> Points</span>
-                  <span>1PT <b>{{ r.pt1 }}</b></span>
-                  <span>2PT <b>{{ r.pt2 }}</b></span>
-                  <span>3PT <b>{{ r.pt3 }}</b></span>
-                  <span>Fouls <b>{{ r.fouls }}</b></span>
-                </div>
-              </div>
-            </div>
-          {% endfor %}
+        <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+          <table class="scorecard-table" style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+              <tr style="border-bottom:1px solid #e2e8f0; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">
+                <th style="padding:10px 12px; width:45px; text-align:center;">#</th>
+                <th style="padding:10px 12px;">Player</th>
+                <th style="padding:10px 12px; text-align:center; font-weight:800; color:#0f172a;">PTS</th>
+                <th style="padding:10px 12px; text-align:center;">1PT</th>
+                <th style="padding:10px 12px; text-align:center;">2PT</th>
+                <th style="padding:10px 12px; text-align:center;">3PT</th>
+                <th style="padding:10px 12px; text-align:center;">REB</th>
+                <th style="padding:10px 12px; text-align:center;">AST</th>
+                <th style="padding:10px 12px; text-align:center;">FOULS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in team_rows %}
+                <tr style="border-bottom:1px solid #f1f5f9; {% if r.is_top_scorer %}background:#fffbeb; font-weight:600;{% endif %} transition:background-color 0.15s ease;">
+                  <td style="padding:12px; text-align:center; color:#64748b; font-family:monospace; font-size:12px; font-weight:700;">
+                    {{ r.jersey_number|default:'—' }}
+                  </td>
+                  <td style="padding:12px; color:#0f172a;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="font-weight:700;">{{ r.name }}</span>
+                      {% if r.is_top_scorer %}
+                        <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:800; color:#b45309; background:#fef3c7; border:1px solid #fde68a; padding:1px 6px; border-radius:999px;">
+                          👑 Top Scorer
+                        </span>
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td style="padding:12px; text-align:center; font-weight:800; font-size:14px; color:#0f172a;">{{ r.total }}</td>
+                  <td style="padding:12px; text-align:center; color:#475569;">{{ r.pt1 }}</td>
+                  <td style="padding:12px; text-align:center; color:#475569;">{{ r.pt2 }}</td>
+                  <td style="padding:12px; text-align:center; color:#475569;">{{ r.pt3 }}</td>
+                  <td style="padding:12px; text-align:center; color:#475569;">{{ r.reb|default:'0' }}</td>
+                  <td style="padding:12px; text-align:center; color:#475569;">{{ r.ast|default:'0' }}</td>
+                  <td style="padding:12px; text-align:center; color:{% if r.fouls >= 4 %}#dc2626; font-weight:700;{% else %}#475569;{% endif %}">{{ r.fouls }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       {% else %}
-        <p class="bball-indiv-empty">No individual scores recorded yet.</p>
+        <div style="padding:32px; text-align:center; color:#94a3b8; font-size:13px; background:#f8fafc; border-radius:12px; border:1px dashed #e2e8f0;">
+          No individual statistics recorded yet for {{ team.name }}.
+        </div>
       {% endif %}
     </div>
     {% endwith %}
   {% endfor %}
   {% endwith %}
 {% else %}
-  <p class="dim" style="margin-top:12px">Individual scoring was disabled for this match.</p>
+  <p class="dim" style="margin:20px 0; color:#94a3b8; font-size:13px;">Individual scoring was not enabled for this match.</p>
 {% endif %}

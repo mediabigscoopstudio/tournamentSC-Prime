@@ -1,158 +1,965 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load formtags %}
 {% block title %}{{ fixture.round_name }} — {{ tournament.name }}{% endblock %}
+
 {% block content %}
-<div class="wrap">
-  <a class="back" href="{{ tournament.get_absolute_url }}"><svg class="ico" style="width:16px;height:16px;transform:rotate(180deg)"><use href="#i-arrow"/></svg> {{ tournament.name }}</a>
+<div class="wrap match-detail-wrap" style="max-width:1240px; margin:0 auto; padding:16px 20px 48px;">
+  <!-- Top Bar / Breadcrumb / Actions -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px;">
+    <a class="back" href="{{ tournament.get_absolute_url }}" style="font-size:13.5px; font-weight:700; color:#0f172a; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px; height:15px;"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      <span>{{ tournament.name }}</span>
+    </a>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(window.location.href); alert('Match link copied to clipboard!');" style="font-size:12px; font-weight:700; color:#475569; display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:8px; border:1px solid #e2e8f0; background:#fff;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span>Share</span>
+      </button>
+      <button type="button" class="btn btn-ghost btn-sm" style="font-size:14px; font-weight:700; color:#64748b; padding:6px 10px; border-radius:8px; border:1px solid #e2e8f0; background:#fff;" title="More options">
+        •••
+      </button>
+    </div>
+  </div>
 
-  <div class="pm-layout">
-    <div class="pm-col-left">
-      <div class="scoreboard pm-scoreboard {% if fixture.status == 'LIVE' %}is-live{% endif %}" data-live-fixture="{{ fixture.id }}" data-live-status="{{ fixture.status }}">
-        <div class="scoreboard-top">
-          {% if fixture.status == 'LIVE' %}<span class="live" data-live-badge><span class="live__dot"></span> Live</span>
-          {% elif fixture.status == 'COMPLETED' %}<span class="badge badge-completed">Final</span>
-          {% else %}<span class="badge badge-upcoming">{{ fixture.get_status_display }}</span>{% endif %}
-          <span class="scoreboard-clock">{{ fixture.round_name }}{% if fixture.venue_detail %} · {{ fixture.venue_detail }}{% endif %}</span>
-        </div>
+  <!-- Two-Column Desktop / Fluid Mobile Layout -->
+  <div class="match-grid-container" style="display:grid; grid-template-columns: minmax(0, 1fr) 380px; gap:24px; align-items:start;">
 
-        {% if is_time %}
-          <div class="table-wrap"><table aria-live="polite">
-            <thead><tr><th class="n">#</th><th>Competitor</th><th class="n">Bib</th><th class="n">Pace</th><th class="n">Result</th><th>State</th></tr></thead>
-            <tbody>{% for p in participants %}
-              <tr class="{% if p.rank == 1 %}qual{% endif %}">
-                <td class="n" data-rank="{{ p.id }}">{{ p.rank|default:'—' }}</td>
-                <td><div class="tcell">{{ p.name }}</div></td>
-                <td class="n">{{ p.bib|default:'—' }}</td>
-                <td class="n">{% if p.pace_display %}{{ p.pace_display }} /km{% else %}—{% endif %}</td>
-                <td class="pts" data-score="{{ p.id }}">{% if p.time_ms %}{{ p.time_display }}{% elif p.score is not None %}{{ p.score|floatformat:'-2' }}{% else %}—{% endif %}</td>
-                <td>{{ p.get_result_state_display }}</td>
-              </tr>
-            {% endfor %}</tbody>
-          </table></div>
+    <!-- ==================== LEFT COLUMN (70%) ==================== -->
+    <div class="match-left-column" style="display:flex; flex-direction:column; gap:20px; min-width:0;">
 
-        {% elif is_lobby %}
-          <div class="table-wrap"><table aria-live="polite">
-            <thead><tr><th class="n">Place</th><th>Squad</th><th class="n">Kills</th><th class="n">Points</th></tr></thead>
-            <tbody>{% for p in participants %}
-              <tr class="{% if p.rank == 1 %}qual{% endif %}">
-                <td class="n" data-rank="{{ p.id }}">{{ p.rank|default:'—' }}</td>
-                <td><div class="tcell">{{ p.name }}</div></td>
-                <td class="n">{{ p.kills|default_if_none:'—' }}</td>
-                <td class="pts" data-score="{{ p.id }}">{{ p.score|default_if_none:'—'|floatformat:'-2' }}</td>
-              </tr>
-            {% endfor %}</tbody>
-          </table></div>
-
-        {% elif participants|length == 2 %}
-          {% if is_basketball and fixture.status == 'LIVE' %}
-            <div class="match-clock-row">
-              <span class="bball-quarter-pill" data-period-pill>{{ fixture.period_display }}</span>
-              <span class="match-clock-label">Time remaining</span>
-              <span class="bball-digital-clock" data-quarter-clock
-                    data-clock-status="{{ fixture.status }}"
-                    data-started-at="{{ fixture.live_started_at|date:'c' }}"
-                    data-extra-seconds="{{ fixture.extra_time_seconds }}"
-                    data-quarter-length-seconds="{{ fixture.quarter_length_seconds }}"
-                    data-paused="{% if fixture.clock_paused_at %}1{% else %}0{% endif %}"
-                    data-paused-remaining-seconds="{{ fixture.paused_quarter_remaining_seconds|default_if_none:'' }}">10:00</span>
-              <span class="badge badge-upcoming" data-clock-paused-badge {% if not fixture.clock_paused_at %}hidden{% endif %}>Paused</span>
-              <span class="match-clock-label">Short clock</span>
-              <span class="bball-shot-clock" data-shot-clock
-                    data-running="{% if fixture.shot_clock_running_since %}1{% else %}0{% endif %}"
-                    data-started-at="{{ fixture.shot_clock_running_since|date:'c' }}"
-                    data-remaining-seconds="{{ fixture.shot_clock_seconds_remaining }}"
-                    data-duration-seconds="{{ fixture.shot_clock_duration_seconds }}">{{ fixture.shot_clock_display_seconds }}</span>
-            </div>
-          {% endif %}
-          <div class="scoreboard-main" aria-live="polite">
-            {% for p in participants %}
-              {% if forloop.first %}
-                <div class="competitor"><div class="competitor-crest" style="background:var(--{{ tournament.sport.sp_class }})">{% if p.team.logo %}<img src="{{ p.team.logo.url }}" alt="" onerror="this.remove()">{% endif %}{{ p.initials }}</div><div class="competitor-name {% if p.is_winner %}winner{% endif %}">{{ p.name }}</div></div>
-                <div class="score-center"><span class="score-num" data-score="{{ p.id }}">{{ p.score|default_if_none:'0'|floatformat:'-2' }}</span><span class="score-divider">–</span>
+      <!-- 1. Video / Banner Broadcast Container (Exact 16:9) -->
+      <div class="match-hero-media" style="position:relative; width:100%; aspect-ratio:16/9; border-radius:18px; overflow:hidden; background:#000; box-shadow:0 6px 20px rgba(0,0,0,0.08);">
+        {% if yt_id or fixture.youtube_video_id %}
+          <iframe src="https://www.youtube.com/embed/{{ yt_id|default:fixture.youtube_video_id }}?rel=0&playsinline=1"
+                  style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                  allowfullscreen
+                  title="Live Match Stream">
+          </iframe>
+        {% elif tournament.banner_image %}
+          <!-- Tournament Banner Fallback in Exact 16:9 -->
+          <div style="position:relative; width:100%; height:100%;">
+            <img src="{{ tournament.banner_image.url }}" alt="{{ tournament.name }}" style="width:100%; height:100%; object-fit:cover;">
+            <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.85) 100%);"></div>
+            <!-- Overlay Badges and Info -->
+            <div style="position:absolute; top:18px; left:18px; display:flex; align-items:center; gap:8px;">
+              {% if fixture.status == 'LIVE' %}
+                <span style="display:inline-flex; align-items:center; gap:5px; background:#dc2626; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px; letter-spacing:0.04em;">
+                  <span style="width:6px; height:6px; border-radius:50%; background:#fff; animation:pulse 1.2s infinite;"></span>
+                  LIVE EVENT
+                </span>
               {% else %}
-                <span class="score-num" data-score="{{ p.id }}">{{ p.score|default_if_none:'0'|floatformat:'-2' }}</span></div>
-                <div class="competitor"><div class="competitor-crest">{% if p.team.logo %}<img src="{{ p.team.logo.url }}" alt="" onerror="this.remove()">{% endif %}{{ p.initials }}</div><div class="competitor-name {% if p.is_winner %}winner{% endif %}">{{ p.name }}</div></div>
+                <span style="display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px); color:#fff; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;">
+                  {{ fixture.get_status_display }}
+                </span>
               {% endif %}
-            {% endfor %}
-          </div>
-
-          {% if win_probability %}
-            <div style="margin-top:20px" data-prob-wrap>
-              <div class="hcard__bar"><i style="width:{{ win_probability }}%" data-prob-bar></i></div>
-              <div class="hcard__prob">
-                <span>{{ participants.0.name|truncatechars:14 }} <b data-prob-a>{{ win_probability }}</b>%</span>
-                <span>Win probability</span>
-                <span><b data-prob-b>{{ fixture.win_probability_other }}</b>% {{ participants.1.name|truncatechars:14 }}</span>
+              <span style="background:rgba(255,255,255,0.2); backdrop-filter:blur(4px); color:#fff; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;">
+                {{ tournament.sport.name }}
+              </span>
+            </div>
+            <div style="position:absolute; bottom:20px; left:20px; right:20px; color:#fff;">
+              <h2 style="margin:0 0 4px; font-size:22px; font-weight:800; text-shadow:0 2px 4px rgba(0,0,0,0.5);">{{ tournament.name }}</h2>
+              <div style="font-size:13px; color:#e2e8f0; display:flex; align-items:center; gap:10px;">
+                <span>{{ fixture.round_name }}</span>
+                <span>•</span>
+                <span>{% if fixture.venue_detail %}{{ fixture.venue_detail }}{% else %}Live at Venue{% endif %}</span>
               </div>
             </div>
-          {% endif %}
-
+          </div>
         {% else %}
-          <div class="table-wrap"><table aria-live="polite">
-            <thead><tr><th>Competitor</th><th class="n">Score</th></tr></thead>
-            <tbody>{% for p in participants %}<tr><td><div class="tcell">{{ p.name }}</div></td><td class="n" data-score="{{ p.id }}">{{ p.score|default_if_none:'—'|floatformat:'-2' }}</td></tr>{% endfor %}</tbody>
-          </table></div>
+          <!-- Stylized Arena Graphic Fallback in Exact 16:9 -->
+          <div style="position:relative; width:100%; height:100%; background:linear-gradient(135deg, #091322 0%, #1e293b 50%, #0f172a 100%); display:flex; flex-direction:column; justify-content:space-between; padding:24px; color:#fff; box-sizing:border-box;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                {% if fixture.status == 'LIVE' %}
+                  <span style="display:inline-flex; align-items:center; gap:5px; background:#dc2626; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#fff; animation:pulse 1.2s infinite;"></span>
+                    LIVE MATCH
+                  </span>
+                {% else %}
+                  <span style="display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,0.15); color:#fff; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;">
+                    {{ fixture.get_status_display }}
+                  </span>
+                {% endif %}
+                <span style="background:rgba(255,255,255,0.1); color:#cbd5e1; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px;">
+                  {{ tournament.sport.name }}
+                </span>
+              </div>
+              <span style="font-size:12px; font-weight:700; color:#94a3b8; font-family:monospace;">MATCH #{{ fixture.id }}</span>
+            </div>
+
+            <div style="text-align:center; padding:10px 0;">
+              <div style="font-size:42px; margin-bottom:6px;">🏀</div>
+              <h2 style="margin:0 0 6px; font-size:24px; font-weight:800; color:#fff;">{{ tournament.name }}</h2>
+              <p style="margin:0; font-size:14px; color:#94a3b8;">
+                {{ fixture.round_name }} {% if fixture.venue_detail %}· {{ fixture.venue_detail }}{% endif %}
+              </p>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#64748b;">
+              <span>TournamentSC Live Arena</span>
+              <span style="display:inline-flex; align-items:center; gap:4px; color:#10b981;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#10b981;"></span> Official Court Feed
+              </span>
+            </div>
+          </div>
         {% endif %}
       </div>
 
-      {% if is_basketball and fixture.status != 'SCHEDULED' %}
-        <div class="panel tblcard pm-indiv" id="individual-scoring"
-             data-active-team="{{ participants.0.id }}">
-          <h3>Individual scoring</h3>
+      <!-- 2. Match Scoreboard Card (Directly between video and tabs) -->
+      <div class="match-score-card {% if fixture.status == 'LIVE' %}is-live{% endif %}"
+           data-live-fixture="{{ fixture.id }}" data-live-status="{{ fixture.status }}"
+           style="background:#ffffff; border-radius:18px; border:1px solid #e2e8f0; padding:20px 24px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+
+        <!-- Header: Tournament info, Live Badge, Quarter Pill, Round Detail -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:34px; height:34px; border-radius:50%; background:#ffedd5; display:inline-flex; align-items:center; justify-content:center; font-size:18px;">
+              🏀
+            </div>
+            <div>
+              <div style="font-size:15px; font-weight:800; color:#0f172a; line-height:1.2;">{{ tournament.name }}</div>
+              <div style="font-size:12px; color:#64748b;">Organized by {{ tournament.organizer.organization_name|default:tournament.organizer.user.display_name }}</div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            {% if fixture.status == 'LIVE' %}
+              <span class="live" data-live-badge style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:#fff; background:#dc2626; padding:3px 10px; border-radius:999px;">
+                <span class="live__dot" style="width:5px; height:5px; border-radius:50%; background:#fff; animation:pulse 1.2s infinite;"></span> LIVE
+              </span>
+            {% elif fixture.status == 'COMPLETED' %}
+              <span class="badge badge-completed" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; background:#e2e8f0; color:#475569;">Final</span>
+            {% else %}
+              <span class="badge badge-upcoming" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; background:#eff6ff; color:#1e40af;">{{ fixture.get_status_display }}</span>
+            {% endif %}
+
+            <span class="bball-quarter-pill" data-period-pill style="font-size:12px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:3px 10px; border-radius:999px; border:1px solid #e2e8f0;">
+              {{ fixture.period_display|default:"Q1" }}
+            </span>
+
+            <span style="font-size:12px; font-weight:600; color:#64748b; margin-left:4px;">
+              {{ fixture.round_name }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Center Scoreboard: Team 1 Crest + Name, Score, Digital Clock, Score, Team 2 Crest + Name -->
+        {% if participants|length == 2 %}
+          <div class="scoreboard-main-row" style="display:flex; justify-content:space-between; align-items:center; padding:12px 0 16px;" aria-live="polite">
+            
+            <!-- Team 1 -->
+            <div class="team-side team-side--left" style="display:flex; align-items:center; gap:14px; flex:1; min-width:0;">
+              <div class="team-crest" style="width:48px; height:48px; border-radius:50%; background:#fff7ed; border:2px solid #fed7aa; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:16px; color:#F26A1B; flex-shrink:0;">
+                {% if participants.0.team.logo %}
+                  <img src="{{ participants.0.team.logo.url }}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.remove()">
+                {% else %}
+                  {{ participants.0.initials }}
+                {% endif %}
+              </div>
+              <div style="min-width:0;">
+                <div style="font-size:17px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  {{ participants.0.name }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Score & Digital Clock Center -->
+            <div class="score-clock-center" style="display:flex; align-items:center; gap:20px; flex-shrink:0; padding:0 16px;">
+              <span class="score-num" data-score="{{ participants.0.id }}" style="font-size:38px; font-weight:900; color:#0f172a; font-variant-numeric:tabular-nums; line-height:1;">
+                {{ participants.0.score|default_if_none:'0'|floatformat:'-2' }}
+              </span>
+
+              <!-- Live Digital Clock -->
+              <div style="display:flex; flex-direction:column; align-items:center; min-width:76px;">
+                <span class="bball-digital-clock" data-quarter-clock
+                      data-clock-status="{{ fixture.status }}"
+                      data-started-at="{{ fixture.live_started_at|date:'c' }}"
+                      data-extra-seconds="{{ fixture.extra_time_seconds }}"
+                      data-quarter-length-seconds="{{ fixture.quarter_length_seconds }}"
+                      data-paused="{% if fixture.clock_paused_at %}1{% else %}0{% endif %}"
+                      data-paused-remaining-seconds="{{ fixture.paused_quarter_remaining_seconds|default_if_none:'' }}"
+                      style="font-size:17px; font-weight:800; font-family:monospace; color:#0f172a; background:#f8fafc; border:1px solid #e2e8f0; padding:3px 10px; border-radius:8px;">
+                  06:24
+                </span>
+                <span class="badge badge-upcoming" data-clock-paused-badge {% if not fixture.clock_paused_at %}hidden{% endif %} style="font-size:10px; font-weight:700; color:#b45309; margin-top:2px;">
+                  Paused
+                </span>
+              </div>
+
+              <span class="score-num" data-score="{{ participants.1.id }}" style="font-size:38px; font-weight:900; color:#0f172a; font-variant-numeric:tabular-nums; line-height:1;">
+                {{ participants.1.score|default_if_none:'0'|floatformat:'-2' }}
+              </span>
+            </div>
+
+            <!-- Team 2 -->
+            <div class="team-side team-side--right" style="display:flex; align-items:center; justify-content:flex-end; gap:14px; flex:1; min-width:0; text-align:right;">
+              <div style="min-width:0;">
+                <div style="font-size:17px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  {{ participants.1.name }}
+                </div>
+              </div>
+              <div class="team-crest" style="width:48px; height:48px; border-radius:50%; background:#f1f5f9; border:2px solid #cbd5e1; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:16px; color:#1e293b; flex-shrink:0;">
+                {% if participants.1.team.logo %}
+                  <img src="{{ participants.1.team.logo.url }}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.remove()">
+                {% else %}
+                  {{ participants.1.initials }}
+                {% endif %}
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Win Probability Bar (Exact Reference Match) -->
+          <div style="margin-top:8px; padding-top:14px; border-top:1px solid #f1f5f9;" data-prob-wrap>
+            <div class="hcard__bar" style="height:6px; border-radius:999px; background:#e2e8f0; overflow:hidden; display:flex;">
+              <i style="width:{{ win_probability|default:'54' }}%; background:#F26A1B; transition:width 0.4s ease;" data-prob-bar></i>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:#64748b; margin-top:6px; font-weight:600;">
+              <span>{{ participants.0.name|truncatechars:18 }} <b data-prob-a style="color:#0f172a; font-weight:800;">{{ win_probability|default:'54' }}</b>%</span>
+              <span style="color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">Win probability</span>
+              <span><b data-prob-b style="color:#0f172a; font-weight:800;">{{ fixture.win_probability_other|default:'46' }}</b>% {{ participants.1.name|truncatechars:18 }}</span>
+            </div>
+          </div>
+        {% endif %}
+
+      </div>
+
+      <!-- 3. Horizontal Navigation Tabs -->
+      <div class="match-tab-bar" style="display:flex; gap:8px; border-bottom:2px solid #f1f5f9; padding-bottom:2px;">
+        <button type="button" class="match-tab-btn is-active" data-tab="scorecard"
+                style="padding:10px 18px; font-size:14px; font-weight:800; color:#0f172a; background:transparent; border:none; border-bottom:2px solid #10b981; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+          Scorecard
+        </button>
+        <button type="button" class="match-tab-btn" data-tab="commentary"
+                style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+          Commentary
+        </button>
+        <button type="button" class="match-tab-btn" data-tab="teams"
+                style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+          Teams
+        </button>
+        <button type="button" class="match-tab-btn" data-tab="stats"
+                style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+          Stats
+        </button>
+      </div>
+
+      <!-- 4. Tab Panels -->
+
+      <!-- TAB 1: SCORECARD -->
+      <div class="match-tab-panel is-active" id="tab-panel-scorecard" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <div id="individual-scoring" data-active-team="{{ participants.0.id }}">
           <div id="individual-scoring-body">
             {% include 'public/_individual_scoring.html' %}
           </div>
         </div>
-      {% endif %}
+      </div>
 
-      <div class="watch-cta pm-video">
-        {% if fixture.effective_youtube_url %}
-          <a class="btn btn-primary btn--lg watch-cta__btn" href="{{ fixture.effective_youtube_url }}"
-             target="_blank" rel="noopener">
-            <svg class="ico"><use href="#i-play"/></svg> Watch Full Match
-          </a>
-        {% else %}
-          <button class="btn btn-secondary btn--lg watch-cta__btn" type="button" disabled>Video Not Available</button>
+      <!-- TAB 2: COMMENTARY -->
+      <div class="match-tab-panel" id="tab-panel-commentary" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Match Commentary Timeline</h3>
+          <span style="font-size:12px; color:#64748b;">{{ commentary_entries|length }} Updates</span>
+        </div>
+        <div class="full-commentary-feed" style="display:flex; flex-direction:column; gap:12px;">
+          {% for e in commentary_entries %}
+            <div style="padding:14px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-weight:700; font-size:13.5px; color:#0f172a;">{{ e.author.display_name|default:"Commentator" }}</span>
+                <span style="font-size:11px; color:#94a3b8; font-family:monospace;">{{ e.created_at|date:'H:i' }}</span>
+              </div>
+              <p style="margin:0; font-size:14px; line-height:1.5; color:#1e293b; white-space:pre-wrap;">{{ e.text }}</p>
+            </div>
+          {% empty %}
+            <div style="padding:32px; text-align:center; color:#94a3b8; font-size:13px; background:#f8fafc; border-radius:12px; border:1px dashed #e2e8f0;">
+              No commentary logged yet for this match.
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- TAB 3: TEAMS -->
+      <div class="match-tab-panel" id="tab-panel-teams" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <h3 style="margin:0 0 18px; font-size:17px; font-weight:800; color:#0f172a;">Full Team Rosters</h3>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+          {% for part in participants %}
+            {% with r=team_rosters|lookup:part.id %}
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                  <div style="width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden;">
+                    {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
+                  </div>
+                  <div>
+                    <div style="font-size:16px; font-weight:800; color:#0f172a;">{{ part.name }}</div>
+                    <div style="font-size:12px; color:#64748b;">Coach: <b>{{ r.coach }}</b> · Captain: <b>{{ r.captain }}</b></div>
+                  </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  {% for p in r.players %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#fff; border:1px solid #f1f5f9; border-radius:8px; font-size:13px;">
+                      <span style="font-weight:600; color:#0f172a;">{{ p.name }}</span>
+                      <span style="font-family:monospace; font-size:12px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:999px;">#{{ p.jersey }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endwith %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- TAB 4: STATS -->
+      <div class="match-tab-panel" id="tab-panel-stats" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <h3 style="margin:0 0 18px; font-size:17px; font-weight:800; color:#0f172a;">Match Team Statistics</h3>
+        {% if team_stats %}
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <!-- Metric row helper -->
+            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:14px; color:#0f172a;">
+              <span>{{ team_stats.team_a.name }}</span>
+              <span>Team Comparison</span>
+              <span>{{ team_stats.team_b.name }}</span>
+            </div>
+
+            <!-- Points -->
+            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.points }}</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.points 15 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Points</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.points 15 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.points }}</span>
+            </div>
+
+            <!-- Field Goals -->
+            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.field_goals }}</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.field_goals 6 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Field Goals</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.field_goals 6 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.field_goals }}</span>
+            </div>
+
+            <!-- Free Throws -->
+            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.free_throws_made }}/{{ team_stats.team_a.free_throws_att }}</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.free_throws_made 4 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Free Throws</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.free_throws_made 4 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.free_throws_made }}/{{ team_stats.team_b.free_throws_att }}</span>
+            </div>
+
+            <!-- Rebounds -->
+            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.rebounds }}</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.rebounds 8 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Rebounds</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.rebounds 8 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.rebounds }}</span>
+            </div>
+
+            <!-- Assists -->
+            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.assists }}</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.assists 5 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Assists</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.assists 5 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.assists }}</span>
+            </div>
+
+            <!-- Fouls -->
+            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.fouls }}</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.fouls 5 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Fouls</span>
+              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.fouls 5 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.fouls }}</span>
+            </div>
+          </div>
         {% endif %}
       </div>
 
-      {% if highlight %}
-        <div class="panel pm-highlight">
-          <div class="spread">
-            <h3>{{ highlight.title }}</h3>
-            <span class="dim mono" style="font-size:12px">
-              {% if highlight.duration_display %}{{ highlight.duration_display }} · {% endif %}
-              {{ highlight.views_display }} view{{ highlight.view_count|pluralize }}
-            </span>
-          </div>
-          {% if highlight.best_performer %}<p class="dim" style="margin-top:6px">⭐ Best performer: {{ highlight.best_performer }}</p>{% endif %}
-          {% if highlight.image %}<img src="{{ highlight.image.url }}" alt="" style="border-radius:12px;margin:12px 0">{% endif %}
-          <p style="margin-top:8px">{{ highlight.description|linebreaks }}</p>
-        </div>
-      {% endif %}
     </div>
 
-    <div class="pm-col-right">
-      <div class="panel pm-matchinfo">
-        <h3>Match info</h3>
-        <dl class="kv" style="margin-top:12px">
-          <div class="pm-stat"><dt>Round</dt><dd>{{ fixture.round_name }}</dd></div>
-          <div class="pm-stat"><dt>Status</dt><dd>{{ fixture.get_status_display }}</dd></div>
-          {% if fixture.scheduled_time %}<div class="pm-stat"><dt>Time</dt><dd>{{ fixture.scheduled_time|date:'M j, H:i' }}</dd></div>{% endif %}
-          {% if fixture.venue_detail %}<div class="pm-stat"><dt>Venue</dt><dd>{{ fixture.venue_detail }}</dd></div>{% endif %}
-        </dl>
+    <!-- ==================== RIGHT COLUMN (30% SIDEBAR) ==================== -->
+    <div class="match-right-column" style="display:flex; flex-direction:column; gap:20px; min-width:0;">
+
+      <!-- CARD 1: LIVE COMMENTARY PANEL (Exact Reference Match) -->
+      <div class="panel pm-commentary" id="live-commentary-panel" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:16px;">🎙️</span>
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Live Commentary</h3>
+            {% if fixture.status == 'LIVE' %}
+              <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:800; color:#dc2626; background:#fee2e2; padding:2px 7px; border-radius:999px;">
+                <span style="width:5px; height:5px; border-radius:50%; background:#dc2626; animation:pulse 1.2s infinite;"></span> LIVE
+              </span>
+            {% endif %}
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:11px; color:#64748b; font-weight:600;">Auto refresh</span>
+            <label style="position:relative; display:inline-block; width:32px; height:18px; margin:0; cursor:pointer;">
+              <input type="checkbox" id="comm-auto-refresh-toggle" checked style="opacity:0; width:0; height:0;">
+              <span style="position:absolute; inset:0; background:#10b981; border-radius:999px; transition:0.2s;" id="comm-toggle-slider">
+                <span style="position:absolute; content:''; height:14px; width:14px; left:2px; bottom:2px; background:#fff; border-radius:50%; transition:0.2s; transform:translateX(14px);" id="comm-toggle-thumb"></span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Filter tabs (All, Key Moments, Scoring, Fouls, Substitutions) -->
+        <div style="display:flex; gap:5px; margin-bottom:12px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none;" id="comm-filter-tabs">
+          <button type="button" class="comm-f-btn is-active" data-filter="ALL" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; background:#0f172a; color:#fff; border:none; cursor:pointer; white-space:nowrap;">All</button>
+          <button type="button" class="comm-f-btn" data-filter="KEY_MOMENT" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">⚡ Key Moments</button>
+          <button type="button" class="comm-f-btn" data-filter="SCORING" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🏀 Scoring</button>
+          <button type="button" class="comm-f-btn" data-filter="FOUL" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🔴 Fouls</button>
+          <button type="button" class="comm-f-btn" data-filter="MATCH_UPDATE" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🔄 Substitutions</button>
+        </div>
+
+        <!-- Real-time commentary stream list -->
+        <div id="public-commentary-feed"
+             data-slug="{{ tournament.slug }}"
+             data-fixture-id="{{ fixture.id }}"
+             data-last-id="{% if commentary_entries %}{{ commentary_entries.last.id }}{% else %}0{% endif %}"
+             data-status="{{ fixture.status }}"
+             style="max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:2px;">
+          
+          <!-- Unified timeline: combines commentary entries and official referee score/foul events -->
+          {% for ev in events %}
+            <div class="comm-entry-card" data-category="{% if ev.event_type == 'score' %}SCORING{% elif ev.event_type == 'foul' %}FOUL{% else %}KEY_MOMENT{% endif %}" style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9; font-size:12.5px;">
+              <span style="font-family:monospace; font-size:11px; color:#94a3b8; font-weight:600; padding-top:1px;">{{ ev.created_at|date:'i:s'|default:'06:24' }}</span>
+              <span style="font-size:13px;">{% if ev.event_type == 'score' %}🏀{% elif ev.event_type == 'foul' %}🔴{% else %}⚡{% endif %}</span>
+              <div style="flex:1; min-width:0; line-height:1.4;">
+                <span style="font-weight:700; color:#0f172a;">{{ ev.description }}</span>
+              </div>
+            </div>
+          {% endfor %}
+
+          {% for e in commentary_entries %}
+            <div class="comm-entry-card" data-id="{{ e.id }}" data-category="{{ e.category }}" style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; font-size:12.5px;">
+              <span style="font-family:monospace; font-size:11px; color:#94a3b8; font-weight:600; padding-top:1px;">{{ e.created_at|date:'H:i' }}</span>
+              <span style="font-size:13px;">💬</span>
+              <div style="flex:1; min-width:0; line-height:1.4;">
+                <span style="font-weight:700; color:#0f172a;">{{ e.author.display_name|default:"Commentator" }}:</span>
+                <span style="color:#334155;">{{ e.text }}</span>
+              </div>
+            </div>
+          {% endfor %}
+
+          <div id="no-commentary-placeholder" style="{% if events or commentary_entries %}display:none;{% endif %} padding:24px; text-align:center; color:#94a3b8; font-size:12px;">
+            No live commentary published yet.
+          </div>
+        </div>
+
+        <div style="text-align:center; margin-top:12px; padding-top:10px; border-top:1px solid #f1f5f9;">
+          <button type="button" onclick="switchMatchTab('commentary')" style="background:none; border:none; font-size:12px; font-weight:700; color:#F26A1B; cursor:pointer;">
+            View all commentary →
+          </button>
+        </div>
+
       </div>
-      {% if events %}
-      <div class="panel pm-commentary">
-        <h3>Commentary</h3>
-        <ul class="feed" data-feed>{% for e in events %}<li><span class="t">{{ e.created_at|date:'H:i' }}</span><span>{{ e.description }}</span></li>{% endfor %}</ul>
+
+      <!-- CARD 2: TEAMS & PARTICIPANTS (Exact Reference Match) -->
+      <div class="panel pm-teams-card" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Teams &amp; Participants</h3>
+          <button type="button" onclick="switchMatchTab('teams')" style="background:none; border:none; font-size:11.5px; font-weight:700; color:#F26A1B; cursor:pointer;">
+            View full squads →
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+          {% for part in participants %}
+            {% with r=team_rosters|lookup:part.id %}
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width:34px; height:34px; border-radius:10px; background:{% if forloop.first %}#F26A1B{% else %}#0f172a{% endif %}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; overflow:hidden; flex-shrink:0;">
+                    {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
+                  </div>
+                  <div style="min-width:0;">
+                    <div style="font-size:13px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ part.name }}</div>
+                  </div>
+                </div>
+                <div style="font-size:11px; color:#64748b; line-height:1.3;">
+                  <div>Coach: <span style="color:#0f172a; font-weight:600;">{{ r.coach }}</span></div>
+                  <div>Captain: <span style="color:#0f172a; font-weight:600;">{{ r.captain }}</span></div>
+                </div>
+                <!-- Jersey chips -->
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
+                  {% for p in r.players|slice:":5" %}
+                    <div style="display:flex; flex-direction:column; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:3px 5px; min-width:24px;">
+                      <span style="font-size:10px; font-weight:800; color:#0f172a;">{{ p.jersey }}</span>
+                      <span style="font-size:9px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:40px;">{{ p.short_name }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endwith %}
+          {% endfor %}
+        </div>
       </div>
-      {% endif %}
+
+      <!-- CARD 3: MATCH STATS BARS (Exact Reference Match) -->
+      <div class="panel pm-stats-card" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Match Stats</h3>
+          <span style="font-size:11px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:2px 8px; border-radius:999px;">{{ fixture.period_display|default:"Q1" }}</span>
+        </div>
+
+        {% if team_stats %}
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color:#0f172a; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:5px;">
+              <span style="width:8px; height:8px; border-radius:50%; background:#F26A1B;"></span>
+              <span>{{ team_stats.team_a.name }}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:5px;">
+              <span>{{ team_stats.team_b.name }}</span>
+              <span style="width:8px; height:8px; border-radius:50%; background:#0f172a;"></span>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:11.5px;">
+            <!-- Points -->
+            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.points }}</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.points 12 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Points</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.points 12 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.points }}</span>
+            </div>
+
+            <!-- Field Goals -->
+            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.field_goals }}</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.field_goals 4 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Field Goals</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.field_goals 4 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.field_goals }}</span>
+            </div>
+
+            <!-- Free Throws -->
+            <div style="display:grid; grid-template-columns: 44px 1fr 70px 1fr 44px; align-items:center; gap:6px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.free_throws_made }}/{{ team_stats.team_a.free_throws_att }}</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.free_throws_made 2 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Free Throws</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.free_throws_made 2 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.free_throws_made }}/{{ team_stats.team_b.free_throws_att }}</span>
+            </div>
+
+            <!-- Rebounds -->
+            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.rebounds }}</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.rebounds 6 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Rebounds</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.rebounds 6 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.rebounds }}</span>
+            </div>
+
+            <!-- Assists -->
+            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.assists }}</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.assists 4 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Assists</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.assists 4 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.assists }}</span>
+            </div>
+
+            <!-- Fouls -->
+            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.fouls }}</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="width:{% widthratio team_stats.team_a.fouls 4 100 %}%; background:#F26A1B;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600;">Fouls</span>
+              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                <div style="width:{% widthratio team_stats.team_b.fouls 4 100 %}%; background:#0f172a;"></div>
+              </div>
+              <span style="font-weight:800;">{{ team_stats.team_b.fouls }}</span>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ==================== MORE FROM TOURNAMENTSC (Full Width Bottom Carousel) ==================== -->
+  <div style="margin-top:36px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">More from TournamentSC</h3>
+      <a href="/content/" style="font-size:12.5px; font-weight:700; color:#F26A1B; text-decoration:none;">See all →</a>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:16px;">
+      {% for item in more_content %}
+        <a href="{{ item.get_absolute_url }}" style="text-decoration:none; color:inherit; background:#fff; border-radius:14px; border:1px solid #e2e8f0; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 2px 8px rgba(0,0,0,0.03); transition:transform 0.15s ease, box-shadow 0.15s ease;">
+          <div style="position:relative; width:100%; aspect-ratio:16/9; background:#0f172a; overflow:hidden;">
+            {% if item.youtube_thumbnail_url %}
+              <img src="{{ item.youtube_thumbnail_url }}" alt="{{ item.title }}" style="width:100%; height:100%; object-fit:cover;">
+            {% elif item.media_file %}
+              <video src="{{ item.media_file.url }}#t=0.5" preload="metadata" muted playsinline style="width:100%; height:100%; object-fit:cover; pointer-events:none;"></video>
+            {% else %}
+              <div style="position:absolute; inset:0; background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%); display:flex; align-items:center; justify-content:center; font-size:28px;">
+                🎥
+              </div>
+            {% endif %}
+            
+            <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.7) 100%); pointer-events:none;"></div>
+            
+            <span style="position:absolute; top:8px; left:8px; font-size:9.5px; font-weight:800; color:#fff; background:#dc2626; padding:2px 6px; border-radius:4px; letter-spacing:0.04em;">
+              {{ item.get_content_type_display|upper|default:"VIDEO" }}
+            </span>
+            
+            {% if item.formatted_duration or item.video_duration %}
+              <span style="position:absolute; bottom:8px; right:8px; font-size:10px; font-family:monospace; font-weight:700; color:#fff; background:rgba(0,0,0,0.75); padding:2px 6px; border-radius:4px;">
+                {{ item.formatted_duration|default:item.video_duration }}
+              </span>
+            {% endif %}
+
+            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+              <span style="width:34px; height:34px; border-radius:50%; background:rgba(15,23,42,0.75); backdrop-filter:blur(4px); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:13px; border:1.5px solid rgba(255,255,255,0.4);">
+                ▶
+              </span>
+            </div>
+          </div>
+
+          <div style="padding:12px; display:flex; flex-direction:column; flex:1;">
+            <h4 style="margin:0 0 6px; font-size:13px; font-weight:700; color:#0f172a; line-height:1.35; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+              {{ item.title }}
+            </h4>
+            <div style="margin-top:auto; font-size:11px; color:#64748b; display:flex; align-items:center; justify-content:space-between;">
+              <span>{{ item.view_count|default:"0" }} views</span>
+              <span>{{ item.created_at|timesince }} ago</span>
+            </div>
+          </div>
+        </a>
+      {% empty %}
+        <div style="grid-column: 1 / -1; padding:32px; text-align:center; color:#94a3b8; font-size:13px; background:#f8fafc; border-radius:12px; border:1px dashed #e2e8f0;">
+          No 16:9 ratio videos uploaded yet.
+        </div>
+      {% endfor %}
     </div>
   </div>
+
 </div>
+
+<style>
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.match-left-column {
+  display: flex !important;
+  flex-direction: column !important;
+}
+.match-hero-media {
+  order: 1 !important;
+}
+.match-score-card {
+  order: 2 !important;
+}
+.match-tab-bar {
+  order: 3 !important;
+}
+.match-tab-panel {
+  order: 4 !important;
+}
+
+@media (max-width: 900px) {
+  .match-grid-container {
+    grid-template-columns: 1fr !important;
+  }
+  .match-right-column {
+    order: 2 !important;
+  }
+  .match-left-column {
+    order: 1 !important;
+  }
+}
+@media (max-width: 600px) {
+  .match-detail-wrap {
+    padding: 12px 14px 36px !important;
+  }
+  .score-clock-center {
+    gap: 10px !important;
+    padding: 0 6px !important;
+  }
+  .score-num {
+    font-size: 28px !important;
+  }
+  .team-side .team-crest {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 13px !important;
+  }
+  .team-side div {
+    font-size: 14px !important;
+  }
+}
+</style>
 {% endblock %}
+
 {% block scripts %}
   {% if is_basketball %}<script src="{% static 'js/match-clock.js' %}?v=1"></script>{% endif %}
-  <script src="{% static 'js/live-scores.js' %}?v=2"></script>
+  <script src="{% static 'js/live-scores.js' %}?v=3"></script>
+  <script>
+  // Global Tab Switching function
+  function switchMatchTab(tabId) {
+    const tabBtns = document.querySelectorAll('.match-tab-btn');
+    const tabPanels = document.querySelectorAll('.match-tab-panel');
+
+    tabBtns.forEach(btn => {
+      const active = btn.getAttribute('data-tab') === tabId;
+      btn.classList.toggle('is-active', active);
+      if (active) {
+        btn.style.color = '#0f172a';
+        btn.style.borderBottomColor = '#10b981';
+      } else {
+        btn.style.color = '#64748b';
+        btn.style.borderBottomColor = 'transparent';
+      }
+    });
+
+    tabPanels.forEach(panel => {
+      const active = panel.id === 'tab-panel-' + tabId;
+      panel.style.display = active ? 'block' : 'none';
+      panel.classList.toggle('is-active', active);
+    });
+  }
+
+  // Bind tab clicks
+  document.querySelectorAll('.match-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      switchMatchTab(btn.getAttribute('data-tab'));
+    });
+  });
+
+  // Real-time commentary and live scores
+  (function() {
+    const feed = document.getElementById('public-commentary-feed');
+    if (!feed) return;
+
+    const slug = feed.getAttribute('data-slug');
+    const fixtureId = feed.getAttribute('data-fixture-id');
+    let lastId = parseInt(feed.getAttribute('data-last-id') || '0', 10);
+    const tabs = document.querySelectorAll('#comm-filter-tabs .comm-f-btn');
+    let currentFilter = 'ALL';
+
+    // Auto-refresh switch logic
+    const autoRefreshToggle = document.getElementById('comm-auto-refresh-toggle');
+    const toggleSlider = document.getElementById('comm-toggle-slider');
+    const toggleThumb = document.getElementById('comm-toggle-thumb');
+    let isAutoRefresh = true;
+
+    if (autoRefreshToggle) {
+      autoRefreshToggle.addEventListener('change', (e) => {
+        isAutoRefresh = e.target.checked;
+        if (isAutoRefresh) {
+          toggleSlider.style.background = '#10b981';
+          toggleThumb.style.transform = 'translateX(14px)';
+        } else {
+          toggleSlider.style.background = '#cbd5e1';
+          toggleThumb.style.transform = 'translateX(0)';
+        }
+      });
+    }
+
+    // Filter tabs
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabs.forEach(b => {
+          b.style.background = '#f1f5f9';
+          b.style.color = '#475569';
+        });
+        btn.style.background = '#0f172a';
+        btn.style.color = '#fff';
+        currentFilter = btn.getAttribute('data-filter');
+
+        const cards = feed.querySelectorAll('.comm-entry-card');
+        cards.forEach(card => {
+          const cat = card.getAttribute('data-category');
+          if (currentFilter === 'ALL' || cat === currentFilter) {
+            card.style.display = 'flex';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function createCard(e) {
+      const card = document.createElement('div');
+      card.className = 'comm-entry-card';
+      card.setAttribute('data-id', e.id);
+      card.setAttribute('data-category', e.category || 'ALL');
+      card.style.display = 'flex';
+      card.style.alignItems = 'flex-start';
+      card.style.gap = '8px';
+      card.style.padding = '8px 10px';
+      card.style.background = '#f8fafc';
+      card.style.borderRadius = '10px';
+      card.style.border = '1px solid #e2e8f0';
+      card.style.fontSize = '12.5px';
+      card.style.transition = 'background-color 0.5s ease';
+
+      if (currentFilter !== 'ALL' && e.category !== currentFilter) {
+        card.style.display = 'none';
+      }
+
+      card.innerHTML = `
+        <span style="font-family:monospace; font-size:11px; color:#94a3b8; font-weight:600; padding-top:1px;">${escapeHtml(e.created_at || '')}</span>
+        <span style="font-size:13px;">💬</span>
+        <div style="flex:1; min-width:0; line-height:1.4;">
+          <span style="font-weight:700; color:#0f172a;">${escapeHtml(e.author_name || 'Commentator')}:</span>
+          <span style="color:#334155;">${escapeHtml(e.text)}</span>
+        </div>
+      `;
+      return card;
+    }
+
+    function addEntries(entries, deletedIds) {
+      if (deletedIds && deletedIds.length) {
+        deletedIds.forEach(id => {
+          const old = feed.querySelector(`.comm-entry-card[data-id="${id}"]`);
+          if (old) old.remove();
+        });
+      }
+
+      if (!entries || !entries.length) return;
+      const placeholder = document.getElementById('no-commentary-placeholder');
+      if (placeholder) placeholder.remove();
+
+      entries.forEach(e => {
+        if (e.id > lastId) lastId = e.id;
+        const existing = feed.querySelector(`.comm-entry-card[data-id="${e.id}"]`);
+        if (existing) {
+          const textSpan = existing.querySelector('span[style*="color:#334155"]');
+          if (textSpan) textSpan.textContent = e.text;
+          return;
+        }
+        const card = createCard(e);
+        feed.appendChild(card);
+        card.style.backgroundColor = '#ecfdf5';
+        setTimeout(() => { card.style.backgroundColor = '#f8fafc'; }, 1000);
+      });
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    // Polling sync
+    async function syncNow() {
+      if (!isAutoRefresh) return;
+      try {
+        const res = await fetch(`/api/t/${slug}/fixtures/${fixtureId}/commentary/sync?since_id=${lastId}`, {
+          cache: 'no-store'
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        addEntries(data.entries, data.deleted_ids);
+        if (window.applyFixtureLiveData) {
+          window.applyFixtureLiveData(data);
+        }
+      } catch (err) {}
+    }
+
+    // SSE Stream
+    let sseActive = false;
+    try {
+      const evtSource = new EventSource(`/api/t/${slug}/fixtures/${fixtureId}/commentary/stream`);
+      
+      evtSource.addEventListener('commentary', (event) => {
+        if (!isAutoRefresh) return;
+        sseActive = true;
+        try {
+          const data = JSON.parse(event.data);
+          addEntries(data.entries, data.deleted_ids);
+        } catch (e) {}
+      });
+
+      evtSource.addEventListener('commentary_published', (event) => {
+        if (!isAutoRefresh) return;
+        sseActive = true;
+        try {
+          const entry = JSON.parse(event.data);
+          addEntries([entry], []);
+        } catch (e) {}
+      });
+
+      evtSource.addEventListener('score_update', (event) => {
+        if (!isAutoRefresh) return;
+        sseActive = true;
+        try {
+          const data = JSON.parse(event.data);
+          if (window.applyFixtureLiveData) {
+            window.applyFixtureLiveData(data);
+          }
+        } catch (e) {}
+      });
+
+      evtSource.onerror = () => {
+        sseActive = false;
+      };
+    } catch (e) {
+      sseActive = false;
+    }
+
+    // Interval sync fallback / periodic poll
+    setInterval(() => {
+      if (!sseActive && isAutoRefresh) syncNow();
+    }, 3000);
+  })();
+  </script>
 {% endblock %}

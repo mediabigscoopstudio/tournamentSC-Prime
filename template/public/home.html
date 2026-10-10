@@ -1,170 +1,2333 @@
 {% extends 'base.html' %}
-{% block content %}
+{% load static %}
+{% block title %}TournamentSC — Every Sport Finds Its Stage{% endblock %}
 
-<!-- HERO -->
-<section class="hero">
-  <div class="hero__bg"></div>
-  <div class="wrap hero__inner">
-    <div class="hero__copy">
-      <span class="hero__kicker"><span class="k1">Play.</span> <span class="k2">Compete.</span> <span class="k3">Conquer.</span></span>
-      <h1>Every sport finds <span class="u">its stage.</span></h1>
-      <p class="hero__sub">TournamentSC brings players, organizers and fans together to run and follow local tournaments across seven sports. Create an event, score it live, and give everyone a place to watch.</p>
-      <div class="hero__actions">
-        <a class="btn btn--primary btn--lg" href="/signup">Start a tournament <svg class="ico"><use href="#i-arrow"/></svg></a>
-        <a class="btn btn--onnavy btn--lg" href="#sports">Explore sports</a>
+{% block content %}
+<style>
+/* ==========================================================================
+   TournamentSC Home Page — Sports Stage Theme (Strict Orange & Blue)
+   NO GREEN ELEMENTS ALLOWED.
+   ========================================================================== */
+
+:root {
+  --tsc-orange: #F26A1B;
+  --tsc-orange-hover: #d95a10;
+  --tsc-orange-soft: rgba(242, 106, 27, 0.1);
+  --tsc-blue: #0284c7;
+  --tsc-blue-hover: #0369a1;
+  --tsc-blue-soft: rgba(2, 132, 199, 0.1);
+  --tsc-navy-dark: #0a1120;
+  --tsc-navy-card: #131d33;
+  --tsc-navy-border: #1e2d4d;
+  --tsc-card-bg: #ffffff;
+  --tsc-border: #e2e8f0;
+  --tsc-border-subtle: #f1f5f9;
+  --tsc-text-main: #0f172a;
+  --tsc-text-muted: #64748b;
+  --tsc-live-red: #ef4444;
+}
+
+/* --- HERO SECTION --- */
+.hero-v2 {
+  position: relative;
+  background: linear-gradient(135deg, #070d18 0%, #0e1e3b 50%, #091224 100%);
+  color: #ffffff;
+  padding: 56px 0 64px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hero-v2__glow {
+  position: absolute;
+  top: -120px;
+  right: -100px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(2, 132, 199, 0.25) 0%, rgba(242, 106, 27, 0.15) 50%, transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hero-v2__glow-left {
+  position: absolute;
+  bottom: -150px;
+  left: -100px;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(242, 106, 27, 0.15) 0%, transparent 70%);
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hero-v2__inner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.hero-v2__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--tsc-orange);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.hero-v2__kicker::after {
+  content: '';
+  display: inline-block;
+  width: 40px;
+  height: 2px;
+  background: var(--tsc-orange);
+}
+
+.hero-v2__title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: clamp(2.4rem, 4.5vw, 3.6rem);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.hero-v2__title .highlight {
+  color: var(--tsc-orange);
+  position: relative;
+  display: inline-block;
+}
+
+.hero-v2__sub {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #cbd5e1;
+  max-width: 580px;
+  margin-bottom: 32px;
+}
+
+.hero-v2__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.btn-hero-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--tsc-orange);
+  color: #ffffff !important;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 14px 28px;
+  border-radius: 12px;
+  text-decoration: none;
+  box-shadow: 0 10px 24px -6px rgba(242, 106, 27, 0.45);
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-hero-primary:hover {
+  background: var(--tsc-orange-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -6px rgba(242, 106, 27, 0.6);
+}
+
+.btn-hero-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff !important;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 14px 26px;
+  border-radius: 12px;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(8px);
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-hero-secondary:hover {
+  background: rgba(2, 132, 199, 0.25);
+  border-color: var(--tsc-blue);
+  transform: translateY(-2px);
+}
+
+.hero-v2__stats {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.hero-v2__stat-val {
+  font-family: var(--font-score, 'Rajdhani', sans-serif);
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.hero-v2__stat-val span {
+  color: var(--tsc-orange);
+}
+
+.hero-v2__stat-lbl {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Floating Live Match Card */
+.hero-live-widget {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
+  color: var(--tsc-text-main);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.hero-live-widget:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+}
+
+.hero-live-widget__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--tsc-border);
+}
+
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--tsc-live-red);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.pulse-dot-red {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tsc-live-red);
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  animation: redPulse 1.8s infinite;
+}
+
+@keyframes redPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.hero-live-widget__all-link {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--tsc-blue);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hero-live-widget__all-link:hover {
+  color: var(--tsc-blue-hover);
+  text-decoration: underline;
+}
+
+.hero-live-widget__body {
+  padding: 24px 20px;
+}
+
+.hero-live-widget__tourney {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--tsc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hero-live-widget__period {
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: var(--tsc-blue-soft);
+  color: var(--tsc-blue);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.hero-live-widget__matchup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.team-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 38%;
+  text-align: center;
+}
+
+.team-crest {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0e1e3b 0%, #1e3a6a 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-weight: 800;
+  font-size: 1.15rem;
+  box-shadow: 0 8px 16px rgba(14, 30, 59, 0.2);
+  margin-bottom: 8px;
+  border: 2px solid #ffffff;
+}
+
+.team-entry__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--tsc-text-main);
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+
+.team-entry__score {
+  font-family: var(--font-score, 'Rajdhani', sans-serif);
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  line-height: 1;
+}
+
+.match-vs-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 24%;
+}
+
+.match-vs-divider .vs-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: #f1f5f9;
+  color: var(--tsc-text-muted);
+  padding: 4px 10px;
+  border-radius: 8px;
+  letter-spacing: 0.08em;
+}
+
+.hero-live-widget__foot {
+  padding-top: 16px;
+  border-top: 1px solid var(--tsc-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-match-centre {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--tsc-orange);
+  color: #ffffff !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.btn-match-centre:hover {
+  background: var(--tsc-orange-hover);
+}
+
+.hero-live-widget__watch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--tsc-blue);
+  text-decoration: none;
+}
+
+.hero-live-widget__watch:hover {
+  color: var(--tsc-blue-hover);
+  text-decoration: underline;
+}
+
+/* --- SECTION 2: EXPLORE BY SPORT ROW --- */
+.sec-sports-bar {
+  background: #ffffff;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--tsc-border);
+}
+
+.sec-sports-bar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.sec-sports-bar__inner::-webkit-scrollbar {
+  display: none;
+}
+
+.sport-filter-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid var(--tsc-border);
+  color: var(--tsc-text-main);
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sport-filter-item:hover {
+  background: #ffffff;
+  border-color: var(--tsc-blue);
+  color: var(--tsc-blue);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.1);
+}
+
+.sport-filter-item.is-active {
+  background: var(--tsc-navy-dark);
+  color: #ffffff;
+  border-color: var(--tsc-navy-dark);
+  font-weight: 700;
+}
+
+.sport-filter-item.is-active .sport-filter-item__icon {
+  color: var(--tsc-orange);
+}
+
+.sport-filter-item__icon {
+  width: 18px;
+  height: 18px;
+  color: var(--tsc-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sport-filter-item__count {
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(2, 132, 199, 0.12);
+  color: var(--tsc-blue);
+  font-weight: 700;
+}
+
+.sport-filter-item.is-active .sport-filter-item__count {
+  background: var(--tsc-orange);
+  color: #ffffff;
+}
+
+/* --- SECTION 3: 3-COLUMN DISCOVERY GRID --- */
+.sec-discovery {
+  background: #f8fafc;
+  padding: 48px 0 64px;
+}
+
+.discovery-grid {
+  display: grid;
+  grid-template-columns: 330px 1.25fr 330px;
+  gap: 28px;
+  align-items: start;
+}
+
+.col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.col-header__title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1.22rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.col-header__link {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--tsc-orange);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.col-header__link:hover {
+  color: var(--tsc-orange-hover);
+  text-decoration: underline;
+}
+
+/* COLUMN 1: UPCOMING TOURNAMENTS */
+.col-upcoming__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.upcoming-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid var(--tsc-border);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+}
+
+.upcoming-card:hover {
+  transform: translateY(-3px);
+  border-color: #cbd5e1;
+  box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.08);
+}
+
+.upcoming-card__cover {
+  position: relative;
+  height: 120px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  overflow: hidden;
+}
+
+.upcoming-card__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.upcoming-card:hover .upcoming-card__cover img {
+  transform: scale(1.04);
+}
+
+.upcoming-card__cover-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0e1e3b 0%, #1e3a6a 100%);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.upcoming-card__cover-fallback svg {
+  width: 44px;
+  height: 44px;
+}
+
+.upcoming-card__badge-row {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2;
+}
+
+.badge-reg-open {
+  background: var(--tsc-orange);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(242, 106, 27, 0.4);
+}
+
+.badge-ongoing {
+  background: var(--tsc-blue);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+
+.badge-sport {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.upcoming-card__body {
+  padding: 16px;
+}
+
+.upcoming-card__title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.upcoming-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: var(--tsc-text-muted);
+  margin-bottom: 14px;
+}
+
+.upcoming-card__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.upcoming-card__meta-item svg {
+  width: 14px;
+  height: 14px;
+  color: var(--tsc-blue);
+  flex-shrink: 0;
+}
+
+.upcoming-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--tsc-border);
+  font-size: 0.82rem;
+}
+
+.upcoming-card__count {
+  font-weight: 700;
+  color: var(--tsc-text-main);
+}
+
+.upcoming-card__count b {
+  color: var(--tsc-blue);
+}
+
+.upcoming-card__action {
+  font-weight: 800;
+  color: var(--tsc-orange);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* COLUMN 2: FEATURED CONTENT (16:9 HERO VIDEO & SUB CARDS) */
+.featured-video-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid var(--tsc-border);
+  overflow: hidden;
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.06);
+  margin-bottom: 20px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.featured-video-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px -6px rgba(15, 23, 42, 0.12);
+}
+
+.video-container-16-9 {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0f172a;
+  overflow: hidden;
+}
+
+.video-container-16-9 img,
+.video-container-16-9 video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.featured-video-card:hover .video-container-16-9 img {
+  transform: scale(1.03);
+}
+
+.video-overlay-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  background: var(--tsc-orange);
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(242, 106, 27, 0.6);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  z-index: 3;
+}
+
+.featured-video-card:hover .video-overlay-play {
+  transform: translate(-50%, -50%) scale(1.12);
+  background: var(--tsc-orange-hover);
+}
+
+.video-overlay-play svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  margin-left: 3px;
+}
+
+.video-duration-tag {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-family: var(--font-score, 'Rajdhani', sans-serif);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  z-index: 2;
+}
+
+.video-badge-pill {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--tsc-orange);
+  z-index: 2;
+}
+
+.featured-video-body {
+  padding: 20px;
+}
+
+.featured-video-title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  line-height: 1.35;
+  margin-bottom: 12px;
+}
+
+.featured-video-title a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.featured-video-title a:hover {
+  color: var(--tsc-blue);
+}
+
+.featured-video-author {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--tsc-border);
+}
+
+.author-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.author-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--tsc-blue);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.author-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--tsc-text-main);
+  line-height: 1.2;
+}
+
+.author-date {
+  font-size: 0.78rem;
+  color: var(--tsc-text-muted);
+}
+
+.featured-video-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--tsc-text-muted);
+}
+
+.stats-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stat-item svg {
+  width: 15px;
+  height: 15px;
+  color: var(--tsc-blue);
+}
+
+.btn-watch-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--tsc-navy-dark);
+  color: #ffffff !important;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 15px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.btn-watch-now:hover {
+  background: var(--tsc-blue);
+}
+
+/* Sub-cards below main video */
+.sub-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.sub-video-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid var(--tsc-border);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sub-video-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px -4px rgba(15, 23, 42, 0.08);
+}
+
+.sub-video-card__thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #0f172a;
+  overflow: hidden;
+}
+
+.sub-video-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sub-video-card__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 36px;
+  background: rgba(242, 106, 27, 0.9);
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sub-video-card__play svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  margin-left: 2px;
+}
+
+.sub-video-card__body {
+  padding: 12px;
+}
+
+.sub-video-card__tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--tsc-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.sub-video-card__title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--tsc-navy-dark);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* COLUMN 3: CONTEXTUAL STRIP */
+.context-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Widget 1: Live Updates */
+.live-updates-widget {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid var(--tsc-border);
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.live-updates-widget__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--tsc-border);
+}
+
+.live-updates-widget__head h4 {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+}
+
+.live-updates-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.live-feed-item {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--tsc-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.live-feed-item:last-child {
+  border-bottom: none;
+}
+
+.live-feed-item:hover {
+  background: #f8fafc;
+}
+
+.live-feed-item__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.live-feed-item__sport {
+  font-weight: 800;
+  color: var(--tsc-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.live-feed-item__time {
+  color: var(--tsc-text-muted);
+}
+
+.live-feed-item__desc {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--tsc-text-main);
+  line-height: 1.35;
+}
+
+.live-feed-item__match {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--tsc-orange);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Widget 2: Promo Card */
+.promo-banner-card {
+  position: relative;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a6a 100%);
+  border-radius: 16px;
+  padding: 24px;
+  color: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 10px 24px -4px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.promo-banner-card__glow {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(242, 106, 27, 0.4) 0%, transparent 70%);
+  filter: blur(25px);
+  pointer-events: none;
+}
+
+.promo-banner-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--tsc-orange-soft);
+  border: 1px solid rgba(242, 106, 27, 0.35);
+  color: var(--tsc-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.promo-banner-card__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.promo-banner-card__title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 8px;
+  line-height: 1.25;
+}
+
+.promo-banner-card__desc {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.btn-promo-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--tsc-orange);
+  color: #ffffff !important;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 11px 18px;
+  border-radius: 10px;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(242, 106, 27, 0.4);
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-promo-action:hover {
+  background: var(--tsc-orange-hover);
+  transform: translateY(-1px);
+}
+
+/* Widget 3: Newsletter Box */
+.newsletter-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid var(--tsc-border);
+  padding: 22px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.newsletter-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.newsletter-card__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--tsc-blue-soft);
+  color: var(--tsc-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.newsletter-card__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.newsletter-card__title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+}
+
+.newsletter-card__desc {
+  font-size: 0.82rem;
+  color: var(--tsc-text-muted);
+  line-height: 1.45;
+  margin-bottom: 16px;
+}
+
+.newsletter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.newsletter-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--tsc-border);
+  font-size: 0.86rem;
+  font-family: inherit;
+  color: var(--tsc-text-main);
+  background: #f8fafc;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.newsletter-input:focus {
+  border-color: var(--tsc-blue);
+  background: #ffffff;
+}
+
+.btn-newsletter-sub {
+  width: 100%;
+  background: var(--tsc-navy-dark);
+  color: #ffffff;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-newsletter-sub:hover {
+  background: var(--tsc-blue);
+}
+
+/* --- SECTION 4: POPULAR TEAMS --- */
+.sec-popular-teams {
+  background: #ffffff;
+  padding: 48px 0;
+  border-top: 1px solid var(--tsc-border);
+  border-bottom: 1px solid var(--tsc-border);
+}
+
+.teams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.team-card-v2 {
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid var(--tsc-border);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.team-card-v2:hover {
+  transform: translateY(-3px);
+  border-color: var(--tsc-blue);
+  background: #ffffff;
+  box-shadow: 0 10px 20px -4px rgba(2, 132, 199, 0.12);
+}
+
+.team-card-v2__crest {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0e1e3b 0%, #1e3a6a 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-weight: 800;
+  font-size: 1.25rem;
+  box-shadow: 0 6px 14px rgba(14, 30, 59, 0.15);
+  margin-bottom: 12px;
+  border: 2px solid #ffffff;
+  overflow: hidden;
+}
+
+.team-card-v2__crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-card-v2__name {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+
+.team-card-v2__sport {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--tsc-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --- SECTION 5: STATS BANNER --- */
+.sec-stats-banner {
+  background: var(--tsc-navy-dark);
+  color: #ffffff;
+  padding: 44px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stats-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  text-align: center;
+}
+
+.stats-banner-item {
+  padding: 0 16px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.stats-banner-item:last-child {
+  border-right: none;
+}
+
+.stats-banner-num {
+  font-family: var(--font-score, 'Rajdhani', sans-serif);
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.stats-banner-num span {
+  color: var(--tsc-orange);
+}
+
+.stats-banner-lbl {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* --- RESPONSIVE MEDIA QUERIES --- */
+@media (max-width: 1080px) {
+  .discovery-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .col-context {
+    grid-column: span 2;
+  }
+  .context-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .newsletter-card {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 860px) {
+  .hero-v2__inner {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+  .discovery-grid {
+    grid-template-columns: 1fr;
+  }
+  .col-context {
+    grid-column: span 1;
+  }
+  .context-stack {
+    display: flex;
+    flex-direction: column;
+  }
+  .newsletter-card {
+    grid-column: span 1;
+  }
+  .stats-banner-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px 16px;
+  }
+  .stats-banner-item:nth-child(2) {
+    border-right: none;
+  }
+  .teams-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  .hero-v2 {
+    padding: 36px 0 48px;
+  }
+  .hero-v2__stats {
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .teams-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .sub-content-grid {
+    grid-template-columns: 1fr;
+  }
+  .stats-banner-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .stats-banner-item {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 16px;
+  }
+  .stats-banner-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+/* --- WIDGET: SOCIAL CONNECT --- */
+.social-connect-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid var(--tsc-border);
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.social-connect-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.social-connect-card__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--tsc-orange-soft);
+  color: var(--tsc-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.social-connect-card__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.social-connect-card__title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+}
+
+.social-connect-card__desc {
+  font-size: 0.8rem;
+  color: var(--tsc-text-muted);
+  line-height: 1.45;
+  margin-bottom: 16px;
+}
+
+.social-links-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.social-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--tsc-border);
+  background: #f8fafc;
+  color: var(--tsc-text-main);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.social-btn:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.social-btn--ig:hover {
+  border-color: #E1306C;
+  color: #E1306C;
+}
+
+.social-btn--fb:hover {
+  border-color: #1877F2;
+  color: #1877F2;
+}
+
+.social-btn--tw:hover {
+  border-color: var(--tsc-navy-dark);
+  color: var(--tsc-navy-dark);
+}
+
+.social-btn--li:hover {
+  border-color: #0A66C2;
+  color: #0A66C2;
+}
+
+.social-btn__ic {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.social-btn__ic svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+/* --- SECTION 6: OTHER CONTENTS --- */
+.sec-other-contents {
+  background: #f8fafc;
+  padding: 56px 0 72px;
+  border-top: 1px solid var(--tsc-border);
+}
+
+.other-contents-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+}
+
+@media (max-width: 1080px) {
+  .other-contents-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  .other-contents-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.other-content-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid var(--tsc-border);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.other-content-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--tsc-blue);
+  box-shadow: 0 14px 28px -6px rgba(15, 23, 42, 0.1);
+}
+
+.other-content-card__media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: #0f172a;
+  overflow: hidden;
+}
+
+.other-content-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.other-content-card:hover .other-content-card__media img {
+  transform: scale(1.05);
+}
+
+.other-content-card__fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0e1e3b 0%, #1e3a6a 100%);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.other-content-card__badge-type {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  z-index: 2;
+  border-left: 3px solid var(--tsc-orange);
+}
+
+.other-content-card__duration {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  font-family: var(--font-score, 'Rajdhani', sans-serif);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  z-index: 2;
+}
+
+.other-content-card__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 42px;
+  height: 42px;
+  background: var(--tsc-orange);
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(242, 106, 27, 0.5);
+  transition: transform 0.2s ease;
+  z-index: 2;
+}
+
+.other-content-card:hover .other-content-card__play {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.other-content-card__play svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  margin-left: 2px;
+}
+
+.other-content-card__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.other-content-card__title {
+  font-family: var(--font-display, 'Montserrat', sans-serif);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--tsc-navy-dark);
+  line-height: 1.35;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.other-content-card__author {
+  font-size: 0.78rem;
+  color: var(--tsc-text-muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.other-content-card__author-name {
+  font-weight: 700;
+  color: var(--tsc-text-main);
+}
+
+.other-content-card__stats {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--tsc-border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.78rem;
+  color: var(--tsc-text-muted);
+}
+
+.other-content-card__stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.other-content-card__stat-item svg {
+  width: 13px;
+  height: 13px;
+  color: var(--tsc-blue);
+}
+</style>
+
+<!-- =========================================================================
+     1. HERO BANNER WITH FLOATING LIVE MATCH WIDGET
+     ========================================================================= -->
+<section class="hero-v2">
+  <div class="hero-v2__glow"></div>
+  <div class="hero-v2__glow-left"></div>
+  <div class="wrap hero-v2__inner">
+    
+    <!-- Hero Copy & CTAs -->
+    <div class="hero-v2__copy">
+      <div class="hero-v2__kicker">Play. Compete. Conquer.</div>
+      <h1 class="hero-v2__title">Every sport finds <span class="highlight">its stage.</span></h1>
+      <p class="hero-v2__sub">
+        TournamentSC brings players, organizers and fans together to run and follow local tournaments across seven sports. Create an event, score it live, and give everyone a place to watch.
+      </p>
+      
+      <div class="hero-v2__actions">
+        <a href="/browse" class="btn-hero-primary">
+          Explore Tournaments
+          <svg class="ico" style="width:16px;height:16px;"><use href="#i-arrow"/></svg>
+        </a>
+        <a href="/live" class="btn-hero-secondary">
+          <svg class="ico" style="width:16px;height:16px;"><use href="#i-play"/></svg>
+          Watch Live
+        </a>
       </div>
-      <div class="hero__stats">
-        <div class="hero__stat"><div class="n">{{ stats.tournaments }}<span class="u">+</span></div><div class="l">Tournaments</div></div>
-        <div class="hero__stat"><div class="n">{{ stats.players }}</div><div class="l">Players</div></div>
-        <div class="hero__stat"><div class="n">{{ stats.sports }}</div><div class="l">Sports</div></div>
+
+      <div class="hero-v2__stats">
+        <div class="hero-v2__stat">
+          <div class="hero-v2__stat-val">{{ stats.tournaments }}<span>+</span></div>
+          <div class="hero-v2__stat-lbl">Tournaments</div>
+        </div>
+        <div class="hero-v2__stat">
+          <div class="hero-v2__stat-val">{{ stats.players|default:"1,200" }}<span>+</span></div>
+          <div class="hero-v2__stat-lbl">Players</div>
+        </div>
+        <div class="hero-v2__stat">
+          <div class="hero-v2__stat-val">{{ stats.teams|default:"130" }}<span>+</span></div>
+          <div class="hero-v2__stat-lbl">Teams</div>
+        </div>
+        <div class="hero-v2__stat">
+          <div class="hero-v2__stat-val">{{ stats.organizers|default:"45" }}<span>+</span></div>
+          <div class="hero-v2__stat-lbl">Organizers</div>
+        </div>
       </div>
     </div>
 
-    {% if hero_fixture %}
-    <a class="hcard" href="{{ hero_fixture.get_absolute_url }}" style="text-decoration:none">
-      <div class="hcard__top"><span class="live"><span class="live__dot"></span> Live</span><span class="hcard__where">{{ hero_fixture.tournament.name|truncatechars:26 }}</span></div>
-      <div class="hcard__teams">
-        {% for p in hero_fixture.ordered_participants|slice:':2' %}
-          {% if forloop.first %}
-            <div class="hcard__team"><span class="hcard__crest {{ hero_fixture.tournament.sport.sp_class }}" style="background:var(--{{ hero_fixture.tournament.sport.sp_class }})">{{ p.initials }}</span><span class="hcard__nm">{{ p.name|truncatechars:12 }}</span><span class="hcard__sc">{{ p.score|default_if_none:'0'|floatformat:'-2' }}</span></div>
-            <span class="hcard__vs">VS</span>
+    <!-- Floating Live Match Widget -->
+    <div class="hero-live-widget">
+      <div class="hero-live-widget__header">
+        <span class="live-indicator">
+          <span class="pulse-dot-red"></span> LIVE MATCHES
+        </span>
+        <a href="/live" class="hero-live-widget__all-link">
+          View all ({{ live_fixtures|length|default:"4" }}) →
+        </a>
+      </div>
+
+      <div class="hero-live-widget__body">
+        {% if hero_fixture %}
+          <div class="hero-live-widget__tourney">
+            <span>{{ hero_fixture.tournament.name|truncatechars:26 }}</span>
+            <span class="hero-live-widget__period">{{ hero_fixture.round_name|default:"Live" }}</span>
+          </div>
+
+          <div class="hero-live-widget__matchup">
+            {% with p1=hero_fixture.ordered_participants.0 p2=hero_fixture.ordered_participants.1 %}
+              <div class="team-entry">
+                <div class="team-crest">
+                  {{ p1.initials|default:"T1" }}
+                </div>
+                <div class="team-entry__name">{{ p1.name|default:"Team 1"|truncatechars:14 }}</div>
+                <div class="team-entry__score">{{ p1.score|default_if_none:'0'|floatformat:'-2' }}</div>
+              </div>
+
+              <div class="match-vs-divider">
+                <span class="vs-badge">VS</span>
+              </div>
+
+              <div class="team-entry">
+                <div class="team-crest">
+                  {{ p2.initials|default:"T2" }}
+                </div>
+                <div class="team-entry__name">{{ p2.name|default:"Team 2"|truncatechars:14 }}</div>
+                <div class="team-entry__score">{{ p2.score|default_if_none:'0'|floatformat:'-2' }}</div>
+              </div>
+            {% endwith %}
+          </div>
+
+          <div class="hero-live-widget__foot">
+            <a href="{{ hero_fixture.get_absolute_url }}" class="hero-live-widget__watch">
+              <svg class="ico" style="width:15px;height:15px;"><use href="#i-play"/></svg>
+              Watch Stream
+            </a>
+            <a href="{{ hero_fixture.get_absolute_url }}" class="btn-match-centre">
+              Match Centre <svg class="ico" style="width:14px;height:14px;"><use href="#i-arrow"/></svg>
+            </a>
+          </div>
+        {% else %}
+          <!-- Fallback when no active live fixture -->
+          <div class="hero-live-widget__tourney">
+            <span>Featured Match</span>
+            <span class="hero-live-widget__period">Upcoming</span>
+          </div>
+          <div class="hero-live-widget__matchup">
+            <div class="team-entry">
+              <div class="team-crest">DT</div>
+              <div class="team-entry__name">Delhi Titans</div>
+              <div class="team-entry__score">–</div>
+            </div>
+            <div class="match-vs-divider">
+              <span class="vs-badge">VS</span>
+            </div>
+            <div class="team-entry">
+              <div class="team-crest">IP</div>
+              <div class="team-entry__name">Iron Panthers</div>
+              <div class="team-entry__score">–</div>
+            </div>
+          </div>
+          <div class="hero-live-widget__foot">
+            <a href="/live" class="hero-live-widget__watch">
+              <svg class="ico" style="width:15px;height:15px;"><use href="#i-bell"/></svg>
+              Match Alerts
+            </a>
+            <a href="/browse" class="btn-match-centre">
+              Explore Schedule <svg class="ico" style="width:14px;height:14px;"><use href="#i-arrow"/></svg>
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- =========================================================================
+     2. EXPLORE BY SPORT ROW
+     ========================================================================= -->
+<section class="sec-sports-bar">
+  <div class="wrap">
+    <div class="sec-sports-bar__inner">
+      <a href="/browse" class="sport-filter-item is-active">
+        <span class="sport-filter-item__icon">
+          <svg class="ico"><use href="#i-grid"/></svg>
+        </span>
+        <span>All Sports</span>
+        <span class="sport-filter-item__count">{{ stats.sports|default:"7" }}</span>
+      </a>
+
+      {% for s in sports %}
+        <a href="{{ s.get_absolute_url }}" class="sport-filter-item">
+          <span class="sport-filter-item__icon">
+            <svg class="ico"><use href="#{{ s.icon_symbol }}"/></svg>
+          </span>
+          <span>{{ s.name }}</span>
+          {% if s.n_live %}
+            <span class="sport-filter-item__count" style="background:var(--tsc-orange);color:#fff;">{{ s.n_live }} Live</span>
           {% else %}
-            <div class="hcard__team"><span class="hcard__crest">{{ p.initials }}</span><span class="hcard__nm">{{ p.name|truncatechars:12 }}</span><span class="hcard__sc">{{ p.score|default_if_none:'0'|floatformat:'-2' }}</span></div>
+            <span class="sport-filter-item__count">{{ s.n_total }}</span>
           {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     3. 3-COLUMN DISCOVERY GRID
+     ========================================================================= -->
+<section class="sec-discovery">
+  <div class="wrap discovery-grid">
+    
+    <!-- COLUMN 1: UPCOMING TOURNAMENTS -->
+    <div class="col-upcoming">
+      <div class="col-header">
+        <h3 class="col-header__title">Upcoming Tournaments</h3>
+        <a href="/browse" class="col-header__link">View All →</a>
+      </div>
+
+      <div class="col-upcoming__list">
+        {% for t in upcoming %}
+          <a href="{{ t.get_absolute_url }}" class="upcoming-card">
+            <div class="upcoming-card__cover">
+              {% if t.banner_image %}
+                <img src="{{ t.banner_image.url }}" alt="{{ t.name }}" loading="lazy">
+              {% else %}
+                <div class="upcoming-card__cover-fallback">
+                  <svg class="ico"><use href="#{{ t.sport.icon_symbol }}"/></svg>
+                </div>
+              {% endif %}
+              
+              <div class="upcoming-card__badge-row">
+                {% if t.status == 'REGISTRATION_OPEN' %}
+                  <span class="badge-reg-open">Registration Open</span>
+                {% elif t.status == 'ONGOING' %}
+                  <span class="badge-ongoing">Ongoing</span>
+                {% else %}
+                  <span class="badge-reg-open" style="background:var(--tsc-navy-dark);">Upcoming</span>
+                {% endif %}
+                <span class="badge-sport">{{ t.sport.name }}</span>
+              </div>
+            </div>
+
+            <div class="upcoming-card__body">
+              <h4 class="upcoming-card__title">{{ t.name }}</h4>
+              
+              <div class="upcoming-card__meta">
+                <div class="upcoming-card__meta-item">
+                  <svg class="ico"><use href="#i-cal"/></svg>
+                  <span>{{ t.start_date|date:'M j' }}{% if t.end_date != t.start_date %} – {{ t.end_date|date:'M j' }}{% endif %}</span>
+                </div>
+                <div class="upcoming-card__meta-item">
+                  <svg class="ico"><use href="#i-pin"/></svg>
+                  <span>{% if t.venue %}{{ t.venue.name }}{% else %}{{ t.city|default:'TBA' }}{% endif %}</span>
+                </div>
+              </div>
+
+              <div class="upcoming-card__foot">
+                <div class="upcoming-card__count">
+                  <b>{{ t.team_count|default:t.participant_count }}</b> {% if t.is_team_based %}Teams{% else %}Entrants{% endif %}
+                </div>
+                <div class="upcoming-card__action">
+                  Register <svg class="ico" style="width:13px;height:13px;"><use href="#i-arrow"/></svg>
+                </div>
+              </div>
+            </div>
+          </a>
+        {% empty %}
+          <div style="background:#fff;border-radius:14px;padding:24px;text-align:center;color:var(--tsc-text-muted);border:1px solid var(--tsc-border);">
+            No upcoming tournaments. <a href="/signup" style="color:var(--tsc-orange);font-weight:700;">Host one now</a>.
+          </div>
         {% endfor %}
       </div>
-      <div class="hcard__meta">{{ hero_fixture.round_name }}{% if hero_fixture.venue_detail %} · {{ hero_fixture.venue_detail }}{% endif %}</div>
-
-      {% if hero_fixture.win_probability %}
-        {% with ps=hero_fixture.ordered_participants|slice:':2' %}
-          <div class="hcard__bar"><i style="width:{{ hero_fixture.win_probability }}%"></i></div>
-          <div class="hcard__prob">
-            <span>{{ ps.0.name|truncatechars:10 }} {{ hero_fixture.win_probability }}%</span>
-            <span>Win probability</span>
-            <span>{{ hero_fixture.win_probability_other }}% {{ ps.1.name|truncatechars:10 }}</span>
-          </div>
-        {% endwith %}
-      {% endif %}
-
-      <div class="hcard__foot"><span class="watch"><svg class="ico"><use href="#i-play"/></svg> Watch live</span><span class="mc">Match centre <svg class="ico" style="width:15px;height:15px"><use href="#i-arrow"/></svg></span></div>
-    </a>
-    {% endif %}
-  </div>
-</section>
-
-<!-- SPORTS -->
-<section id="sports">
-  <div class="wrap">
-    <div class="sec-head"><div><h2>Seven sports, one home</h2><p>Each sport runs with its own real format and scoring, from brackets to lap times.</p></div></div>
-    <div class="sports-grid">
-      {% for s in sports %}
-        <a class="sportcard {{ s.sp_class }}" href="{{ s.get_absolute_url }}">
-          <span class="sportcard__ic"><svg class="ico"><use href="#{{ s.icon_symbol }}"/></svg></span>
-          <div class="sportcard__nm">{{ s.name }}</div>
-          <div class="sportcard__meta">{% if s.n_live %}{{ s.n_live }} live now{% else %}{{ s.n_total }} event{{ s.n_total|pluralize }}{% endif %}</div>
-        </a>
-      {% endfor %}
     </div>
-  </div>
-</section>
 
-<!-- LIVE NOW -->
-{% if live_fixtures %}
-<section id="live" class="bg-soft">
-  <div class="wrap">
-    <div class="sec-head"><div><h2>Live right now</h2><p>Follow scores the moment they change, across every sport.</p></div><a class="sec-head__link" href="/browse?status=ONGOING">See all live <svg class="ico" style="width:15px;height:15px"><use href="#i-arrow"/></svg></a></div>
-    <div class="rail">
-      {% for fx in live_fixtures %}
-        <a class="mcard" href="{{ fx.get_absolute_url }}">
-          <div class="mcard__top"><span class="tag {{ fx.tournament.sport.sp_class }}">{{ fx.tournament.sport.name }}</span><span class="live"><span class="live__dot"></span> Live</span></div>
-          {% for p in fx.ordered_participants|slice:':2' %}
-            <div class="mcard__row {% if forloop.first %}lead{% else %}trail{% endif %}">
-              <span class="nm"><span class="cr" style="background:var(--{{ fx.tournament.sport.sp_class }})">{{ p.initials }}</span> {{ p.name|truncatechars:16 }}</span>
-              <span class="sc">{{ p.score|default_if_none:'–'|floatformat:'-2' }}</span>
+    <!-- COLUMN 2: FEATURED CONTENT -->
+    <div class="col-featured">
+      <div class="col-header">
+        <h3 class="col-header__title">Featured Content</h3>
+        <a href="/browse" class="col-header__link">More Highlights →</a>
+      </div>
+
+      <!-- Main 16:9 Featured Video -->
+      <div class="featured-video-card">
+        <a href="{% if featured_video %}{{ featured_video.get_absolute_url }}{% else %}/browse{% endif %}" style="text-decoration:none;display:block;">
+          <div class="video-container-16-9">
+            {% if featured_video and featured_video.primary_thumbnail_url %}
+              <img src="{{ featured_video.primary_thumbnail_url }}" alt="{{ featured_video.title|default:'Featured Video' }}" loading="lazy">
+            {% else %}
+              <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, #091322, #172554);">
+                <svg class="ico" style="width:64px;height:64px;color:rgba(255,255,255,0.3);"><use href="#i-cast"/></svg>
+              </div>
+            {% endif %}
+
+            <div class="video-overlay-play">
+              <svg class="ico"><use href="#i-play"/></svg>
             </div>
+
+            <div class="video-badge-pill">Featured Match Reel</div>
+
+            <div class="video-duration-tag">
+              {{ featured_video.formatted_duration|default:"12:45" }}
+            </div>
+          </div>
+        </a>
+
+        <div class="featured-video-body">
+          <h3 class="featured-video-title">
+            <a href="{% if featured_video %}{{ featured_video.get_absolute_url }}{% else %}/browse{% endif %}">
+              {{ featured_video.title|default:"Delhi Championship Finals — Full Highlights & Deciding Plays" }}
+            </a>
+          </h3>
+
+          <div class="featured-video-author">
+            <div class="author-info">
+              <div class="author-avatar">
+                {{ featured_video.creator.first_name|default:"T"|slice:":1"|upper }}
+              </div>
+              <div>
+                <div class="author-name">
+                  {{ featured_video.creator.display_name|default:"TournamentSC Official" }}
+                </div>
+                <div class="author-date">
+                  {{ featured_video.created_at|date:"M j, Y"|default:"Oct 2026" }} · {% if featured_video.tournament %}{{ featured_video.tournament.sport.name }}{% else %}Multi-Sport{% endif %}
+                </div>
+              </div>
+            </div>
+
+            <a href="{% if featured_video %}{{ featured_video.get_absolute_url }}{% else %}/browse{% endif %}" class="btn-watch-now">
+              <svg class="ico" style="width:14px;height:14px;"><use href="#i-play"/></svg> Watch
+            </a>
+          </div>
+
+          <div class="featured-video-stats">
+            <div class="stats-group">
+              <span class="stat-item">
+                <svg class="ico"><use href="#i-cast"/></svg>
+                {{ featured_video.view_count|default:"1,420" }} views
+              </span>
+              <span class="stat-item">
+                <svg class="ico"><use href="#i-mic"/></svg>
+                {{ featured_video.comment_count|default:"24" }} comments
+              </span>
+              <span class="stat-item">
+                <svg class="ico"><use href="#i-arrow"/></svg>
+                {{ featured_video.share_count|default:"15" }} shares
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Sub-cards Below Featured Video -->
+      <div class="sub-content-grid">
+        {% for sv in sub_videos %}
+          <a href="{{ sv.get_absolute_url }}" class="sub-video-card">
+            <div class="sub-video-card__thumb">
+              {% if sv.primary_thumbnail_url %}
+                <img src="{{ sv.primary_thumbnail_url }}" alt="{{ sv.title }}" loading="lazy">
+              {% else %}
+                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#1e293b;color:#fff;">
+                  <svg class="ico" style="width:28px;height:28px;"><use href="#i-play"/></svg>
+                </div>
+              {% endif %}
+              <div class="sub-video-card__play">
+                <svg class="ico"><use href="#i-play"/></svg>
+              </div>
+            </div>
+            <div class="sub-video-card__body">
+              <div class="sub-video-card__tag">Highlight</div>
+              <div class="sub-video-card__title">{{ sv.title|default:"Tournament Highlights & Plays" }}</div>
+            </div>
+          </a>
+        {% empty %}
+          {% for h in highlights|slice:":2" %}
+            <a href="{% if h.fixture %}{{ h.fixture.get_absolute_url }}{% else %}{{ h.tournament.get_absolute_url }}{% endif %}" class="sub-video-card">
+              <div class="sub-video-card__thumb">
+                {% if h.image %}
+                  <img src="{{ h.image.url }}" alt="{{ h.title }}" loading="lazy">
+                {% else %}
+                  <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#1e293b;color:#fff;">
+                    <svg class="ico" style="width:28px;height:28px;"><use href="#i-play"/></svg>
+                  </div>
+                {% endif %}
+                <div class="sub-video-card__play">
+                  <svg class="ico"><use href="#i-play"/></svg>
+                </div>
+              </div>
+              <div class="sub-video-card__body">
+                <div class="sub-video-card__tag">{{ h.tournament.sport.name }}</div>
+                <div class="sub-video-card__title">{{ h.title }}</div>
+              </div>
+            </a>
           {% endfor %}
-          <div class="mcard__foot"><span class="st">{{ fx.round_name }}</span><span class="watch"><svg class="ico" style="width:14px;height:14px"><use href="#i-play"/></svg> Watch</span></div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- COLUMN 3: CONTEXTUAL STRIP (LIVE UPDATES, PROMO, NEWSLETTER) -->
+    <div class="col-context">
+      <div class="context-stack">
+        
+        <!-- Widget A: Live Updates Ticker -->
+        <div class="live-updates-widget">
+          <div class="live-updates-widget__head">
+            <h4>Live Updates</h4>
+            <span class="live-indicator">
+              <span class="pulse-dot-red"></span> LIVE
+            </span>
+          </div>
+
+          <div class="live-updates-feed">
+            {% for upd in live_updates %}
+              <a href="{{ upd.fixture.get_absolute_url }}" class="live-feed-item">
+                <div class="live-feed-item__top">
+                  <span class="live-feed-item__sport">{{ upd.fixture.tournament.sport.name }}</span>
+                  <span class="live-feed-item__time">{{ upd.created_at|timesince }} ago</span>
+                </div>
+                <div class="live-feed-item__desc">{{ upd.description }}</div>
+                <div class="live-feed-item__match">
+                  Match Centre <svg class="ico" style="width:12px;height:12px;"><use href="#i-arrow"/></svg>
+                </div>
+              </a>
+            {% empty %}
+              <div style="padding:20px;text-align:center;font-size:0.85rem;color:var(--tsc-text-muted);">
+                Scores update live as matches are played.
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Widget B: Promo Banner -->
+        <div class="promo-banner-card">
+          <div class="promo-banner-card__glow"></div>
+          <div class="promo-banner-card__icon">
+            <svg class="ico"><use href="#i-trophy"/></svg>
+          </div>
+          <h4 class="promo-banner-card__title">Find Your Next Tournament</h4>
+          <p class="promo-banner-card__desc">
+            Compete with top players across India. Browse open registrations, submit your squad, and conquer the bracket.
+          </p>
+          <a href="/browse" class="btn-promo-action">
+            Browse Tournaments →
+          </a>
+        </div>
+
+        <!-- Widget: Social Media Connect -->
+        <div class="social-connect-card">
+          <div class="social-connect-card__head">
+            <div class="social-connect-card__icon">
+              <svg class="ico"><use href="#i-users"/></svg>
+            </div>
+            <h4 class="social-connect-card__title">Join Us on Social Media</h4>
+          </div>
+          <p class="social-connect-card__desc">
+            Follow @tournamentsc for match clips, player spotlights, and tournament updates.
+          </p>
+          <div class="social-links-grid">
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" class="social-btn social-btn--ig" title="Follow us on Instagram">
+              <span class="social-btn__ic">
+                <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+              </span>
+              <span>Instagram</span>
+            </a>
+            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="social-btn social-btn--fb" title="Follow us on Facebook">
+              <span class="social-btn__ic">
+                <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              </span>
+              <span>Facebook</span>
+            </a>
+            <a href="https://x.com" target="_blank" rel="noopener noreferrer" class="social-btn social-btn--tw" title="Follow us on Twitter (X)">
+              <span class="social-btn__ic">
+                <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </span>
+              <span>Twitter (X)</span>
+            </a>
+            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="social-btn social-btn--li" title="Follow us on LinkedIn">
+              <span class="social-btn__ic">
+                <svg viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.738-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+              </span>
+              <span>LinkedIn</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Widget C: Stay Updated! (Newsletter) -->
+        <div class="newsletter-card">
+          <div class="newsletter-card__head">
+            <div class="newsletter-card__icon">
+              <svg class="ico"><use href="#i-bell"/></svg>
+            </div>
+            <h4 class="newsletter-card__title">Stay Updated!</h4>
+          </div>
+          <p class="newsletter-card__desc">
+            Get instant match alerts, bracket announcements and score highlights delivered to your inbox.
+          </p>
+          <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Subscribed successfully!');">
+            <input type="email" placeholder="Enter your email address" class="newsletter-input" required>
+            <button type="submit" class="btn-newsletter-sub">
+              Subscribe
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- =========================================================================
+     4. POPULAR TEAMS SECTION
+     ========================================================================= -->
+<section class="sec-popular-teams">
+  <div class="wrap">
+    <div class="col-header" style="margin-bottom:24px;">
+      <div>
+        <h3 class="col-header__title">Popular Teams</h3>
+        <p style="font-size:0.86rem;color:var(--tsc-text-muted);margin-top:4px;">
+          Follow leading squads, rosters, and match schedules across the country.
+        </p>
+      </div>
+      <a href="/browse" class="col-header__link">Explore Teams →</a>
+    </div>
+
+    <div class="teams-grid">
+      {% for tm in popular_teams %}
+        <a href="{% url 'team_detail' tm.pk %}" class="team-card-v2">
+          <div class="team-card-v2__crest">
+            {% if tm.logo %}
+              <img src="{{ tm.logo.url }}" alt="{{ tm.name }}" loading="lazy">
+            {% else %}
+              <span>{{ tm.name|slice:":2"|upper }}</span>
+            {% endif %}
+          </div>
+          <div class="team-card-v2__name">{{ tm.name }}</div>
+          <div class="team-card-v2__sport">{{ tm.sport.name }}</div>
         </a>
+      {% empty %}
+        <div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--tsc-text-muted);">
+          Teams will appear here once registered.
+        </div>
       {% endfor %}
     </div>
   </div>
 </section>
-{% endif %}
 
-<!-- TOURNAMENTS -->
-<section id="tournaments">
+<!-- =========================================================================
+     5. PLATFORM STAT STRIP
+     ========================================================================= -->
+<section class="sec-stats-banner">
   <div class="wrap">
-    <div class="sec-head"><div><h2>Tournaments to follow</h2><p>Register your team, follow the bracket, or just watch.</p></div><a class="sec-head__link" href="/browse">Browse all <svg class="ico" style="width:15px;height:15px"><use href="#i-arrow"/></svg></a></div>
-    {% if featured or upcoming or live %}
-      <div class="tgrid">
-        {% for t in featured %}{% include 'partials/tournament_card.html' with card_extra='tcard--feat' %}{% endfor %}
-        {% for t in live %}{% if not t.is_featured %}{% include 'partials/tournament_card.html' %}{% endif %}{% endfor %}
-        {% for t in upcoming %}{% include 'partials/tournament_card.html' %}{% endfor %}
+    <div class="stats-banner-grid">
+      <div class="stats-banner-item">
+        <div class="stats-banner-num">10,000<span>+</span></div>
+        <div class="stats-banner-lbl">Community Members</div>
       </div>
-    {% else %}
-      <div class="empty">No tournaments yet. <a href="/signup" style="color:var(--orange);font-weight:700">Start one</a>.</div>
-    {% endif %}
-  </div>
-</section>
-
-<!-- FEATURES BENTO -->
-<section id="features" class="bg-soft">
-  <div class="wrap">
-    <div class="sec-head"><div><h2>Built to get more people playing</h2><p>Everything an organizer needs to run it, and everything a fan needs to follow it.</p></div></div>
-    <div class="bento">
-      <div class="bx bx--big">
-        <span class="kick"><svg class="ico" style="width:14px;height:14px"><use href="#i-bolt"/></svg> All seven sports</span>
-        <h3>Real formats, real scoring</h3>
-        <p>Not one generic scoreboard. Basketball quarters, badminton games, chess round-robins with points, esports placement and kills, racing lap times, and marathon timings — each scored the way it is really played.</p>
-        <div class="chips-mini"><span>Brackets</span><span>Points tables</span><span>Leaderboards</span><span>Lap times</span><span>Bib timing</span></div>
+      <div class="stats-banner-item">
+        <div class="stats-banner-num">{{ stats.tournaments }}<span>+</span></div>
+        <div class="stats-banner-lbl">Tournaments Hosted</div>
       </div>
-      <div class="bx"><div class="bx__ic ic-o"><svg class="ico"><use href="#i-bolt"/></svg></div><h3>Live scoring</h3><p>Organizers update scores from the app. Tables and brackets refresh on the spot.</p></div>
-      <div class="bx"><div class="bx__ic ic-b"><svg class="ico"><use href="#i-cast"/></svg></div><h3>Watch live</h3><p>Attach a YouTube link and fans tap Watch straight from the match.</p></div>
-      <div class="bx"><div class="bx__ic ic-g"><svg class="ico"><use href="#i-bell"/></svg></div><h3>Player alerts</h3><p>Match time, court and result reach every player in-app.</p></div>
-      <div class="bx"><div class="bx__ic ic-p"><svg class="ico"><use href="#i-users"/></svg></div><h3>Teams and players</h3><p>Add squads and players, or open registration and let them join.</p></div>
+      <div class="stats-banner-item">
+        <div class="stats-banner-num">{{ stats.teams }}<span>+</span></div>
+        <div class="stats-banner-lbl">Active Teams</div>
+      </div>
+      <div class="stats-banner-item">
+        <div class="stats-banner-num">{{ stats.cities }}<span>+</span></div>
+        <div class="stats-banner-lbl">Cities Covered</div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- HIGHLIGHTS -->
-{% if highlights %}
-<section id="highlights">
+<!-- =========================================================================
+     6. OTHER CONTENTS SECTION
+     ========================================================================= -->
+<section class="sec-other-contents">
   <div class="wrap">
-    <div class="sec-head"><div><h2>Catch up on the action</h2><p>Missed a tournament? Match overviews and highlights are ready to watch.</p></div></div>
-    <div class="hl-grid">
-      {% for h in highlights %}
-        <a class="hlcard" href="{% if h.fixture %}{{ h.fixture.get_absolute_url }}{% else %}{{ h.tournament.get_absolute_url }}{% endif %}">
-          <div class="hlcard__thumb {{ h.tournament.sport.sp_class }}">
-            {% if h.image %}<img src="{{ h.image.url }}" alt="">{% else %}<svg class="ico sport"><use href="#{{ h.tournament.sport.icon_symbol }}"/></svg>{% endif %}
-            <span class="hlcard__play"><svg class="ico"><use href="#i-play"/></svg></span>
-            {% if h.duration_display %}<span class="hlcard__dur">{{ h.duration_display }}</span>{% endif %}
+    <div class="col-header" style="margin-bottom:24px;">
+      <div>
+        <h3 class="col-header__title">Other Contents</h3>
+        <p style="font-size:0.86rem;color:var(--tsc-text-muted);margin-top:4px;">
+          Explore match replays, community reels, photos, and highlights from tournaments across TournamentSC.
+        </p>
+      </div>
+      <a href="{% url 'content_feed' %}" class="col-header__link">View All Media →</a>
+    </div>
+
+    <div class="other-contents-grid">
+      {% for c in other_contents %}
+        <a href="{% url 'content_detail' c.pk %}" class="other-content-card">
+          <div class="other-content-card__media">
+            {% if c.primary_thumbnail_url %}
+              <img src="{{ c.primary_thumbnail_url }}" alt="{{ c.title|default:'Content' }}" loading="lazy">
+            {% else %}
+              <div class="other-content-card__fallback">
+                <svg class="ico" style="width:36px;height:36px;"><use href="#i-image"/></svg>
+              </div>
+            {% endif %}
+
+            <div class="other-content-card__badge-type">{{ c.get_content_type_display }}</div>
+
+            {% if c.is_video %}
+              <div class="other-content-card__play">
+                <svg class="ico"><use href="#i-play"/></svg>
+              </div>
+              {% if c.formatted_duration %}
+                <div class="other-content-card__duration">{{ c.formatted_duration }}</div>
+              {% endif %}
+            {% endif %}
           </div>
-          <div class="hlcard__body"><span class="tag {{ h.tournament.sport.sp_class }}">{{ h.tournament.sport.name }}</span>
-            <div class="hlcard__title">{{ h.title }}</div>
-            <div class="hlcard__meta">{{ h.published_at|date:'M j' }} · {{ h.views_display }} view{{ h.view_count|pluralize }}</div>
+
+          <div class="other-content-card__body">
+            <h4 class="other-content-card__title">{{ c.title|default:"Community Update" }}</h4>
+            <div class="other-content-card__author">
+              <span class="other-content-card__author-name">{{ c.creator.display_name }}</span>
+              <span>{{ c.created_at|date:"M j, Y" }}</span>
+            </div>
+            <div class="other-content-card__stats">
+              <span class="other-content-card__stat-item">
+                <svg class="ico"><use href="#i-cast"/></svg>
+                {{ c.view_count }} views
+              </span>
+              <span class="other-content-card__stat-item">
+                <svg class="ico"><use href="#i-star"/></svg>
+                {{ c.like_count }} likes
+              </span>
+              <span class="other-content-card__stat-item">
+                <svg class="ico"><use href="#i-mic"/></svg>
+                {{ c.comment_count }}
+              </span>
+            </div>
           </div>
         </a>
+      {% empty %}
+        <div style="grid-column:1/-1;text-align:center;padding:32px;background:#fff;border-radius:14px;border:1px solid var(--tsc-border);color:var(--tsc-text-muted);">
+          No additional community posts right now. <a href="{% url 'content_upload' %}" style="color:var(--tsc-orange);font-weight:700;">Share the first post</a>!
+        </div>
       {% endfor %}
-    </div>
-  </div>
-</section>
-{% endif %}
-
-<!-- ORGANIZER -->
-<section id="organize">
-  <div class="wrap">
-    <div class="org">
-      <div class="org__bg"></div>
-      <div class="org__head"><h2>Run your next tournament on TournamentSC</h2><p>Set it up in minutes, let the fixtures sort themselves, and give every player and fan a live home for the event.</p></div>
-      <ol class="steps">
-        <li class="step"><span class="step__n">1</span><h4>Create the event</h4><p>Pick a sport, set dates and venue, add a poster.</p></li>
-        <li class="step"><span class="step__n">2</span><h4>Add teams and players</h4><p>Enter squads and players, or open registration.</p></li>
-        <li class="step"><span class="step__n">3</span><h4>Generate fixtures</h4><p>Brackets, points tables, leaderboards — built for your sport.</p></li>
-        <li class="step"><span class="step__n">4</span><h4>Score live and share</h4><p>Update results from the app and go live on YouTube.</p></li>
-      </ol>
-      <div class="hero__actions">
-        <a class="btn btn--primary btn--lg" href="/signup">Create a tournament <svg class="ico"><use href="#i-arrow"/></svg></a>
-      </div>
     </div>
   </div>
 </section>
