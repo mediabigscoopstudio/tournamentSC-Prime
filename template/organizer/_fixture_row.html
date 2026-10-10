@@ -92,6 +92,262 @@ Context: tournament, fx  (optional: round_key — filter group this card sits in
     {% if fx.venue_detail %} · {{ fx.venue_detail }}{% endif %}
   </p>
 
+  {# Assigned Match Official Bar #}
+  {% with ref_list=fx.referee_assignments.all %}
+    {% if ref_list %}
+      <div class="fxc__official-bar is-assigned" title="Assigned match official(s)">
+        <div class="fxc__official-main">
+          <span class="fxc__official-ico">
+            <svg class="ico"><use href="#i-whistle"/></svg>
+          </span>
+          <span class="fxc__official-name" title="{{ ref_list.0.user.display_name }}">
+            {{ ref_list.0.user.display_name }}
+          </span>
+          <span class="fxc__official-role">
+            {% if ref_list.0.role == 'PRIMARY' %}Referee{% elif ref_list.0.role == 'ASSISTANT' %}Assistant{% elif ref_list.0.role == 'TABLE' %}Table{% else %}Official{% endif %}
+          </span>
+          {% if ref_list|length > 1 %}
+            <span class="fxc__official-extra" title="{{ ref_list|length }} officials assigned">+{{ ref_list|length|add:"-1" }}</span>
+          {% endif %}
+        </div>
+        <button type="button" class="fxc__official-act" onclick="document.getElementById('ref-dialog-{{ fx.id }}').showModal();" title="Manage assigned officials">
+          Edit
+        </button>
+      </div>
+    {% else %}
+      <div class="fxc__official-bar is-empty" onclick="document.getElementById('ref-dialog-{{ fx.id }}').showModal();" role="button" tabindex="0" title="Click to assign match referee or official">
+        <div class="fxc__official-main">
+          <span class="fxc__official-ico">
+            <svg class="ico"><use href="#i-whistle"/></svg>
+          </span>
+          <span class="fxc__official-placeholder">No official assigned</span>
+        </div>
+        <span class="fxc__official-assign-tag">+ Assign</span>
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {# Assigned Match Commentator Bar #}
+  {% with comm_list=fx.commentator_assignments.all %}
+    {% if comm_list %}
+      <div class="fxc__official-bar is-assigned" style="border-color:#e0e7ff; background:#f8fafc; margin-top:6px;" title="Assigned live commentator(s)">
+        <div class="fxc__official-main">
+          <span class="fxc__official-ico" style="background:#e0e7ff; color:#4f46e5;">
+            🎙️
+          </span>
+          <span class="fxc__official-name" title="{{ comm_list.0.user.display_name }}">
+            {{ comm_list.0.user.display_name }}
+          </span>
+          <span class="fxc__official-role" style="background:#e0e7ff; color:#4338ca;">
+            {{ comm_list.0.get_role_display }}
+          </span>
+          {% if comm_list|length > 1 %}
+            <span class="fxc__official-extra" style="background:#e0e7ff; color:#4338ca;" title="{{ comm_list|length }} commentators assigned">+{{ comm_list|length|add:"-1" }}</span>
+          {% endif %}
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <a href="{% url 'fixture_commentary_workspace' tournament.slug fx.id %}" target="_blank" class="fxc__official-act" style="color:#4f46e5; text-decoration:none;" title="Open live commentary workspace">
+            Workspace ↗
+          </a>
+          <button type="button" class="fxc__official-act" onclick="document.getElementById('comm-dialog-{{ fx.id }}').showModal();" title="Manage assigned commentators">
+            Edit
+          </button>
+        </div>
+      </div>
+    {% else %}
+      <div class="fxc__official-bar is-empty" style="margin-top:6px;" onclick="document.getElementById('comm-dialog-{{ fx.id }}').showModal();" role="button" tabindex="0" title="Click to assign match commentator">
+        <div class="fxc__official-main">
+          <span class="fxc__official-ico" style="background:#f1f5f9; color:#64748b;">
+            🎙️
+          </span>
+          <span class="fxc__official-placeholder">No commentator assigned</span>
+        </div>
+        <span class="fxc__official-assign-tag" style="background:#e0e7ff; color:#4338ca;">+ Commentator</span>
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {# Assign Referee Dialog #}
+  <dialog id="ref-dialog-{{ fx.id }}" class="poolassign-dialog ref-dialog" style="max-width:440px; padding:0; border-radius:18px; border:1px solid var(--b-l2); box-shadow:0 20px 45px rgba(0,0,0,0.14); overflow:hidden;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:#fafafa; border-bottom:1px solid var(--b-l3);">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:#ecfdf5; color:#059669; display:grid; place-items:center;">
+          <svg class="ico" style="width:16px; height:16px;"><use href="#i-whistle"/></svg>
+        </div>
+        <div>
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:var(--tx-main); line-height:1.2;">Match Officials</h3>
+          <p style="margin:2px 0 0; font-size:11.5px; color:var(--tx-dim);">Fixture: {{ fx.match_id }} • {{ fx.round_name|default:"Match" }}</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close();" style="border:none; border-radius:50%; width:30px; height:30px; padding:0; display:grid; place-items:center; color:var(--tx-dim); font-size:15px;">✕</button>
+    </div>
+
+    <div style="padding:18px 20px;">
+      {% with ref_list=fx.referee_assignments.all %}
+        {% if ref_list %}
+          <div style="margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--tx-dim); margin-bottom:8px;">Current Assignments</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              {% for a in ref_list %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:9px 12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:28px; height:28px; border-radius:50%; background:#dcfce7; color:#15803d; font-weight:700; font-size:11px; display:grid; place-items:center;">
+                      {{ a.user.display_name|slice:":1"|upper }}
+                    </div>
+                    <div>
+                      <div style="font-size:13px; font-weight:700; color:#166534; line-height:1.2;">{{ a.user.display_name }}</div>
+                      <div style="font-size:11px; color:#15803d;">{{ a.get_role_display }}{% if a.notes %} • <span style="font-style:italic;">{{ a.notes }}</span>{% endif %}</div>
+                    </div>
+                  </div>
+                  <form method="post" action="{% url 'fixture_referee_unassign' tournament.slug fx.id a.user.id %}" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm" style="color:#b91c1c; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Remove this official">
+                      Remove
+                    </button>
+                  </form>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post" action="{% url 'fixture_referee_assign' tournament.slug fx.id %}">
+        {% csrf_token %}
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--tx-main); margin-bottom:5px;">Select Official from Pool</label>
+          {% if registered_referees %}
+            <select name="user_id" class="input" style="width:100%; font-size:13px; border-radius:8px;" required>
+              <option value="">-- Choose official --</option>
+              {% for r in registered_referees %}
+                <option value="{{ r.user.id }}">{{ r.user.display_name }} (@{{ r.user.username }}) - {{ r.user.referee_profile.get_experience_level_display }}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <div style="padding:10px 12px; background:#fff7ed; border:1px solid #ffedd5; border-radius:8px; font-size:12px; color:#c2410c;">
+              No referees in tournament pool yet. Register referees in the pool section at the top of the fixtures page first.
+            </div>
+          {% endif %}
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--tx-main); margin-bottom:5px;">Role</label>
+          <select name="role" class="input" style="width:100%; font-size:13px; border-radius:8px;">
+            <option value="PRIMARY">Primary Referee / Umpire</option>
+            <option value="ASSISTANT">Assistant Referee / Line Judge</option>
+            <option value="TABLE">Table Official / Scorer</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--tx-main); margin-bottom:5px;">Court Notes (optional)</label>
+          <input type="text" name="notes" class="input" placeholder="e.g. Lead court official, Table scorer" style="width:100%; font-size:13px; border-radius:8px;">
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:12px; border-top:1px solid var(--b-l3);">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('dialog').close();" style="border-radius:8px;">Cancel</button>
+          {% if registered_referees %}
+            <button type="submit" class="btn btn-primary btn-sm" style="border-radius:8px; font-weight:700;">Save Official</button>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  {# Assign Commentator Dialog #}
+  <dialog id="comm-dialog-{{ fx.id }}" class="poolassign-dialog ref-dialog" style="max-width:440px; padding:0; border-radius:18px; border:1px solid var(--b-l2); box-shadow:0 20px 45px rgba(0,0,0,0.14); overflow:hidden;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:#fafafa; border-bottom:1px solid var(--b-l3);">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:#e0e7ff; color:#4338ca; display:grid; place-items:center; font-size:16px;">
+          🎙️
+        </div>
+        <div>
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:var(--tx-main); line-height:1.2;">Live Commentators</h3>
+          <p style="margin:2px 0 0; font-size:11.5px; color:var(--tx-dim);">Fixture: {{ fx.match_id }} • {{ fx.round_name|default:"Match" }}</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close();" style="border:none; border-radius:50%; width:30px; height:30px; padding:0; display:grid; place-items:center; color:var(--tx-dim); font-size:15px;">✕</button>
+    </div>
+
+    <div style="padding:18px 20px;">
+      {% with comm_list=fx.commentator_assignments.all %}
+        {% if comm_list %}
+          <div style="margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--tx-dim); margin-bottom:8px;">Current Assignments</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              {% for a in comm_list %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:9px 12px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:10px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:28px; height:28px; border-radius:50%; background:#e0e7ff; color:#4338ca; font-weight:700; font-size:11px; display:grid; place-items:center;">
+                      {{ a.user.display_name|slice:":1"|upper }}
+                    </div>
+                    <div>
+                      <div style="font-size:13px; font-weight:700; color:#3730a3; line-height:1.2;">{{ a.user.display_name }}</div>
+                      <div style="font-size:11px; color:#4338ca;">{{ a.get_role_display }}{% if a.notes %} • <span style="font-style:italic;">{{ a.notes }}</span>{% endif %}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <form method="post" action="{% url 'fixture_commentator_unassign' tournament.slug fx.id a.user.id %}" style="margin:0;">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm" style="color:#b91c1c; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Remove this commentator">
+                        Remove
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post" action="{% url 'fixture_commentator_assign' tournament.slug fx.id %}">
+        {% csrf_token %}
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--tx-main); margin-bottom:5px;">Select Commentator from Pool</label>
+          {% if registered_commentators %}
+            <select name="user_id" class="input" style="width:100%; font-size:13px; border-radius:8px;" required>
+              <option value="">-- Choose commentator --</option>
+              {% for c in registered_commentators %}
+                <option value="{{ c.user.id }}">{{ c.user.display_name }} (@{{ c.user.username }}){% if c.user.commentator_profile %} - {{ c.user.commentator_profile.get_experience_level_display }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <div style="padding:10px 12px; background:#eff6ff; border:1px solid #dbeafe; border-radius:8px; font-size:12px; color:#1e40af;">
+              No commentators in tournament pool yet. Register commentators in the pool section at the top of the fixtures page first.
+            </div>
+          {% endif %}
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--tx-main); margin-bottom:5px;">Broadcast Role</label>
+          <select name="role" class="input" style="width:100%; font-size:13px; border-radius:8px;">
+            <option value="LEAD">Lead Play-by-Play</option>
+            <option value="COLOR">Color Analyst</option>
+            <option value="SIDELINE">Sideline Reporter</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--tx-main); margin-bottom:5px;">Broadcast Notes (optional)</label>
+          <input type="text" name="notes" class="input" placeholder="e.g. English broadcast, Co-host" style="width:100%; font-size:13px; border-radius:8px;">
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:12px; border-top:1px solid var(--b-l3);">
+          <a href="{% url 'fixture_commentary_workspace' tournament.slug fx.id %}" target="_blank" class="btn btn-secondary btn-sm" style="font-size:11px; font-weight:700; color:#4f46e5; text-decoration:none;">
+            🎙️ Open Workspace ↗
+          </a>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('dialog').close();" style="border-radius:8px;">Cancel</button>
+            {% if registered_commentators %}
+              <button type="submit" class="btn btn-primary btn-sm" style="border-radius:8px; font-weight:700;">Assign Commentator</button>
+            {% endif %}
+          </div>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
   {% if tournament.sport.slug == 'chess' %}
     {% comment %} Chess never leaves this page — every action is a popup right here.
        Icon-only buttons: the organizer is clearing many boards per round,

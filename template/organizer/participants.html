@@ -17,8 +17,41 @@
   {% endif %}
 
   <div class="two-col" style="margin-top:20px; align-items:start">
+
     <div class="stack" id="participants-list">
+      {% if tournament.is_team_based and pending_entries %}
+        <h3 style="margin-bottom: 0;">Pending Requests ({{ pending_entries|length }})</h3>
+        {% for e in pending_entries %}
+          <article class="trc {{ tournament.sport.tag_class }}" style="border-left: 4px solid var(--orange);">
+            <header class="trc__head">
+              <span class="trc__crest"{% if e.team.logo %} style="background:transparent"{% endif %}>
+                {% if e.team.logo %}<img src="{{ e.team.logo.url }}" alt="">{% else %}{{ e.team.initials }}{% endif %}
+              </span>
+              <div class="trc__id">
+                <h3 class="trc__name">
+                  <a href="{{ e.team.get_absolute_url }}" target="_blank">{{ e.team.name }}</a>
+                </h3>
+                <div class="trc__meta">Captain: {{ e.team.owner.user.display_name }}</div>
+              </div>
+              <div class="trc__actions" style="display: flex; gap: 8px;">
+                <form method="POST" action="{% url 'entry_approve' tournament.slug e.id %}" style="margin:0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--primary btn--sm" style="background: #10b981; border-color: #10b981;">Approve</button>
+                </form>
+                <form method="POST" action="{% url 'entry_reject' tournament.slug e.id %}" style="margin:0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--sm" style="color: #ef4444; border-color: #fca5a5; background: #fef2f2;">Reject</button>
+                </form>
+              </div>
+            </header>
+          </article>
+        {% endfor %}
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--b-l3);">
+        <h3 style="margin-bottom: 0;">Approved Teams ({{ entries|length }})</h3>
+      {% endif %}
+
       {% if tournament.is_team_based %}
+
         {% for e in entries %}
           {% with roster=e.team.memberships.all %}
           <article class="trc {{ tournament.sport.tag_class }}">
@@ -57,10 +90,7 @@
                     {% csrf_token %}<button class="btn btn-secondary btn-sm">Reject</button>
                   </form>
                 {% endif %}
-                <form method="post" action="{% url 'entry_decide' tournament.slug 'team' e.id 'remove' %}"
-                      onsubmit="return confirm('Remove this team from the tournament?')">
-                  {% csrf_token %}<button class="btn btn-sm trc-remove">Remove</button>
-                </form>
+                <button class="btn btn-sm trc-remove" onclick="openRemovalModal(\'{% url 'entry_decide' tournament.slug 'team' e.id 'remove' %}\')">Remove</button>
               </div>
             </header>
 
@@ -113,7 +143,7 @@
                           </span>
                           <span class="trc-player__tags" style="display:flex; align-items:center; gap:8px;">
                             <span class="trc-player__role">{{ m.get_role_display }}</span>
-                            {% if m.role == 'CAPTAIN' %}<span class="trc-flag trc-flag--captain">C</span>{% endif %}
+                            {% if m.role == 'OWNER' %}<span class="trc-flag trc-flag--owner">C</span>{% endif %}
                             {% if not m.is_approved %}
                               <span class="trc-flag trc-flag--pending">Pending</span>
                               <form method="post" action="{% url 'member_decide' tournament.slug m.id 'approve' %}" style="display:inline;">
@@ -176,10 +206,54 @@
         {% empty %}
           <div class="empty">No teams yet. Add one on the right.</div>
         {% endfor %}
+
       {% else %}
-        <div class="table-wrap tblcard">
+        {% if pending_registrations %}
+        <h3 style="margin-bottom: 0;">Pending Requests ({{ pending_registrations|length }})</h3>
+        <div class="table-wrap tblcard" style="border: 1px solid var(--orange); margin-bottom: 24px;">
           <table class="dtable">
-            <thead><tr><th>Name</th><th>Category</th>
+            <thead style="background: #fff8f1;"><tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              {% if tournament.sport.slug == 'chess' %}<th>FIDE</th>{% endif %}
+              <th class="ta-r">Actions</th>
+            </tr></thead>
+            <tbody>
+              {% for r in pending_registrations %}
+                <tr>
+                  <td>
+                    <div style="font-weight: 500;">{{ r.display_name|default:r.player.user.display_name }}</div>
+                    {% if r.player %}<div class="dim" style="font-size: 0.85rem;">@{{ r.player.user.username }}</div>{% endif %}
+                  </td>
+                  <td>{{ r.phone_number|default:'—' }}</td>
+                  <td>{{ r.email|default:'—' }}</td>
+                  {% if tournament.sport.slug == 'chess' %}<td class="mono">{{ r.rating|default:'—' }}</td>{% endif %}
+                  <td class="ta-r">
+                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                      <form method="POST" action="{% url 'individual_approve' tournament.slug r.id %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--primary btn--sm" style="background: #10b981; border-color: #10b981; padding: 6px 12px;">Approve</button>
+                      </form>
+                      <form method="POST" action="{% url 'individual_reject' tournament.slug r.id %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--secondary btn--sm" style="color: #ef4444; border-color: #fca5a5; background: #fef2f2; padding: 6px 12px;">Reject</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--b-l3);">
+        <h3 style="margin-bottom: 0;">Approved Participants ({{ registrations|length }})</h3>
+        {% endif %}
+
+        <div class="table-wrap tblcard">
+
+          <table class="dtable">
+            <thead><tr><th>Name</th>{% if tournament.sport.slug != 'chess' %}<th>Category</th>{% endif %}
               <th>{% if tournament.sport.slug == 'chess' %}Rating{% else %}Bib{% endif %}</th>
               <th>Seed</th><th>Status</th><th class="ta-r">Actions</th></tr></thead>
             <tbody>
@@ -200,7 +274,7 @@
                       </span>
                     {% endif %}
                   </td>
-                  <td>{{ r.event_category.name|default:'—' }}</td>
+                  {% if tournament.sport.slug != 'chess' %}<td>{{ r.event_category.name|default:'—' }}</td>{% endif %}
                   <td class="mono">
                     {% if tournament.sport.slug == 'chess' %}{{ r.effective_rating|default:'—' }}
                     {% else %}{{ r.bib_number|default:'—' }}{% endif %}
@@ -219,10 +293,7 @@
                           {% csrf_token %}<button class="btn btn-secondary btn-sm">Reject</button>
                         </form>
                       {% endif %}
-                      <form method="post" action="{% url 'entry_decide' tournament.slug 'individual' r.id 'remove' %}"
-                            onsubmit="return confirm('Remove this entrant?')">
-                        {% csrf_token %}<button class="btn btn-ghost btn-sm">✕</button>
-                      </form>
+                      <button class="btn btn-ghost btn-sm" onclick="openRemovalModal(\'{% url 'entry_decide' tournament.slug 'individual' r.id 'remove' %}\')">✕</button>
                     </div>
                   </td>
                 </tr>
@@ -574,6 +645,34 @@
       </div>
     </form>
   </dialog>
+
+  
+  <dialog id="removal-modal" class="poolassign-dialog" style="max-width:400px">
+    <form method="post" id="removal-form">
+      {% csrf_token %}
+      <h3 class="fxpanel__h" style="margin-top:0">Remove Participant</h3>
+      <p class="muted" style="margin-top:8px">Please provide a reason for removal. This is required and will be sent to the participant.</p>
+      
+      <div class="field" style="margin-top: 14px;">
+        <label>Removal Reason *</label>
+        <textarea name="reason" class="input" rows="3" required></textarea>
+      </div>
+      
+      <div class="row-flex" style="margin-top:14px">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('removal-modal').close()">Cancel</button>
+        <button class="btn btn-danger btn-sm">Confirm Removal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    function openRemovalModal(url) {
+      const modal = document.getElementById('removal-modal');
+      document.getElementById('removal-form').action = url;
+      modal.showModal();
+    }
+  </script>
+
 
   {# --- Remove all teams / participants (opened from the heading button) - #}
   <dialog id="remove-all-dialog" class="poolassign-dialog" style="max-width:400px">

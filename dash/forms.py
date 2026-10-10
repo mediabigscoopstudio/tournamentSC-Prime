@@ -110,7 +110,7 @@ class OrganizerProfileAdminForm(forms.ModelForm):
 class PlayerProfileAdminForm(forms.ModelForm):
     class Meta:
         model = PlayerProfile
-        fields = ['user', 'date_of_birth', 'gender', 'city', 'profile_photo', 'bio', 'rating',
+        fields = ['user', 'date_of_birth', 'gender', 'home_city', 'current_city', 'profile_photo', 'bio', 'rating',
                   'sports', 'emergency_contact_name', 'emergency_contact_phone']
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),

@@ -2,41 +2,252 @@
 {% block title %}Referee Portal — {{ site_conf.site_name }}{% endblock %}
 
 {% block content %}
-<main class="page-min-center wrap" style="max-width:800px; padding-top:40px;">
-  <h1 style="margin-bottom:24px;">Referee Portal</h1>
-  
-  <div class="stack">
-    {% for a in assignments %}
-      <div class="panel tblcard" style="padding:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div class="dim" style="font-size:12px; font-weight:600;">{{ a.fixture.tournament.name }}</div>
-            <h3 style="margin:4px 0 8px;">
-                {% if a.fixture.tournament.is_team_based %}
-                    {{ a.fixture.team1.name|default:"TBD" }} vs {{ a.fixture.team2.name|default:"TBD" }}
-                {% else %}
-                    {{ a.fixture.participant1.name|default:"TBD" }} vs {{ a.fixture.participant2.name|default:"TBD" }}
-                {% endif %}
-            </h3>
-            <div class="muted">
-                <svg class="ico" style="width:14px;height:14px;"><use href="#i-cal"/></svg> 
-                {{ a.fixture.scheduled_time|default:"TBA" }}
-            </div>
-          </div>
-          <div>
-            {% if a.fixture.status == 'COMPLETED' %}
-              <span class="badge badge-completed">Completed</span>
-            {% else %}
-              <a href="{{ a.fixture.get_absolute_url }}" class="btn btn-primary btn-sm">Match Center</a>
+<main class="wrap" style="max-width: 1040px; margin: 0 auto; padding: 2.5rem 1rem 4rem;">
+
+  <!-- Referee Identity & Controls Header -->
+  <div style="background: #ffffff; border-radius: 20px; border: 1px solid #f0f0f0; box-shadow: 0 4px 20px rgba(0,0,0,0.03); padding: 1.75rem 2rem; margin-bottom: 2rem;">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px;">
+      
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.5rem; border: 2px solid #a7f3d0; flex-shrink: 0;">
+          {% if profile.display_avatar_url %}
+            <img src="{{ profile.display_avatar_url }}" alt="{{ profile.user.display_name }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+          {% else %}
+            {{ user.display_name|slice:":1"|upper }}
+          {% endif %}
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <h1 style="font-size: 1.5rem; font-weight: 800; color: #111827; margin: 0;">{{ user.display_name }}</h1>
+            {% if profile.is_verified %}
+              <span style="display: inline-flex; align-items: center; gap: 4px; background: #ecfdf5; color: #059669; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; border: 1px solid #a7f3d0;">
+                <svg class="ico" style="width: 12px; height: 12px;"><use href="#i-check"/></svg> Verified Official
+              </span>
             {% endif %}
+            <span style="background: #f3f4f6; color: #4b5563; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 6px;">
+              {{ profile.get_experience_level_display }}
+            </span>
+          </div>
+          <div style="font-size: 0.85rem; color: #6b7280; margin-top: 4px;">
+            Referee Portal • @{{ user.username }}
+            {% if profile.preferred_location %} • {{ profile.preferred_location }}{% endif %}
           </div>
         </div>
       </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <!-- Quick Availability Toggle Form -->
+        <form method="post" style="display: inline-block;">
+          {% csrf_token %}
+          <input type="hidden" name="toggle_availability" value="1">
+          <button type="submit" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid; transition: all 0.15s ease; {% if profile.is_available %}background: #ecfdf5; color: #059669; border-color: #a7f3d0;{% else %}background: #fef2f2; color: #dc2626; border-color: #fecaca;{% endif %}">
+            <span style="width: 8px; height: 8px; border-radius: 50%; {% if profile.is_available %}background: #10b981;{% else %}background: #ef4444;{% endif %}"></span>
+            {% if profile.is_available %}Available for Matches{% else %}Marked Unavailable{% endif %}
+          </button>
+        </form>
+
+        <a href="{% url 'referee_public' profile.pk %}" class="btn btn-outline" style="padding: 8px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; text-decoration: none; border: 1px solid #d1d5db; color: #374151;">
+          Public Profile
+        </a>
+        <a href="{% url 'referee_profile_edit' %}" class="btn btn-outline" style="padding: 8px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; text-decoration: none; border: 1px solid #d1d5db; color: #374151;">
+          Edit Settings
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Metric Counters -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 2rem;">
+    <a href="?status=all" style="text-decoration: none; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: transform 0.15s ease;">
+      <div>
+        <div style="font-size: 0.8rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Total Assigned</div>
+        <div style="font-size: 1.85rem; font-weight: 800; color: #111827; margin-top: 4px;">{{ total_count }}</div>
+      </div>
+      <div style="width: 44px; height: 44px; border-radius: 12px; background: #f3f4f6; color: #4b5563; display: flex; align-items: center; justify-content: center;">
+        <svg class="ico" style="width: 22px; height: 22px;"><use href="#i-whistle"/></svg>
+      </div>
+    </a>
+
+    <a href="?status=live" style="text-decoration: none; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: transform 0.15s ease;">
+      <div>
+        <div style="font-size: 0.8rem; font-weight: 600; color: #ef4444; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;">
+          <span style="width: 6px; height: 6px; border-radius: 50%; background: #ef4444; display: inline-block;"></span> Live Matches
+        </div>
+        <div style="font-size: 1.85rem; font-weight: 800; color: #ef4444; margin-top: 4px;">{{ live_count }}</div>
+      </div>
+      <div style="width: 44px; height: 44px; border-radius: 12px; background: #fef2f2; color: #ef4444; display: flex; align-items: center; justify-content: center;">
+        <svg class="ico" style="width: 22px; height: 22px;"><use href="#i-play"/></svg>
+      </div>
+    </a>
+
+    <a href="?status=upcoming" style="text-decoration: none; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: transform 0.15s ease;">
+      <div>
+        <div style="font-size: 0.8rem; font-weight: 600; color: #0284c7; text-transform: uppercase; letter-spacing: 0.05em;">Upcoming / Scheduled</div>
+        <div style="font-size: 1.85rem; font-weight: 800; color: #0284c7; margin-top: 4px;">{{ upcoming_count }}</div>
+      </div>
+      <div style="width: 44px; height: 44px; border-radius: 12px; background: #f0f9ff; color: #0284c7; display: flex; align-items: center; justify-content: center;">
+        <svg class="ico" style="width: 22px; height: 22px;"><use href="#i-cal"/></svg>
+      </div>
+    </a>
+
+    <a href="?status=completed" style="text-decoration: none; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: transform 0.15s ease;">
+      <div>
+        <div style="font-size: 0.8rem; font-weight: 600; color: #059669; text-transform: uppercase; letter-spacing: 0.05em;">Completed</div>
+        <div style="font-size: 1.85rem; font-weight: 800; color: #059669; margin-top: 4px;">{{ completed_count }}</div>
+      </div>
+      <div style="width: 44px; height: 44px; border-radius: 12px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center;">
+        <svg class="ico" style="width: 22px; height: 22px;"><use href="#i-check"/></svg>
+      </div>
+    </a>
+  </div>
+
+  <!-- Filters & Tabs -->
+  <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 1.5rem;">
+    <div style="display: flex; gap: 8px; background: #f3f4f6; padding: 4px; border-radius: 12px;">
+      <a href="?status=all{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" style="text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.15s; {% if status_filter == 'all' %}background: #ffffff; color: #111827; box-shadow: 0 2px 6px rgba(0,0,0,0.06);{% else %}color: #6b7280;{% endif %}">
+        All ({{ total_count }})
+      </a>
+      <a href="?status=live{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" style="text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.15s; {% if status_filter == 'live' %}background: #ffffff; color: #ef4444; box-shadow: 0 2px 6px rgba(0,0,0,0.06);{% else %}color: #6b7280;{% endif %}">
+        Live ({{ live_count }})
+      </a>
+      <a href="?status=upcoming{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" style="text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.15s; {% if status_filter == 'upcoming' %}background: #ffffff; color: #0284c7; box-shadow: 0 2px 6px rgba(0,0,0,0.06);{% else %}color: #6b7280;{% endif %}">
+        Upcoming ({{ upcoming_count }})
+      </a>
+      <a href="?status=completed{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" style="text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.15s; {% if status_filter == 'completed' %}background: #ffffff; color: #059669; box-shadow: 0 2px 6px rgba(0,0,0,0.06);{% else %}color: #6b7280;{% endif %}">
+        Completed ({{ completed_count }})
+      </a>
+    </div>
+
+    <!-- Sport Selector -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <label for="sportFilterSelect" style="font-size: 0.85rem; font-weight: 600; color: #6b7280;">Sport:</label>
+      <select id="sportFilterSelect" onchange="window.location.href='?status={{ status_filter }}&sport=' + this.value;" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 8px; border: 1px solid #d1d5db; background: #ffffff; color: #374151;">
+        <option value="" {% if not sport_filter %}selected{% endif %}>All Sports</option>
+        {% for sp in sports %}
+          <option value="{{ sp.slug }}" {% if sport_filter == sp.slug %}selected{% endif %}>{{ sp.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Assignments Fixture List -->
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    {% for assign in assignments %}
+      {% with fx=assign.fixture %}
+        <div style="background: #ffffff; border-radius: 16px; border: 1px solid #f0f0f0; box-shadow: 0 2px 12px rgba(0,0,0,0.02); padding: 1.5rem; transition: all 0.15s ease;">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;">
+            
+            <div style="flex: 1; min-width: 260px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: #4b5563; background: #f3f4f6; padding: 2px 8px; border-radius: 6px; text-transform: uppercase;">
+                  {{ fx.tournament.sport.name }}
+                </span>
+                <span style="font-size: 0.85rem; font-weight: 600; color: #374151;">
+                  {{ fx.tournament.name }}
+                </span>
+                {% if fx.round_name %}
+                  <span style="font-size: 0.75rem; color: #9ca3af;">• {{ fx.round_name }}</span>
+                {% endif %}
+                <span style="font-size: 0.75rem; font-weight: 700; color: #4f46e5; background: #eef2ff; padding: 2px 8px; border-radius: 6px;">
+                  {{ assign.get_role_display|default:"Referee" }}
+                </span>
+              </div>
+
+              <!-- Match Teams / Participants -->
+              <h2 style="font-size: 1.25rem; font-weight: 800; color: #111827; margin: 4px 0 10px;">
+                {% with ps=fx.participants.all %}
+                  {% if ps|length >= 2 %}
+                    {{ ps.0.name }}
+                    {% if fx.status == 'COMPLETED' or fx.status == 'LIVE' %}
+                      <span style="color: #6b7280; font-weight: 700; margin: 0 4px;">
+                        {{ ps.0.score|default_if_none:"0"|floatformat:'-2' }} - {{ ps.1.score|default_if_none:"0"|floatformat:'-2' }}
+                      </span>
+                    {% else %}
+                      <span style="color: #9ca3af; font-weight: 600; margin: 0 6px;">vs</span>
+                    {% endif %}
+                    {{ ps.1.name }}
+                  {% elif ps|length == 1 %}
+                    {{ ps.0.name }}
+                  {% else %}
+                    Match #{{ fx.sequence }}
+                  {% endif %}
+                {% endwith %}
+              </h2>
+
+              <div style="display: flex; align-items: center; gap: 16px; font-size: 0.85rem; color: #6b7280; flex-wrap: wrap;">
+                <span style="display: inline-flex; align-items: center; gap: 4px;">
+                  <svg class="ico" style="width: 14px; height: 14px;"><use href="#i-cal"/></svg>
+                  {{ fx.scheduled_time|default:"Date & Time TBA" }}
+                </span>
+                {% if fx.tournament.venue %}
+                  <span style="display: inline-flex; align-items: center; gap: 4px;">
+                    <svg class="ico" style="width: 14px; height: 14px;"><use href="#i-pin"/></svg>
+                    {{ fx.tournament.venue.name }}
+                  </span>
+                {% endif %}
+                {% if assign.notes %}
+                  <span style="font-size: 0.8rem; color: #9ca3af; font-style: italic;">
+                    Note: {{ assign.notes }}
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Match Status & Actions -->
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+              {% if fx.status == 'LIVE' %}
+                <span style="background: #fee2e2; color: #ef4444; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #fecaca;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span> LIVE MATCH
+                </span>
+                <a href="{% url 'score_fixture' fx.tournament.slug fx.id %}" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.9rem; font-weight: 700; border-radius: 10px; background: #ef4444; color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(239,68,68,0.3);">
+                  <svg class="ico" style="width: 16px; height: 16px;"><use href="#i-play"/></svg> Score Match
+                </a>
+              {% elif fx.status == 'SCHEDULED' %}
+                <span style="background: #e0f2fe; color: #0284c7; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 9999px; border: 1px solid #bae6fd;">
+                  Scheduled
+                </span>
+                <a href="{% url 'score_fixture' fx.tournament.slug fx.id %}" class="btn btn-primary" style="padding: 9px 18px; font-size: 0.85rem; font-weight: 600; border-radius: 10px; background: var(--green, #10b981); color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                  Start Match / Controls
+                </a>
+              {% else %}
+                <span style="background: #f3f4f6; color: #4b5563; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 9999px;">
+                  Completed
+                </span>
+                <a href="{% url 'score_fixture' fx.tournament.slug fx.id %}" class="btn btn-outline" style="padding: 8px 16px; font-size: 0.85rem; font-weight: 600; border-radius: 10px; text-decoration: none; color: #4b5563; border: 1px solid #d1d5db;">
+                  Match Summary (Read-Only)
+                </a>
+              {% endif %}
+
+              <a href="{{ fx.get_absolute_url }}" style="font-size: 0.8rem; color: #6b7280; text-decoration: underline;">
+                View Public Match Page
+              </a>
+            </div>
+
+          </div>
+        </div>
+      {% endwith %}
     {% empty %}
-      <div class="empty" style="padding:40px; text-align:center;">
-        You have no assigned matches as a referee.
+      <div style="background: #ffffff; border-radius: 20px; border: 1px solid #f0f0f0; padding: 3.5rem 1.5rem; text-align: center; color: #9ca3af;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: #f9fafb; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+          <svg class="ico" style="width: 28px; height: 28px; opacity: 0.5;"><use href="#i-whistle"/></svg>
+        </div>
+        <h3 style="font-size: 1.1rem; font-weight: 700; color: #374151; margin-bottom: 0.25rem;">No assignments found</h3>
+        <p style="font-size: 0.9rem; max-width: 440px; margin: 0 auto 1.5rem; line-height: 1.5;">
+          {% if status_filter != 'all' or sport_filter %}
+            No matches match the selected status or sport filters. Try choosing a different filter.
+          {% else %}
+            You have no matches assigned yet. Ensure your status is set to Available so tournament organizers can assign you to fixtures.
+          {% endif %}
+        </p>
+        {% if status_filter != 'all' or sport_filter %}
+          <a href="?status=all" class="btn btn-outline" style="padding: 8px 16px; border-radius: 10px; font-size: 0.85rem; text-decoration: none; border: 1px solid #d1d5db; color: #374151;">
+            Clear Filters
+          </a>
+        {% endif %}
       </div>
     {% endfor %}
   </div>
+
 </main>
 {% endblock %}

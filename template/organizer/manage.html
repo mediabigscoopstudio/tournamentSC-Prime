@@ -32,6 +32,7 @@
     <a class="panel tblcard" href="{% url 'participants_manage' tournament.slug %}">
       <h3>① Participants</h3>
       <p class="muted">{{ participant_count }} added · {% if tournament.is_team_based %}teams{% else %}individuals{% endif %}</p>
+      {% if pending_count > 0 %}<p style="color: var(--orange); font-weight: 600; font-size: 0.9rem; margin-top: 8px;">{{ pending_count }} pending request{{ pending_count|pluralize }}</p>{% endif %}
     </a>
 
     <a class="panel tblcard" href="{% url 'fixtures_manage' tournament.slug %}">
@@ -69,6 +70,107 @@
     </div>
   </div>
   {% endif %}
+
+  <!-- Co-Organizers Management Panel -->
+  <div class="panel tblcard" style="margin-top:24px; padding: 24px; border-radius: 16px; border: 1px solid var(--b-l2); background: var(--bg-card);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+      <div>
+        <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--tx-main); display:flex; align-items:center; gap:8px;">
+          <svg class="ico" style="width:20px; height:20px; color:#10b981;"><use href="#i-shield"/></svg>
+          Tournament Co-Organizers
+        </h3>
+        <p class="muted" style="margin:4px 0 0; font-size:0.85rem;">
+          Delegate management rights for this specific tournament. Co-organizers can manage fixtures, assign referees, and score matches.
+        </p>
+      </div>
+      {% if not is_tournament_owner %}
+        <span style="background:#ecfdf5; color:#059669; font-size:0.8rem; font-weight:600; padding:4px 12px; border-radius:9999px; border:1px solid #a7f3d0;">
+          Active Co-Organizer
+        </span>
+      {% endif %}
+    </div>
+
+    <!-- Active Organizers List -->
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+      <!-- Original Creator -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--bg-panel); border-radius:10px; border:1px solid var(--b-l3);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:36px; height:36px; border-radius:50%; background:#e0e7ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem;">
+            {{ tournament.organizer.user.display_name|slice:":1"|upper }}
+          </div>
+          <div>
+            <div style="font-size:0.9rem; font-weight:700; color:var(--tx-main);">
+              {{ tournament.organizer.user.display_name }}
+              <span style="font-size:0.8rem; color:#6b7280; font-weight:normal;">(@{{ tournament.organizer.user.username }})</span>
+            </div>
+            <div style="font-size:0.75rem; color:#6366f1; font-weight:600;">Tournament Creator (Lead Organizer)</div>
+          </div>
+        </div>
+        <span style="font-size:0.75rem; background:#eef2ff; color:#4338ca; font-weight:600; padding:2px 8px; border-radius:6px;">Owner</span>
+      </div>
+
+      <!-- Co-Organizers -->
+      {% for co in co_organizers %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--bg-panel); border-radius:10px; border:1px solid var(--b-l3);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:36px; height:36px; border-radius:50%; background:#ecfdf5; color:#059669; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem;">
+              {{ co.user.display_name|slice:":1"|upper }}
+            </div>
+            <div>
+              <div style="font-size:0.9rem; font-weight:700; color:var(--tx-main);">
+                {{ co.user.display_name }}
+                <span style="font-size:0.8rem; color:#6b7280; font-weight:normal;">(@{{ co.user.username }})</span>
+              </div>
+              <div style="font-size:0.75rem; color:#10b981; font-weight:600;">Active Co-Organizer • Added {{ co.created_at|date:"M j, Y" }}</div>
+            </div>
+          </div>
+          {% if is_tournament_owner %}
+            <form method="post" action="{% url 'tournament_co_organizer_revoke' tournament.slug co.user.id %}" onsubmit="return confirm('Revoke co-organizer access for @{{ co.user.username }}?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-destructive btn-sm" style="font-size:0.75rem; padding:4px 10px;">Revoke Access</button>
+            </form>
+          {% else %}
+            <span style="font-size:0.75rem; background:#ecfdf5; color:#059669; font-weight:600; padding:2px 8px; border-radius:6px;">Co-Organizer</span>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Pending Invitations -->
+    {% if pending_co_organizer_invitations %}
+      <div style="margin-bottom:20px;">
+        <h4 style="font-size:0.85rem; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.05em;">Pending Invitations</h4>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          {% for inv in pending_co_organizer_invitations %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#fefce8; border:1px solid #fef08a; border-radius:8px; font-size:0.85rem;">
+              <div>
+                <strong>@{{ inv.user.username }}</strong> ({{ inv.user.display_name }})
+                <span style="color:#a16207; font-size:0.75rem; margin-left:6px;">Expires {{ inv.expires_at|timeuntil }}</span>
+              </div>
+              {% if is_tournament_owner %}
+                <form method="post" action="{% url 'tournament_co_organizer_cancel_invite' tournament.slug inv.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-ghost btn-sm" style="font-size:0.75rem; padding:2px 8px; color:#b45309;">Cancel Invite</button>
+                </form>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Invite Form (Owner Only) -->
+    {% if is_tournament_owner %}
+      <div style="border-top:1px solid var(--b-l3); padding-top:16px;">
+        <h4 style="font-size:0.9rem; font-weight:700; color:var(--tx-main); margin-bottom:8px;">Invite a Co-Organizer</h4>
+        <form method="post" action="{% url 'tournament_co_organizer_invite' tournament.slug %}" style="display:flex; gap:10px; max-width:480px; align-items:center;">
+          {% csrf_token %}
+          <input type="text" name="username" class="input" placeholder="TournamentSC @username" required style="flex:1; padding:8px 12px; font-size:0.9rem; border-radius:8px; border:1px solid var(--b-l2);">
+          <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap; padding:8px 16px; border-radius:8px; font-weight:600;">Send Invite</button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
 
   <div class="divider"></div>
   <div class="row-flex">

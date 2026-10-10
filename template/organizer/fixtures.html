@@ -47,6 +47,286 @@
     </div>
   </div>
 
+  {# ================= TOURNAMENT REFEREE MANAGEMENT ===================== #}
+  <div class="panel tblcard fxpanel" style="margin-bottom:24px; padding:24px; border-radius:16px; border:1px solid var(--b-l2); background:var(--bg-card);" id="referee-management-section">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
+      <div>
+        <h3 class="fxpanel__h" style="margin:0; font-size:1.2rem; font-weight:700; color:var(--tx-main); display:flex; align-items:center; gap:8px;">
+          <svg class="ico" style="width:22px; height:22px; color:#10b981;"><use href="#i-whistle"/></svg>
+          Match Officials &amp; Referees
+        </h3>
+        <p class="muted fxpanel__p" style="margin:4px 0 0; font-size:0.85rem;">
+          Register qualified referees into this tournament's pool. Auto-assign them evenly across fixtures or manually assign officials on individual match cards.
+        </p>
+      </div>
+
+      <!-- Auto-Assign Button & Trigger -->
+      <form method="post" action="{% url 'tournament_referees_auto_assign' tournament.slug %}" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        {% csrf_token %}
+        <label style="font-size:0.8rem; color:var(--tx-dim); display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" name="overwrite_existing" value="1"> Overwrite existing
+        </label>
+        <button type="submit" class="btn btn-secondary btn-sm" {% if not registered_referees %}disabled title="Add referees to pool first"{% endif %} style="font-weight:600;">
+          ⚡ Auto-Assign Pool to Fixtures
+        </button>
+      </form>
+    </div>
+
+    <!-- Search & Register Referees into Pool -->
+    <div style="position:relative; margin-bottom:20px; max-width:540px;">
+      <label style="display:block; font-size:0.85rem; font-weight:600; color:var(--tx-main); margin-bottom:6px;">
+        Add Referee to Tournament Pool
+      </label>
+      <div style="position:relative;">
+        <input type="text" id="refereeSearchInput" class="input" placeholder="Search by referee username or name..." autocomplete="off" style="width:100%; padding:9px 12px; font-size:0.9rem; border-radius:10px; border:1px solid var(--b-l2);">
+        <div id="refereeSearchResults" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:50; background:#ffffff; border:1px solid var(--b-l2); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.1); margin-top:4px; max-height:280px; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Current Tournament Referee Pool -->
+    <div>
+      <h4 style="font-size:0.85rem; font-weight:700; color:var(--tx-dim); text-transform:uppercase; margin-bottom:10px; letter-spacing:0.05em;">
+        Tournament Pool Referees ({{ registered_referees|length }})
+      </h4>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">
+        {% for reg in registered_referees %}
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--bg-panel); border-radius:12px; border:1px solid var(--b-l3);">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:38px; height:38px; border-radius:50%; background:#ecfdf5; color:#059669; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem; flex-shrink:0;">
+                {{ reg.user.display_name|slice:":1"|upper }}
+              </div>
+              <div>
+                <div style="font-size:0.9rem; font-weight:700; color:var(--tx-main); display:flex; align-items:center; gap:4px;">
+                  {{ reg.user.display_name }}
+                  {% if reg.user.referee_profile.is_verified %}
+                    <span style="color:#10b981; font-size:0.75rem;" title="Verified Official">✔</span>
+                  {% endif %}
+                </div>
+                <div style="font-size:0.75rem; color:#6b7280;">
+                  @{{ reg.user.username }} • <span style="color:#059669; font-weight:600;">{{ reg.assigned_fixtures_count }} assigned</span>
+                </div>
+              </div>
+            </div>
+            <form method="post" action="{% url 'tournament_referee_remove' tournament.slug reg.user.id %}" onsubmit="return confirm('Remove @{{ reg.user.username }} from tournament pool?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-ghost btn-sm" style="font-size:0.75rem; color:var(--tx-err); padding:4px 8px;" title="Remove from pool">✕</button>
+            </form>
+          </div>
+        {% empty %}
+          <div style="grid-column:1/-1; padding:20px; text-align:center; background:var(--bg-panel); border-radius:12px; border:1px dashed var(--b-l3); color:var(--tx-dim); font-size:0.9rem;">
+            No referees registered in this tournament's pool yet. Use the search bar above to add referees.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('refereeSearchInput');
+    const results = document.getElementById('refereeSearchResults');
+    if (!input || !results) return;
+
+    let debounceTimer;
+    input.addEventListener('input', function() {
+      clearTimeout(debounceTimer);
+      const query = input.value.trim();
+      if (query.length < 1) {
+        results.style.display = 'none';
+        results.innerHTML = '';
+        return;
+      }
+
+      debounceTimer = setTimeout(function() {
+        fetch(`{% url 'tournament_referees_search_api' tournament.slug %}?q=${encodeURIComponent(query)}`)
+          .then(res => res.json())
+          .then(data => {
+            results.innerHTML = '';
+            if (!data.results || data.results.length === 0) {
+              results.innerHTML = '<div style="padding:12px; font-size:13px; color:#6b7280; text-align:center;">No available referees found matching "' + query + '".</div>';
+              results.style.display = 'block';
+              return;
+            }
+
+            data.results.forEach(ref => {
+              const item = document.createElement('div');
+              item.style.padding = '10px 14px';
+              item.style.display = 'flex';
+              item.style.justifyContent = 'space-between';
+              item.style.alignItems = 'center';
+              item.style.borderBottom = '1px solid #f3f4f6';
+              item.innerHTML = `
+                <div>
+                  <div style="font-weight:700; font-size:13px; color:#111827;">${ref.display_name} <span style="font-weight:normal; color:#6b7280;">(@${ref.username})</span></div>
+                  <div style="font-size:11px; color:#6b7280;">${ref.experience_level} ${ref.preferred_location ? '• ' + ref.preferred_location : ''}</div>
+                </div>
+                <form method="post" action="{% url 'tournament_referee_add' tournament.slug %}" style="margin:0;">
+                  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                  <input type="hidden" name="user_id" value="${ref.id}">
+                  <button type="submit" class="btn btn-primary btn-sm" style="font-size:11px; padding:4px 10px;">+ Add to Pool</button>
+                </form>
+              `;
+              results.appendChild(item);
+            });
+            results.style.display = 'block';
+          });
+      }, 250);
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!input.contains(e.target) && !results.contains(e.target)) {
+        results.style.display = 'none';
+      }
+    });
+  });
+  </script>
+
+  {# ================= TOURNAMENT COMMENTATOR MANAGEMENT ===================== #}
+  <div class="panel tblcard fxpanel" style="margin-bottom:24px; padding:24px; border-radius:16px; border:1px solid var(--b-l2); background:var(--bg-card);" id="commentator-management-section">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
+      <div>
+        <h3 class="fxpanel__h" style="margin:0; font-size:1.2rem; font-weight:700; color:var(--tx-main); display:flex; align-items:center; gap:8px;">
+          <span style="font-size:22px;">🎙️</span>
+          Live Commentators &amp; Broadcast Team
+        </h3>
+        <p class="muted fxpanel__p" style="margin:4px 0 0; font-size:0.85rem;">
+          Register commentators into this tournament's broadcast pool. Auto-assign commentators across fixtures or manually assign Lead, Color, and Sideline commentators on individual match cards.
+        </p>
+      </div>
+
+      <!-- Auto-Assign Button & Trigger -->
+      <form method="post" action="{% url 'tournament_commentators_auto_assign' tournament.slug %}" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        {% csrf_token %}
+        <select name="role" class="input" style="font-size:0.8rem; padding:4px 8px; border-radius:8px; border:1px solid var(--b-l2);">
+          <option value="LEAD">Lead Play-by-Play</option>
+          <option value="COLOR">Color Analyst</option>
+          <option value="SIDELINE">Sideline Reporter</option>
+        </select>
+        <label style="font-size:0.8rem; color:var(--tx-dim); display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" name="overwrite_existing" value="1"> Overwrite existing
+        </label>
+        <button type="submit" class="btn btn-secondary btn-sm" {% if not registered_commentators %}disabled title="Add commentators to pool first"{% endif %} style="font-weight:600;">
+          ⚡ Auto-Assign Pool to Fixtures
+        </button>
+      </form>
+    </div>
+
+    <!-- Search & Register Commentators into Pool -->
+    <div style="position:relative; margin-bottom:20px; max-width:540px;">
+      <label style="display:block; font-size:0.85rem; font-weight:600; color:var(--tx-main); margin-bottom:6px;">
+        Add Commentator to Tournament Pool
+      </label>
+      <div style="position:relative;">
+        <input type="text" id="commentatorSearchInput" class="input" placeholder="Search by commentator username, name, or languages..." autocomplete="off" style="width:100%; padding:9px 12px; font-size:0.9rem; border-radius:10px; border:1px solid var(--b-l2);">
+        <div id="commentatorSearchResults" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:50; background:#ffffff; border:1px solid var(--b-l2); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.1); margin-top:4px; max-height:280px; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Current Tournament Commentator Pool -->
+    <div>
+      <h4 style="font-size:0.85rem; font-weight:700; color:var(--tx-dim); text-transform:uppercase; margin-bottom:10px; letter-spacing:0.05em;">
+        Tournament Pool Commentators ({{ registered_commentators|length }})
+      </h4>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">
+        {% for reg in registered_commentators %}
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--bg-panel); border-radius:12px; border:1px solid var(--b-l3);">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:38px; height:38px; border-radius:50%; background:#e0e7ff; color:#4338ca; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem; flex-shrink:0;">
+                {{ reg.user.display_name|slice:":1"|upper }}
+              </div>
+              <div>
+                <div style="font-size:0.9rem; font-weight:700; color:var(--tx-main); display:flex; align-items:center; gap:4px;">
+                  {% if reg.user.commentator_profile %}
+                    <a href="{% url 'commentator_public' reg.user.commentator_profile.pk %}" style="color:inherit; text-decoration:none;">
+                      {{ reg.user.display_name }}
+                    </a>
+                  {% else %}
+                    <span>{{ reg.user.display_name }}</span>
+                  {% endif %}
+                  {% if reg.user.commentator_profile.is_verified %}
+                    <span style="color:#4f46e5; font-size:0.75rem;" title="Verified Commentator">✔</span>
+                  {% endif %}
+                </div>
+                <div style="font-size:0.75rem; color:#6b7280;">
+                  @{{ reg.user.username }} • <span style="color:#4f46e5; font-weight:600;">{{ reg.assigned_fixtures_count }} assigned</span>
+                  {% if reg.user.commentator_profile.languages %} • {{ reg.user.commentator_profile.languages }}{% endif %}
+                </div>
+              </div>
+            </div>
+            <form method="post" action="{% url 'tournament_commentator_remove' tournament.slug reg.user.id %}" onsubmit="return confirm('Remove @{{ reg.user.username }} from tournament commentary pool?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-ghost btn-sm" style="font-size:0.75rem; color:var(--tx-err); padding:4px 8px;" title="Remove from pool">✕</button>
+            </form>
+          </div>
+        {% empty %}
+          <div style="grid-column:1/-1; padding:20px; text-align:center; background:var(--bg-panel); border-radius:12px; border:1px dashed var(--b-l3); color:var(--tx-dim); font-size:0.9rem;">
+            No commentators registered in this tournament's pool yet. Use the search bar above to add commentators.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const commInput = document.getElementById('commentatorSearchInput');
+    const commResults = document.getElementById('commentatorSearchResults');
+    if (!commInput || !commResults) return;
+
+    let debounceTimer;
+    commInput.addEventListener('input', function() {
+      clearTimeout(debounceTimer);
+      const query = commInput.value.trim();
+      if (query.length < 1) {
+        commResults.style.display = 'none';
+        commResults.innerHTML = '';
+        return;
+      }
+
+      debounceTimer = setTimeout(function() {
+        fetch(`{% url 'tournament_commentators_search_api' tournament.slug %}?q=${encodeURIComponent(query)}`)
+          .then(res => res.json())
+          .then(data => {
+            commResults.innerHTML = '';
+            if (!data.results || data.results.length === 0) {
+              commResults.innerHTML = '<div style="padding:12px; font-size:13px; color:#6b7280; text-align:center;">No available commentators found matching "' + query + '".</div>';
+              commResults.style.display = 'block';
+              return;
+            }
+
+            data.results.forEach(comm => {
+              const item = document.createElement('div');
+              item.style.padding = '10px 14px';
+              item.style.display = 'flex';
+              item.style.justifyContent = 'space-between';
+              item.style.alignItems = 'center';
+              item.style.borderBottom = '1px solid #f3f4f6';
+              item.innerHTML = `
+                <div>
+                  <div style="font-weight:700; font-size:13px; color:#111827;">${comm.name || comm.username} <span style="font-weight:normal; color:#6b7280;">(@${comm.username})</span></div>
+                  <div style="font-size:11px; color:#6b7280;">${comm.experience} ${comm.languages ? '• ' + comm.languages : ''}</div>
+                </div>
+                <form method="post" action="{% url 'tournament_commentator_add' tournament.slug %}" style="margin:0;">
+                  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                  <input type="hidden" name="user_id" value="${comm.user_id}">
+                  <button type="submit" class="btn btn-primary btn-sm" style="font-size:11px; padding:4px 10px;">+ Add to Pool</button>
+                </form>
+              `;
+              commResults.appendChild(item);
+            });
+            commResults.style.display = 'block';
+          });
+      }, 250);
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!commInput.contains(e.target) && !commResults.contains(e.target)) {
+        commResults.style.display = 'none';
+      }
+    });
+  });
+  </script>
+
   {% if pool_supported %}
     {# --- Fixture type: Custom Fixtures vs Pool Stage + Knockout ------- #}
     <div class="panel tblcard fxpanel">

@@ -547,11 +547,11 @@ register(Resource(
 register(Resource(
     key='teams', label='Teams', singular='Team', model=Team, form=AdminTeamForm,
     group='Competition', icon='🛡️', ordering=('name',),
-    select_related=('sport', 'captain__user'), search_fields=['name'],
+    select_related=('sport', 'owner__user'), search_fields=['name'],
     columns=[
         Column('Team', lambda o: o.name),
         Column('Sport', lambda o: o.sport.name),
-        Column('Captain', lambda o: o.captain.user.display_name if o.captain else '—', in_list=False),
+        Column('Owner', lambda o: o.owner.user.display_name if o.owner else '—', in_list=False),
         Column('Roster', lambda o: o.memberships.count()),
         Column('Tournaments', lambda o: o.entries.count()),
     ],
