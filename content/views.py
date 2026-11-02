@@ -85,7 +85,7 @@ def feed(request):
     elif media_type == 'highlights':
         qs = qs.filter(Q(content_type='short') | Q(aspect_ratio='9/16'))
     elif media_type == 'vlogs':
-        qs = qs.filter(Q(content_type='full_video') | Q(aspect_ratio='16/9') | Q(youtube_url__gt=''))
+        qs = qs.filter(Q(content_type='full_video') | Q(content_type='video') | Q(aspect_ratio='16/9') | Q(youtube_url__gt=''))
 
     # Sport shortcut filter
     if sport_filter:
@@ -201,6 +201,7 @@ def feed(request):
         'live_matches': live_matches,
         'upcoming_matches': upcoming_matches,
         'popular_tournaments': popular_tournaments,
+        'tournaments': popular_tournaments,
         'upcoming_near_you': upcoming_near_you,
         'user_city': user_city,
         'suggested_entities': suggested_entities,
@@ -211,9 +212,17 @@ def feed(request):
 
 @login_required_msg
 def content_upload(request):
+    is_ajax = bool(
+        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+        request.content_type == 'application/json' or
+        request.META.get('HTTP_ACCEPT', '').startswith('application/json')
+    )
     is_entity_author = bool(request.POST.get('organizer_author') or request.POST.get('team_author'))
-    if not is_entity_author and not request.user.is_staff:
+    is_organizer_user = hasattr(request.user, 'organizer_profile')
+    if not is_entity_author and not request.user.is_staff and not is_organizer_user:
         if hasattr(request.user, 'player_profile') and not request.user.player_profile.is_profile_complete:
+            if is_ajax:
+                return JsonResponse({'success': False, 'errors': {'__all__': ['Please complete your player profile before sharing content.']}}, status=400)
             messages.error(request, 'Complete your profile before sharing content.')
             return redirect('profile_edit')
 
@@ -235,15 +244,19 @@ def content_upload(request):
         if org_id:
             if hasattr(request.user, 'organizer_profile') and str(request.user.organizer_profile.id) == str(org_id):
                 post.organizer_author = request.user.organizer_profile
+        elif not post.team_author and is_organizer_user and not hasattr(request.user, 'player_profile'):
+            post.organizer_author = request.user.organizer_profile
 
-        aspect_ratio = request.POST.get('aspect_ratio')
+        req_content_type = request.POST.get('content_type', '').strip()
+        aspect_ratio = request.POST.get('aspect_ratio', '').strip()
         if aspect_ratio:
             post.aspect_ratio = aspect_ratio
 
-        youtube_url = request.POST.get('youtube_url', '').strip()
+        youtube_url = form.cleaned_data.get('youtube_url', '').strip()
         if youtube_url:
             post.youtube_url = youtube_url
             post.content_type = Content.TYPE_FULL_VIDEO
+            post.aspect_ratio = '16/9'
 
         duration = request.POST.get('video_duration')
         if duration:
@@ -258,24 +271,39 @@ def content_upload(request):
             files = [request.FILES['media_file']]
 
         if files:
+            first_ext = files[0].name.lower().split('.')[-1]
+            is_video_ext = first_ext in ['mp4', 'mov', 'webm', 'mkv', 'm4v', 'avi']
             if len(files) > 1:
                 post.content_type = Content.TYPE_CAROUSEL
-            elif files[0].name.lower().split('.')[-1] in ['mp4', 'mov', 'webm', 'mkv', 'm4v', 'avi']:
-                if post.aspect_ratio == '9/16' or request.POST.get('content_type') == 'short':
+                if not post.aspect_ratio:
+                    post.aspect_ratio = '1/1'
+            elif is_video_ext:
+                if req_content_type == 'full_video' or post.aspect_ratio == '16/9':
+                    post.content_type = Content.TYPE_FULL_VIDEO
+                    post.aspect_ratio = '16/9'
+                elif req_content_type == 'short' or post.aspect_ratio == '9/16':
                     post.content_type = Content.TYPE_SHORT
+                    post.aspect_ratio = '9/16'
                 else:
-                    post.content_type = Content.TYPE_FULL_VIDEO if post.aspect_ratio == '16/9' else Content.TYPE_VIDEO
+                    post.content_type = Content.TYPE_FULL_VIDEO
+                    post.aspect_ratio = post.aspect_ratio or '16/9'
             else:
                 post.content_type = Content.TYPE_PHOTO
+                if not post.aspect_ratio:
+                    post.aspect_ratio = '1/1'
         elif not post.content_type:
             post.content_type = Content.TYPE_POST
 
+        # Prevent duplicate write or file pointer exhaustion: clear post.media_file prior to initial save
+        post.media_file = None
         post.save()
 
         # Create ContentMedia items for all uploaded files
         if files:
             media_objs = []
             for idx, f in enumerate(files):
+                if hasattr(f, 'seek'):
+                    f.seek(0)
                 media_objs.append(ContentMedia.objects.create(content=post, media_file=f, order=idx))
             if media_objs:
                 post.media_file = media_objs[0].media_file.name
@@ -300,13 +328,15 @@ def content_upload(request):
                         )
 
         messages.success(request, 'Posted!')
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.accepts('application/json'):
+        if is_ajax:
             return JsonResponse({'success': True, 'redirect_url': post.get_absolute_url()})
         return redirect('content_detail', pk=post.pk)
 
-    if request.method == 'POST' and (request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json'):
+    if request.method == 'POST' and is_ajax:
         return JsonResponse({'success': False, 'errors': form.errors}, status=400)
-    return render(request, 'content/upload.html', {'form': form})
+    
+    tournaments = Tournament.objects.public().order_by('-start_date')[:25]
+    return render(request, 'content/upload.html', {'form': form, 'tournaments': tournaments})
 
 
 def search_users(request):

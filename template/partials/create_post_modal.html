@@ -426,10 +426,12 @@
 
     // Show/Hide YouTube options for 16:9 full video
     const fullVidOptions = document.getElementById('tsc-full-video-options');
-    if (ratio === '16/9') {
-      fullVidOptions.style.display = 'block';
+    const trimNotice = document.getElementById('tsc-short-trim-notice');
+    if (ratio === '16/9' || type === 'full_video') {
+      if (fullVidOptions) fullVidOptions.style.display = 'block';
+      if (trimNotice) trimNotice.style.display = 'none';
     } else {
-      fullVidOptions.style.display = 'none';
+      if (fullVidOptions) fullVidOptions.style.display = 'none';
       tscSetVideoSource('upload');
     }
 
@@ -449,6 +451,8 @@
       ytWrap.style.display = 'block';
       upSec.style.display = 'none';
       document.getElementById('tsc_content_type_field').value = 'full_video';
+      const curYt = document.getElementById('tsc-youtube-input').value.trim();
+      if (curYt) tscHandleYoutubeInput(curYt);
     } else {
       btnUp.classList.add('active');
       btnYt.classList.remove('active');
@@ -460,13 +464,22 @@
   };
 
   window.tscHandleYoutubeInput = function(url) {
-    const reg = /(?:v=|\/|vi=)([0-9A-Za-z_-]{11})|(?:youtu\.be\/)([0-9A-Za-z_-]{11})|(?:embed\/)([0-9A-Za-z_-]{11})|(?:shorts\/)([0-9A-Za-z_-]{11})/;
-    const match = url.match(reg);
-    if (match) {
-      const vid = match[1] || match[2] || match[3] || match[4];
-      window.tscYoutubeEmbed = 'https://www.youtube-nocookie.com/embed/' + vid;
-    } else {
+    url = (url || '').trim();
+    if (!url) {
       window.tscYoutubeEmbed = '';
+      return;
+    }
+    const reg = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]{11})/;
+    const match = url.match(reg);
+    if (match && match[1]) {
+      window.tscYoutubeEmbed = 'https://www.youtube-nocookie.com/embed/' + match[1];
+    } else {
+      const m2 = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || url.match(/\/([a-zA-Z0-9_-]{11})(?:\?|&|$)/);
+      if (m2 && m2[1]) {
+        window.tscYoutubeEmbed = 'https://www.youtube-nocookie.com/embed/' + m2[1];
+      } else {
+        window.tscYoutubeEmbed = '';
+      }
     }
   };
 
@@ -477,6 +490,14 @@
   };
 
   function handleIncomingFiles(files) {
+    const MAX_SIZE = 500 * 1024 * 1024; // 500MB
+    for (let f of files) {
+      if (f.size > MAX_SIZE) {
+        alert(`File "${f.name}" is too large (${(f.size / (1024 * 1024)).toFixed(1)} MB). The maximum upload limit is 500 MB. For larger videos, please choose the YouTube Link option.`);
+        return;
+      }
+    }
+
     if (window.tscPostType === 'short' || window.tscPostType === 'full_video') {
       // Keep only single video
       window.tscSelectedFiles = [files[0]];
@@ -493,19 +514,31 @@
   }
 
   function checkVideoDuration(file) {
-    if (file.type.startsWith('video')) {
+    const isVideo = (file.type && file.type.startsWith('video')) || /\.(mp4|mov|webm|mkv|m4v|avi)$/i.test(file.name);
+    if (isVideo) {
       const video = document.createElement('video');
       video.preload = 'metadata';
       video.onloadedmetadata = function() {
         window.URL.revokeObjectURL(video.src);
-        const duration = Math.round(video.duration);
+        const duration = Math.round(video.duration || 0);
         document.getElementById('tsc_video_duration_field').value = duration;
+
+        const isLandscape = video.videoWidth > video.videoHeight;
+        // If user has default 'short' selected, but selected a landscape / 16:9 or long (>90s) video,
+        // automatically switch to Horizontal Video (16:9 / Full Video)!
+        if (window.tscPostType === 'short' && (isLandscape || duration > 90)) {
+          const fullVidCard = document.querySelector('.tsc-type-card[onclick*="full_video"]');
+          if (fullVidCard) {
+            tscSelectPostType('full_video', '16/9', fullVidCard);
+          }
+        }
 
         if (window.tscPostType === 'short' && duration > 90) {
           document.getElementById('tsc-short-trim-notice').style.display = 'flex';
           document.getElementById('tsc-vid-duration-text').textContent = duration;
         } else {
-          document.getElementById('tsc-short-trim-notice').style.display = 'none';
+          const trimNotice = document.getElementById('tsc-short-trim-notice');
+          if (trimNotice) trimNotice.style.display = 'none';
         }
       };
       video.src = URL.createObjectURL(file);
@@ -532,13 +565,14 @@
     window.tscSelectedFiles.forEach((f, idx) => {
       const thumb = document.createElement('div');
       thumb.className = 'tsc-preview-thumb';
-      const isVid = f.type.startsWith('video');
+      const isVid = (f.type && f.type.startsWith('video')) || /\.(mp4|mov|webm|mkv|m4v|avi)$/i.test(f.name);
       const url = URL.createObjectURL(f);
+      const sizeMB = (f.size / (1024 * 1024)).toFixed(1);
 
       if (isVid) {
-        thumb.innerHTML = `<video src="${url}"></video><div class="badge-duration">Video</div>`;
+        thumb.innerHTML = `<video src="${url}"></video><div class="badge-duration">Video (${sizeMB}MB)</div>`;
       } else {
-        thumb.innerHTML = `<img src="${url}">`;
+        thumb.innerHTML = `<img src="${url}"><div class="badge-duration" style="font-size:9px;">${sizeMB}MB</div>`;
       }
 
       const del = document.createElement('button');
@@ -557,8 +591,14 @@
   }
 
   window.tscGoToStep = function(step) {
+    const ytInput = document.getElementById('tsc-youtube-input');
+    const ytVal = ytInput ? ytInput.value.trim() : '';
+    if (ytVal && !window.tscYoutubeEmbed) {
+      tscHandleYoutubeInput(ytVal);
+    }
+
     if (step > 1 && window.tscSelectedFiles.length === 0 && !window.tscYoutubeEmbed) {
-      alert("Please upload a media file or provide a YouTube link first.");
+      alert("Please upload a media file or provide a valid YouTube link first.");
       return;
     }
     window.tscCurrentStep = step;
@@ -629,7 +669,8 @@
     } else if (window.tscSelectedFiles.length > 0) {
       const f = window.tscSelectedFiles[0];
       const url = URL.createObjectURL(f);
-      if (f.type.startsWith('video')) {
+      const isVid = (f.type && f.type.startsWith('video')) || /\.(mp4|mov|webm|mkv|m4v|avi)$/i.test(f.name);
+      if (isVid) {
         vid.style.display = 'block';
         vid.src = url;
       } else {
@@ -763,18 +804,27 @@
           progressContainer.style.display = 'none';
           submitBtn.disabled = false;
           submitBtn.textContent = 'Share Post';
+          if (xhr.status === 413) {
+            alert('Upload failed: The video file is too large for the server. Maximum file size is 500 MB. For larger videos, please choose the YouTube Link option.');
+            return;
+          }
+          if (xhr.status === 403) {
+            alert('Upload failed: Session expired or permission denied. Please refresh and log in again.');
+            return;
+          }
           try {
             const resp = JSON.parse(xhr.responseText);
             if (resp.errors) {
               let msgs = [];
               for (let k in resp.errors) {
-                msgs.push((k === '__all__' ? '' : k + ': ') + resp.errors[k].join(', '));
+                const errList = Array.isArray(resp.errors[k]) ? resp.errors[k] : [resp.errors[k]];
+                msgs.push((k === '__all__' ? '' : k + ': ') + errList.join(', '));
               }
               alert(msgs.join('\n') || 'Upload failed.');
               return;
             }
           } catch(e) {}
-          alert('Upload failed. Please check file format and sizes.');
+          alert('Upload failed (HTTP ' + xhr.status + '). Please check file format and sizes, or try a YouTube link.');
         }
       };
 

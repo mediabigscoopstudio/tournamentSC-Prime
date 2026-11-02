@@ -1,17 +1,49 @@
 {% extends 'base.html' %}
-{% block title %}Post — {{ site_conf.site_name }}{% endblock %}
+{% block title %}Create Content — {{ site_conf.site_name }}{% endblock %}
 {% block content %}
-<section class="section wrap" style="max-width:560px">
-  <a class="dim" href="{% url 'content_feed' %}">← Feed</a>
-  <h1 style="margin-top:8px">Share your moment</h1>
+<section class="section wrap" style="max-width:960px; min-height:75vh; padding: 24px 16px;">
+  <div style="margin-bottom:16px;">
+    <a class="dim" href="{% url 'content_feed' %}" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; text-decoration:none; color:#5d6789;">
+      ← Back to Feed
+    </a>
+  </div>
 
-  <form method="post" enctype="multipart/form-data" class="panel tblcard" style="margin-top:20px">
-    {% csrf_token %}
-    {% include 'partials/form.html' %}
-    <div class="row-flex" style="margin-top:16px">
-      <button class="btn btn-primary" type="submit">Post</button>
-      <a class="btn btn-ghost" href="{% url 'content_feed' %}">Cancel</a>
-    </div>
-  </form>
+  <div id="upload-dialog-container">
+    {% include 'partials/create_post_modal.html' with tournaments=tournaments %}
+  </div>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const modal = document.getElementById('create-post-modal');
+  if (modal) {
+    if (typeof modal.showModal === 'function') {
+      modal.showModal();
+    } else {
+      modal.setAttribute('open', '');
+    }
+    // If closed or canceled, return to feed
+    modal.addEventListener('close', function() {
+      window.location.href = "{% url 'content_feed' %}";
+    });
+    const closeBtn = modal.querySelector('.tsc-modal-close');
+    if (closeBtn) {
+      closeBtn.onclick = function() {
+        window.location.href = "{% url 'content_feed' %}";
+      };
+    }
+    const backBtn = document.getElementById('tsc-back-btn');
+    if (backBtn) {
+      const origBack = window.tscGoBack;
+      window.tscGoBack = function() {
+        if (window.tscCurrentStep > 1) {
+          window.tscGoToStep(window.tscCurrentStep - 1);
+        } else {
+          window.location.href = "{% url 'content_feed' %}";
+        }
+      };
+    }
+  }
+});
+</script>
 {% endblock %}

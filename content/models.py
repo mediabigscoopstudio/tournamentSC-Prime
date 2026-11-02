@@ -84,7 +84,10 @@ class Content(TimeStamped):
             return True
         if self.media_file:
             ext = self.media_file.name.lower().split('.')[-1]
-            return ext in ['mp4', 'mov', 'webm']
+            return ext in ['mp4', 'mov', 'webm', 'm4v', 'avi', 'mkv', 'ogv']
+        first_item = self.media_items.first()
+        if first_item and first_item.is_video:
+            return True
         return False
 
     @property
@@ -101,10 +104,9 @@ class Content(TimeStamped):
             return ''
         import re
         patterns = [
+            r'(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]{11})',
+            r'[?&]v=([a-zA-Z0-9_-]{11})',
             r'(?:v=|\/|vi=)([0-9A-Za-z_-]{11})',
-            r'(?:youtu\.be\/)([0-9A-Za-z_-]{11})',
-            r'(?:embed\/)([0-9A-Za-z_-]{11})',
-            r'(?:shorts\/)([0-9A-Za-z_-]{11})',
         ]
         for pattern in patterns:
             match = re.search(pattern, self.youtube_url)
@@ -166,7 +168,7 @@ class ContentMedia(TimeStamped):
         if not self.media_file:
             return False
         ext = self.media_file.name.lower().split('.')[-1]
-        return ext in ['mp4', 'mov', 'webm']
+        return ext in ['mp4', 'mov', 'webm', 'm4v', 'avi', 'mkv', 'ogv']
 
 
 class ContentLike(TimeStamped):
