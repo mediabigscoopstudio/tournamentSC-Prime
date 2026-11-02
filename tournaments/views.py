@@ -2593,7 +2593,7 @@ def build_fixture_live_payload(fixture, request=None):
         }, request=request)
 
     clock = None
-    if t.sport.slug == 'basketball':
+    if t.sport.slug == 'basketball' and fixture.status == 'LIVE':
         clock = {
             'started_at': fixture.live_started_at.isoformat() if fixture.live_started_at else None,
             'extra_seconds': fixture.extra_time_seconds,

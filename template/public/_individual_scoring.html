@@ -1,7 +1,16 @@
 {% load formtags %}
 {% if fixture.individual_scoring_enabled %}
-  {% with team_a=participants.0 team_b=participants.1 %}
-  <div class="scorecard-header-bar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+  {% if fixture.status == 'SCHEDULED' %}
+    <div style="padding:48px 24px; text-align:center; color:#64748b; background:#f8fafc; border-radius:14px; border:1px dashed #cbd5e1;">
+      <div style="font-size:32px; margin-bottom:10px;">⏱️</div>
+      <div style="font-size:16px; font-weight:800; color:#0f172a; margin-bottom:4px;">Match Has Not Started</div>
+      <div style="font-size:13px; color:#64748b; max-width:44ch; margin:0 auto;">
+        Player scoring and match statistics will automatically update here in real time once the match begins.
+      </div>
+    </div>
+  {% else %}
+    {% with team_a=participants.0 team_b=participants.1 %}
+    <div class="scorecard-header-bar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
     <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a; letter-spacing:-0.01em;">Individual Scoring</h3>
     <div class="bball-indiv-switcher" style="display:inline-flex; background:#f1f5f9; padding:3px; border-radius:999px; gap:4px;">
       <button type="button" class="bball-indiv-switch-btn is-active" data-team-switch="{{ team_a.id }}"
@@ -77,6 +86,7 @@
     {% endwith %}
   {% endfor %}
   {% endwith %}
+  {% endif %}
 {% else %}
   <p class="dim" style="margin:20px 0; color:#94a3b8; font-size:13px;">Individual scoring was not enabled for this match.</p>
 {% endif %}

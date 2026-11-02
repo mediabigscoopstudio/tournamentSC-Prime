@@ -85,7 +85,7 @@
   }
 
   function updateClock(status, clock) {
-    if (!clock) return;
+    if (status !== 'LIVE' || !clock) return;
 
     const clockEl = document.querySelector('[data-quarter-clock]');
     if (clockEl) {

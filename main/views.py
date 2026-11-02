@@ -532,7 +532,7 @@ def match_detail(request, slug, pk):
     team_rosters = {}
     ordered_parts = list(fixture.ordered_participants())
 
-    if len(ordered_parts) == 2:
+    if len(ordered_parts) == 2 and fixture.status != 'SCHEDULED':
         team_a = ordered_parts[0]
         team_b = ordered_parts[1]
         team_stats = {
@@ -543,8 +543,8 @@ def match_detail(request, slug, pk):
                 'field_goals': 0,
                 'free_throws_made': 0,
                 'free_throws_att': 0,
-                'rebounds': 4,
-                'assists': 1,
+                'rebounds': 0,
+                'assists': 0,
                 'fouls': 0,
             },
             'team_b': {
@@ -554,8 +554,8 @@ def match_detail(request, slug, pk):
                 'field_goals': 0,
                 'free_throws_made': 0,
                 'free_throws_att': 0,
-                'rebounds': 3,
-                'assists': 2,
+                'rebounds': 0,
+                'assists': 0,
                 'fouls': 0,
             }
         }
@@ -687,9 +687,9 @@ def match_detail(request, slug, pk):
             for idx, r in enumerate(t_rows):
                 r['is_top_scorer'] = (idx == 0 and r['total'] > 0)
                 if not r.get('reb'):
-                    r['reb'] = max(0, 4 - idx) if part == ordered_parts[0] else max(0, 3 - idx)
+                    r['reb'] = 0
                 if not r.get('ast'):
-                    r['ast'] = 1 if idx == 0 else 0
+                    r['ast'] = 0
             individual_rows_by_team[part.id] = t_rows
         ctx['individual_rows_by_team'] = individual_rows_by_team
     return render(request, 'public/match_detail.html', ctx)

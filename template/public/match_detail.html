@@ -130,22 +130,25 @@
               <span class="live" data-live-badge style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:#fff; background:#dc2626; padding:3px 10px; border-radius:999px;">
                 <span class="live__dot" style="width:5px; height:5px; border-radius:50%; background:#fff; animation:pulse 1.2s infinite;"></span> LIVE
               </span>
+              <span class="bball-quarter-pill" data-period-pill style="font-size:12px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:3px 10px; border-radius:999px; border:1px solid #e2e8f0;">
+                {{ fixture.period_display|default:"Q1" }}
+              </span>
             {% elif fixture.status == 'COMPLETED' %}
               <span class="badge badge-completed" style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px; background:#e2e8f0; color:#1e293b; display:inline-flex; align-items:center; gap:4px;">
                 {% if is_final %}🏆{% endif %} Final
               </span>
-            {% else %}
-              <span class="badge badge-upcoming" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; background:#eff6ff; color:#1e40af;">{{ fixture.get_status_display }}</span>
-            {% endif %}
-
-            {% if fixture.status != 'COMPLETED' %}
-              <span class="bball-quarter-pill" data-period-pill style="font-size:12px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:3px 10px; border-radius:999px; border:1px solid #e2e8f0;">
-                {{ fixture.period_display|default:"Q1" }}
-              </span>
-            {% else %}
               <span class="bball-quarter-pill" style="font-size:12px; font-weight:700; color:#059669; background:#ecfdf5; padding:3px 10px; border-radius:999px; border:1px solid #a7f3d0;">
                 FT
               </span>
+            {% else %}
+              <span class="badge badge-upcoming" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; background:#eff6ff; color:#1e40af;">
+                Upcoming
+              </span>
+              {% if fixture.scheduled_time %}
+                <span style="font-size:12px; font-weight:700; color:#64748b; background:#f8fafc; padding:3px 10px; border-radius:999px; border:1px solid #e2e8f0;">
+                  📅 {{ fixture.scheduled_time|date:"M j · H:i" }}
+                </span>
+              {% endif %}
             {% endif %}
 
             <span style="font-size:12px; font-weight:600; color:#64748b; margin-left:4px;">
@@ -168,7 +171,7 @@
                 {% endif %}
               </div>
               <div style="min-width:0;">
-                <div style="font-size:17px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                <div style="font-size:16px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">
                   {{ participants.0.name }}
                 </div>
                 {% if winner_participant and participants.0.id == winner_participant.id %}
@@ -183,16 +186,25 @@
 
             <!-- Score & Digital Clock Center -->
             <div class="score-clock-center" style="display:flex; align-items:center; gap:20px; flex-shrink:0; padding:0 16px;">
-              <span class="score-num" data-score="{{ participants.0.id }}" style="font-size:38px; font-weight:900; color:{% if winner_participant and participants.0.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
-                {{ participants.0.score|default_if_none:'0'|floatformat:'-2' }}
+              <span class="score-num" data-score="{{ participants.0.id }}" style="font-size:38px; font-weight:900; color:{% if fixture.status == 'SCHEDULED' %}#cbd5e1{% elif winner_participant and participants.0.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
+                {% if fixture.status == 'SCHEDULED' %}–{% else %}{{ participants.0.score|default_if_none:'0'|floatformat:'-2' }}{% endif %}
               </span>
 
-              <!-- Live Digital Clock OR Completed Status -->
+              <!-- Live Digital Clock OR Completed Status OR Scheduled VS -->
               <div style="display:flex; flex-direction:column; align-items:center; min-width:76px;">
                 {% if fixture.status == 'COMPLETED' %}
                   <span style="font-size:13px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:4px 12px; border-radius:8px;">
                     FINAL
                   </span>
+                {% elif fixture.status == 'SCHEDULED' %}
+                  <span style="font-size:15px; font-weight:900; letter-spacing:0.06em; color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 14px; border-radius:8px;">
+                    VS
+                  </span>
+                  {% if fixture.scheduled_time %}
+                    <span style="font-size:11px; font-weight:700; color:#64748b; margin-top:3px;">
+                      {{ fixture.scheduled_time|date:"H:i" }}
+                    </span>
+                  {% endif %}
                 {% else %}
                   <span class="bball-digital-clock" data-quarter-clock
                         data-clock-status="{{ fixture.status }}"
@@ -202,7 +214,7 @@
                         data-paused="{% if fixture.clock_paused_at %}1{% else %}0{% endif %}"
                         data-paused-remaining-seconds="{{ fixture.paused_quarter_remaining_seconds|default_if_none:'' }}"
                         style="font-size:17px; font-weight:800; font-family:monospace; color:#0f172a; background:#f8fafc; border:1px solid #e2e8f0; padding:3px 10px; border-radius:8px;">
-                    06:24
+                    00:00
                   </span>
                   <span class="badge badge-upcoming" data-clock-paused-badge {% if not fixture.clock_paused_at %}hidden{% endif %} style="font-size:10px; font-weight:700; color:#b45309; margin-top:2px;">
                     Paused
@@ -210,15 +222,15 @@
                 {% endif %}
               </div>
 
-              <span class="score-num" data-score="{{ participants.1.id }}" style="font-size:38px; font-weight:900; color:{% if winner_participant and participants.1.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
-                {{ participants.1.score|default_if_none:'0'|floatformat:'-2' }}
+              <span class="score-num" data-score="{{ participants.1.id }}" style="font-size:38px; font-weight:900; color:{% if fixture.status == 'SCHEDULED' %}#cbd5e1{% elif winner_participant and participants.1.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
+                {% if fixture.status == 'SCHEDULED' %}–{% else %}{{ participants.1.score|default_if_none:'0'|floatformat:'-2' }}{% endif %}
               </span>
             </div>
 
             <!-- Team 2 -->
             <div class="team-side team-side--right" style="display:flex; align-items:center; justify-content:flex-end; gap:14px; flex:1; min-width:0; text-align:right;">
               <div style="min-width:0;">
-                <div style="font-size:17px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                <div style="font-size:16px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word; text-align:right;">
                   {{ participants.1.name }}
                 </div>
                 {% if winner_participant and participants.1.id == winner_participant.id %}
@@ -284,17 +296,9 @@
                 style="padding:10px 18px; font-size:14px; font-weight:800; color:#0f172a; background:transparent; border:none; border-bottom:2px solid #10b981; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
           Scorecard
         </button>
-        <button type="button" class="match-tab-btn" data-tab="commentary"
-                style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
-          Commentary
-        </button>
         <button type="button" class="match-tab-btn" data-tab="teams"
                 style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
           Teams
-        </button>
-        <button type="button" class="match-tab-btn" data-tab="stats"
-                style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
-          Stats
         </button>
       </div>
 
@@ -309,30 +313,7 @@
         </div>
       </div>
 
-      <!-- TAB 2: COMMENTARY -->
-      <div class="match-tab-panel" id="tab-panel-commentary" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-          <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Match Commentary Timeline</h3>
-          <span style="font-size:12px; color:#64748b;">{{ commentary_entries|length }} Updates</span>
-        </div>
-        <div class="full-commentary-feed" style="display:flex; flex-direction:column; gap:12px;">
-          {% for e in commentary_entries %}
-            <div style="padding:14px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span style="font-weight:700; font-size:13.5px; color:#0f172a;">{{ e.author.display_name|default:"Commentator" }}</span>
-                <span style="font-size:11px; color:#94a3b8; font-family:monospace;">{{ e.created_at|date:'H:i' }}</span>
-              </div>
-              <p style="margin:0; font-size:14px; line-height:1.5; color:#1e293b; white-space:pre-wrap;">{{ e.text }}</p>
-            </div>
-          {% empty %}
-            <div style="padding:32px; text-align:center; color:#94a3b8; font-size:13px; background:#f8fafc; border-radius:12px; border:1px dashed #e2e8f0;">
-              No commentary logged yet for this match.
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-
-      <!-- TAB 3: TEAMS -->
+      <!-- TAB 2: TEAMS -->
       <div class="match-tab-panel" id="tab-panel-teams" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
         <h3 style="margin:0 0 18px; font-size:17px; font-weight:800; color:#0f172a;">Full Team Rosters</h3>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
@@ -340,13 +321,13 @@
             {% with r=team_rosters|lookup:part.id %}
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-                  <div style="width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden;">
+                  <div style="width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0;">
                     {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
                   </div>
-                  <div>
-                    <div style="font-size:16px; font-weight:800; color:#0f172a;">{{ part.name }}</div>
+                  <div style="min-width:0;">
+                    <div style="font-size:16px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">{{ part.name }}</div>
                     {% if r.coach or r.captain %}
-                    <div style="font-size:12px; color:#64748b;">
+                    <div style="font-size:12px; color:#64748b; margin-top:2px;">
                       {% if r.coach %}Coach: <b>{{ r.coach }}</b>{% endif %}
                       {% if r.coach and r.captain %} · {% endif %}
                       {% if r.captain %}Captain: <b>{{ r.captain }}</b>{% endif %}
@@ -366,99 +347,6 @@
             {% endwith %}
           {% endfor %}
         </div>
-      </div>
-
-      <!-- TAB 4: STATS -->
-      <div class="match-tab-panel" id="tab-panel-stats" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
-        <h3 style="margin:0 0 18px; font-size:17px; font-weight:800; color:#0f172a;">Match Team Statistics</h3>
-        {% if team_stats %}
-          <div style="display:flex; flex-direction:column; gap:16px;">
-            <!-- Metric row helper -->
-            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:14px; color:#0f172a;">
-              <span>{{ team_stats.team_a.name }}</span>
-              <span>Team Comparison</span>
-              <span>{{ team_stats.team_b.name }}</span>
-            </div>
-
-            <!-- Points -->
-            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.points }}</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.points 15 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Points</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.points 15 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.points }}</span>
-            </div>
-
-            <!-- Field Goals -->
-            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.field_goals }}</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.field_goals 6 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Field Goals</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.field_goals 6 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.field_goals }}</span>
-            </div>
-
-            <!-- Free Throws -->
-            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.free_throws_made }}/{{ team_stats.team_a.free_throws_att }}</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.free_throws_made 4 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Free Throws</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.free_throws_made 4 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.free_throws_made }}/{{ team_stats.team_b.free_throws_att }}</span>
-            </div>
-
-            <!-- Rebounds -->
-            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.rebounds }}</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.rebounds 8 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Rebounds</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.rebounds 8 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.rebounds }}</span>
-            </div>
-
-            <!-- Assists -->
-            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.assists }}</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.assists 5 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Assists</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.assists 5 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.assists }}</span>
-            </div>
-
-            <!-- Fouls -->
-            <div style="display:grid; grid-template-columns: 40px 1fr 140px 1fr 40px; align-items:center; gap:12px; font-size:13px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.fouls }}</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.fouls 5 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Fouls</span>
-              <div style="height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.fouls 5 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.fouls }}</span>
-            </div>
-          </div>
-        {% endif %}
       </div>
 
     </div>
@@ -535,12 +423,6 @@
           </div>
         </div>
 
-        <div style="text-align:center; margin-top:12px; padding-top:10px; border-top:1px solid #f1f5f9;">
-          <button type="button" onclick="switchMatchTab('commentary')" style="background:none; border:none; font-size:12px; font-weight:700; color:#F26A1B; cursor:pointer;">
-            View all commentary →
-          </button>
-        </div>
-
       </div>
 
       <!-- CARD 2: TEAMS & PARTICIPANTS (Exact Reference Match) -->
@@ -560,8 +442,8 @@
                   <div style="width:34px; height:34px; border-radius:10px; background:{% if forloop.first %}#F26A1B{% else %}#0f172a{% endif %}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; overflow:hidden; flex-shrink:0;">
                     {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
                   </div>
-                  <div style="min-width:0;">
-                    <div style="font-size:13px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ part.name }}</div>
+                  <div style="min-width:0; flex:1;">
+                    <div style="font-size:13px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">{{ part.name }}</div>
                   </div>
                 </div>
                 {% if r.coach or r.captain %}
@@ -586,105 +468,105 @@
       </div>
 
       <!-- CARD 3: MATCH STATS BARS (Exact Reference Match) -->
+      {% if team_stats and fixture.status != 'SCHEDULED' %}
       <div class="panel pm-stats-card" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Match Stats</h3>
           <span style="font-size:11px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:2px 8px; border-radius:999px;">{{ fixture.period_display|default:"Q1" }}</span>
         </div>
 
-        {% if team_stats %}
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color:#0f172a; margin-bottom:10px;">
-            <div style="display:flex; align-items:center; gap:5px;">
-              <span style="width:8px; height:8px; border-radius:50%; background:#F26A1B;"></span>
-              <span>{{ team_stats.team_a.name }}</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color:#0f172a; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:5px;">
+            <span style="width:8px; height:8px; border-radius:50%; background:#F26A1B;"></span>
+            <span>{{ team_stats.team_a.name }}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:5px;">
+            <span>{{ team_stats.team_b.name }}</span>
+            <span style="width:8px; height:8px; border-radius:50%; background:#0f172a;"></span>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:11.5px;">
+          <!-- Points -->
+          <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.points }}</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="width:{% widthratio team_stats.team_a.points 12 100 %}%; background:#F26A1B;"></div>
             </div>
-            <div style="display:flex; align-items:center; gap:5px;">
-              <span>{{ team_stats.team_b.name }}</span>
-              <span style="width:8px; height:8px; border-radius:50%; background:#0f172a;"></span>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Points</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+              <div style="width:{% widthratio team_stats.team_b.points 12 100 %}%; background:#0f172a;"></div>
             </div>
+            <span style="font-weight:800;">{{ team_stats.team_b.points }}</span>
           </div>
 
-          <div style="display:flex; flex-direction:column; gap:10px; font-size:11.5px;">
-            <!-- Points -->
-            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.points }}</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.points 12 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Points</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.points 12 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.points }}</span>
+          <!-- Field Goals -->
+          <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.field_goals }}</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="width:{% widthratio team_stats.team_a.field_goals 4 100 %}%; background:#F26A1B;"></div>
             </div>
-
-            <!-- Field Goals -->
-            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.field_goals }}</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.field_goals 4 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Field Goals</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.field_goals 4 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.field_goals }}</span>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Field Goals</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+              <div style="width:{% widthratio team_stats.team_b.field_goals 4 100 %}%; background:#0f172a;"></div>
             </div>
-
-            <!-- Free Throws -->
-            <div style="display:grid; grid-template-columns: 44px 1fr 70px 1fr 44px; align-items:center; gap:6px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.free_throws_made }}/{{ team_stats.team_a.free_throws_att }}</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.free_throws_made 2 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Free Throws</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.free_throws_made 2 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.free_throws_made }}/{{ team_stats.team_b.free_throws_att }}</span>
-            </div>
-
-            <!-- Rebounds -->
-            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.rebounds }}</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.rebounds 6 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Rebounds</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.rebounds 6 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.rebounds }}</span>
-            </div>
-
-            <!-- Assists -->
-            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.assists }}</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.assists 4 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Assists</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.assists 4 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.assists }}</span>
-            </div>
-
-            <!-- Fouls -->
-            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
-              <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.fouls }}</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-                <div style="width:{% widthratio team_stats.team_a.fouls 4 100 %}%; background:#F26A1B;"></div>
-              </div>
-              <span style="text-align:center; color:#64748b; font-weight:600;">Fouls</span>
-              <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                <div style="width:{% widthratio team_stats.team_b.fouls 4 100 %}%; background:#0f172a;"></div>
-              </div>
-              <span style="font-weight:800;">{{ team_stats.team_b.fouls }}</span>
-            </div>
+            <span style="font-weight:800;">{{ team_stats.team_b.field_goals }}</span>
           </div>
-        {% endif %}
+
+          <!-- Free Throws -->
+          <div style="display:grid; grid-template-columns: 44px 1fr 70px 1fr 44px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.free_throws_made }}/{{ team_stats.team_a.free_throws_att }}</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="width:{% widthratio team_stats.team_a.free_throws_made 2 100 %}%; background:#F26A1B;"></div>
+            </div>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Free Throws</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+              <div style="width:{% widthratio team_stats.team_b.free_throws_made 2 100 %}%; background:#0f172a;"></div>
+            </div>
+            <span style="font-weight:800;">{{ team_stats.team_b.free_throws_made }}/{{ team_stats.team_b.free_throws_att }}</span>
+          </div>
+
+          <!-- Rebounds -->
+          <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.rebounds }}</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="width:{% widthratio team_stats.team_a.rebounds 6 100 %}%; background:#F26A1B;"></div>
+            </div>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Rebounds</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+              <div style="width:{% widthratio team_stats.team_b.rebounds 6 100 %}%; background:#0f172a;"></div>
+            </div>
+            <span style="font-weight:800;">{{ team_stats.team_b.rebounds }}</span>
+          </div>
+
+          <!-- Assists -->
+          <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.assists }}</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="width:{% widthratio team_stats.team_a.assists 4 100 %}%; background:#F26A1B;"></div>
+            </div>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Assists</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+              <div style="width:{% widthratio team_stats.team_b.assists 4 100 %}%; background:#0f172a;"></div>
+            </div>
+            <span style="font-weight:800;">{{ team_stats.team_b.assists }}</span>
+          </div>
+
+          <!-- Fouls -->
+          <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.fouls }}</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="width:{% widthratio team_stats.team_a.fouls 4 100 %}%; background:#F26A1B;"></div>
+            </div>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Fouls</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+              <div style="width:{% widthratio team_stats.team_b.fouls 4 100 %}%; background:#0f172a;"></div>
+            </div>
+            <span style="font-weight:800;">{{ team_stats.team_b.fouls }}</span>
+          </div>
+        </div>
       </div>
+      {% endif %}
 
     </div>
 
@@ -810,7 +692,7 @@
 
 {% block scripts %}
   {% if is_basketball %}<script src="{% static 'js/match-clock.js' %}?v=2"></script>{% endif %}
-  <script src="{% static 'js/live-scores.js' %}?v=4"></script>
+  <script src="{% static 'js/live-scores.js' %}?v=5"></script>
   <script>
   // Global Tab Switching function
   function switchMatchTab(tabId) {
