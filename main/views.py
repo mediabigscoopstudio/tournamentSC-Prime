@@ -558,10 +558,11 @@ def match_detail(request, slug, pk):
                     team_stats[target]['free_throws_att'] += 1
 
         for idx, part in enumerate(ordered_parts):
-            coach = 'Vikram Shetty' if idx == 0 else 'Manish Kumar'
+            coach = ''
             captain_str = ''
             players = []
             if part.team:
+                coach = (part.team.coach_name or '').strip()
                 members = list(part.team.memberships.select_related('player__user').all())
                 for m in members:
                     if m.role in ('CAPTAIN', 'OWNER') and not captain_str:
@@ -579,8 +580,6 @@ def match_detail(request, slug, pk):
                         'initials': initials,
                         'role': m.role,
                     })
-            if not captain_str:
-                captain_str = 'Rishabh Jain (#18)' if idx == 0 else 'H. Iyer (#10)'
             team_rosters[part.id] = {
                 'coach': coach,
                 'captain': captain_str,

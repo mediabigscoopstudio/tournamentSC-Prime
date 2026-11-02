@@ -23,8 +23,7 @@
 
   {% for team in participants %}
     {% with team_rows=individual_rows_by_team|lookup:team.id %}
-    <div class="bball-indiv-team-panel{% if forloop.first %} is-active{% endif %}" data-team-panel="{{ team.id }}"
-         style="{% if not forloop.first %}display:none;{% endif %}">
+    <div class="bball-indiv-team-panel{% if forloop.first %} is-active{% endif %}" data-team-panel="{{ team.id }}">
       {% if team_rows %}
         <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
           <table class="scorecard-table" style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">

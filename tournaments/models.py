@@ -327,6 +327,7 @@ class Team(TimeStamped):
     owner = models.ForeignKey('accounts.PlayerProfile', on_delete=models.SET_NULL,
                                 null=True, blank=True, related_name='owned_teams')
     is_pair = models.BooleanField(default=False, help_text='True if this is a temporary pair rather than a permanent team')
+    coach_name = models.CharField(max_length=120, blank=True, help_text='Name of the team coach')
     description = models.TextField(blank=True)
 
     def __str__(self):

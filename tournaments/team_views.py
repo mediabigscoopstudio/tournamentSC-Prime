@@ -120,7 +120,17 @@ def team_manage(request, team_id):
         return redirect('content_feed')
         
     if request.method == 'POST':
-        if request.POST.get('action') == 'update_logo' and request.FILES.get('logo'):
+        action = request.POST.get('action')
+        if action == 'update_coach':
+            coach_name = request.POST.get('coach_name', '').strip()
+            team.coach_name = coach_name
+            team.save(update_fields=['coach_name', 'updated_at'])
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.headers.get('accept') == 'application/json':
+                return JsonResponse({'success': True, 'coach_name': team.coach_name})
+            messages.success(request, "Coach name updated successfully!")
+            return redirect('team_manage', team_id=team.id)
+
+        if action == 'update_logo' and request.FILES.get('logo'):
             logo_file = request.FILES['logo']
             try:
                 img = Image.open(logo_file)
