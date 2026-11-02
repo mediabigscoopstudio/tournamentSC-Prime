@@ -540,90 +540,9 @@ def match_detail(request, slug, pk):
     ordered_parts = list(fixture.ordered_participants())
 
     # Basketball-specific stats computation
-    if is_basketball and len(ordered_parts) == 2 and fixture.status != 'SCHEDULED':
-        team_a = ordered_parts[0]
-        team_b = ordered_parts[1]
-        team_stats = {
-            'team_a': {
-                'id': team_a.id,
-                'name': team_a.name,
-                'points': int(team_a.score or 0),
-                'field_goals': 0,
-                'free_throws_made': 0,
-                'free_throws_att': 0,
-                'rebounds': 0,
-                'assists': 0,
-                'steals': 0,
-                'fouls': 0,
-            },
-            'team_b': {
-                'id': team_b.id,
-                'name': team_b.name,
-                'points': int(team_b.score or 0),
-                'field_goals': 0,
-                'free_throws_made': 0,
-                'free_throws_att': 0,
-                'rebounds': 0,
-                'assists': 0,
-                'steals': 0,
-                'fouls': 0,
-            }
-        }
-
-        for ev in fixture.events.all():
-            target = 'team_a' if ev.participant_id == team_a.id else ('team_b' if ev.participant_id == team_b.id else None)
-            if not target:
-                continue
-            if ev.event_type == 'foul':
-                team_stats[target]['fouls'] += 1
-            elif ev.event_type == 'rebound':
-                team_stats[target]['rebounds'] += 1
-            elif ev.event_type == 'assist':
-                team_stats[target]['assists'] += 1
-            elif ev.event_type == 'steal':
-                team_stats[target]['steals'] += 1
-            elif ev.event_type == 'score':
-                pts = (ev.score_snapshot or {}).get('points')
-                if not pts:
-                    if '+1' in ev.description: pts = 1
-                    elif '+2' in ev.description: pts = 2
-                    elif '+3' in ev.description: pts = 3
-                    else: pts = 2
-                if pts in (2, 3):
-                    team_stats[target]['field_goals'] += 1
-                elif pts == 1:
-                    team_stats[target]['free_throws_made'] += 1
-                    team_stats[target]['free_throws_att'] += 1
-
-        def _calc_pcts(a_val, b_val):
-            tot = (a_val or 0) + (b_val or 0)
-            if tot <= 0:
-                return 0, 0
-            p_a = round(((a_val or 0) / tot) * 100)
-            p_b = 100 - p_a
-            return p_a, p_b
-
-        team_stats['team_a']['points_pct'], team_stats['team_b']['points_pct'] = _calc_pcts(
-            team_stats['team_a']['points'], team_stats['team_b']['points']
-        )
-        team_stats['team_a']['field_goals_pct'], team_stats['team_b']['field_goals_pct'] = _calc_pcts(
-            team_stats['team_a']['field_goals'], team_stats['team_b']['field_goals']
-        )
-        team_stats['team_a']['free_throws_pct'], team_stats['team_b']['free_throws_pct'] = _calc_pcts(
-            team_stats['team_a']['free_throws_made'], team_stats['team_b']['free_throws_made']
-        )
-        team_stats['team_a']['rebounds_pct'], team_stats['team_b']['rebounds_pct'] = _calc_pcts(
-            team_stats['team_a']['rebounds'], team_stats['team_b']['rebounds']
-        )
-        team_stats['team_a']['assists_pct'], team_stats['team_b']['assists_pct'] = _calc_pcts(
-            team_stats['team_a']['assists'], team_stats['team_b']['assists']
-        )
-        team_stats['team_a']['steals_pct'], team_stats['team_b']['steals_pct'] = _calc_pcts(
-            team_stats['team_a']['steals'], team_stats['team_b']['steals']
-        )
-        team_stats['team_a']['fouls_pct'], team_stats['team_b']['fouls_pct'] = _calc_pcts(
-            team_stats['team_a']['fouls'], team_stats['team_b']['fouls']
-        )
+    if is_basketball and len(ordered_parts) == 2:
+        from tournaments.stats import compute_basketball_team_stats
+        team_stats = compute_basketball_team_stats(fixture, ordered_parts=ordered_parts)
 
     # Team rosters for team-based sports
     if tournament.is_team_based:

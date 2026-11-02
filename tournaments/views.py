@@ -2334,8 +2334,33 @@ def score_fixture(request, slug, fixture_id):
                 return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
             participant = get_object_or_404(FixtureParticipant, id=request.POST.get('participant_id'),
                                             fixture=fixture)
-            participant.score = max(0, (participant.score or 0) - 1)
-            participant.save(update_fields=['score'])
+            with transaction.atomic():
+                participant.score = max(0, (participant.score or 0) - 1)
+                participant.save(update_fields=['score'])
+                # Adjust or remove the most recent score event for this participant
+                # so event-derived stats (field goals, free throws) remain synchronized.
+                last_score = fixture.events.filter(
+                    participant=participant, event_type='score'
+                ).order_by('-id').first()
+                if last_score:
+                    snap = last_score.score_snapshot or {}
+                    try:
+                        pts = int(float(snap.get('points') or 0))
+                    except (ValueError, TypeError):
+                        pts = 1 if '+1' in (last_score.description or '') else 2
+                    if pts <= 1:
+                        last_score.delete()
+                    else:
+                        pts -= 1
+                        snap['points'] = pts
+                        last_score.score_snapshot = snap
+                        p_name = snap.get('player_name')
+                        if p_name:
+                            num = f" (#{snap.get('jersey_number')})" if snap.get('jersey_number') else ''
+                            last_score.description = f'{participant.name} +{pts} — {p_name}{num}'
+                        else:
+                            last_score.description = f'{participant.name} +{pts}'
+                        last_score.save(update_fields=['score_snapshot', 'description'])
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
         if action == 'score_point':
@@ -2674,12 +2699,16 @@ def build_fixture_live_payload(fixture, request=None):
     } for p in participants]
 
     individual_scoring_html = None
+    team_stats = None
     if t.sport.slug == 'basketball':
         _, _, individual_rows_by_team = _basketball_scoring_context(fixture)
         individual_scoring_html = render_to_string('public/_individual_scoring.html', {
             'fixture': fixture, 'participants': participants,
             'individual_rows_by_team': individual_rows_by_team,
         }, request=request)
+        if len(participants) == 2:
+            from .stats import compute_basketball_team_stats
+            team_stats = compute_basketball_team_stats(fixture, ordered_parts=participants)
 
     clock = None
     if t.sport.slug == 'basketball' and fixture.status == 'LIVE':
@@ -2700,10 +2729,12 @@ def build_fixture_live_payload(fixture, request=None):
     return {
         'status': fixture.status,
         'round': fixture.round_name,
+        'period': fixture.period_display,
         'participants': parts,
         'win_probability': fixture.win_probability,
         'clock': clock,
         'individual_scoring_html': individual_scoring_html,
+        'team_stats': team_stats,
         'events': [{'text': e.description, 'at': e.created_at.strftime('%H:%M')}
                    for e in fixture.events.all()[:15]],
         'updated': timezone.now().isoformat(),

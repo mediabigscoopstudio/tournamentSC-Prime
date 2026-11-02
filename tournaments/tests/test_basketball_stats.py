@@ -205,3 +205,162 @@ class BasketballStatsTest(TestCase):
         resp = client.post(url, {'action': 'undo_last_score'})
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self.fixture.events.filter(event_type='steal').count(), 0)
+
+    def test_compute_basketball_team_stats_and_live_sync(self):
+        from tournaments.stats import compute_basketball_team_stats
+        from tournaments.views import build_fixture_live_payload
+
+        # Team A: 1 free throw (1 pt), 1 two-pointer (2 pts), 1 three-pointer (3 pts) => 6 pts, 2 FG, 1/1 FT
+        # Also 2 rebounds, 1 assist, 1 steal, 2 fouls
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='score',
+            description='Lakers +1 FT',
+            score_snapshot={'membership_id': self.player_a1.id, 'points': 1, 'is_ft': True,
+                            'team_participant_id': self.part_a.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='score',
+            description='Lakers +2',
+            score_snapshot={'membership_id': self.player_a1.id, 'points': '2',
+                            'team_participant_id': self.part_a.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='score',
+            description='Lakers +3',
+            score_snapshot={'membership_id': self.player_a1.id, 'points': 3,
+                            'team_participant_id': self.part_a.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='rebound',
+            description='Rebound',
+            score_snapshot={'membership_id': self.player_a2.id, 'stat': 'rebound',
+                            'team_participant_id': self.part_a.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='rebound',
+            description='Rebound',
+            score_snapshot={'membership_id': self.player_a2.id, 'stat': 'rebound',
+                            'team_participant_id': self.part_a.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='assist',
+            description='Assist',
+            score_snapshot={'membership_id': self.player_a1.id, 'stat': 'assist',
+                            'team_participant_id': self.part_a.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='steal',
+            description='Steal',
+            score_snapshot={'membership_id': self.player_a1.id, 'stat': 'steal',
+                            'team_participant_id': self.part_a.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='foul',
+            description='Foul',
+            score_snapshot={'membership_id': self.player_a1.id, 'team_participant_id': self.part_a.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_a, event_type='foul',
+            description='Foul',
+            score_snapshot={'membership_id': self.player_a2.id, 'team_participant_id': self.part_a.id}
+        )
+        self.part_a.score = Decimal('6.00')
+        self.part_a.fouls = 2
+        self.part_a.save()
+
+        # Team B: 1 two-pointer (2 pts) => 2 pts, 1 FG, 0/0 FT, 1 rebound, 0 assist, 0 steal, 1 foul
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_b, event_type='score',
+            description='Celtics +2',
+            score_snapshot={'membership_id': self.player_b1.id, 'points': 2,
+                            'team_participant_id': self.part_b.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_b, event_type='rebound',
+            description='Rebound',
+            score_snapshot={'membership_id': self.player_b1.id, 'stat': 'rebound',
+                            'team_participant_id': self.part_b.id}
+        )
+        ScoreEvent.objects.create(
+            fixture=self.fixture, participant=self.part_b, event_type='foul',
+            description='Foul',
+            score_snapshot={'membership_id': self.player_b1.id, 'team_participant_id': self.part_b.id}
+        )
+        self.part_b.score = Decimal('2.00')
+        self.part_b.fouls = 1
+        self.part_b.save()
+
+        stats = compute_basketball_team_stats(self.fixture)
+        self.assertIsNotNone(stats)
+        self.assertEqual(stats['team_a']['points'], 6)
+        self.assertEqual(stats['team_a']['field_goals'], 2)
+        self.assertEqual(stats['team_a']['free_throws_made'], 1)
+        self.assertEqual(stats['team_a']['free_throws_att'], 1)
+        self.assertEqual(stats['team_a']['rebounds'], 2)
+        self.assertEqual(stats['team_a']['assists'], 1)
+        self.assertEqual(stats['team_a']['steals'], 1)
+        self.assertEqual(stats['team_a']['fouls'], 2)
+
+        self.assertEqual(stats['team_b']['points'], 2)
+        self.assertEqual(stats['team_b']['field_goals'], 1)
+        self.assertEqual(stats['team_b']['free_throws_made'], 0)
+        self.assertEqual(stats['team_b']['free_throws_att'], 0)
+        self.assertEqual(stats['team_b']['rebounds'], 1)
+        self.assertEqual(stats['team_b']['assists'], 0)
+        self.assertEqual(stats['team_b']['steals'], 0)
+        self.assertEqual(stats['team_b']['fouls'], 1)
+
+        # Check percentages
+        self.assertEqual(stats['team_a']['points_pct'], 75)
+        self.assertEqual(stats['team_b']['points_pct'], 25)
+
+        # Check build_fixture_live_payload includes team_stats
+        payload = build_fixture_live_payload(self.fixture)
+        self.assertIn('team_stats', payload)
+        self.assertEqual(payload['team_stats']['team_a']['points'], 6)
+
+        # Check commentary_sync_api returns team_stats
+        client = Client()
+        sync_url = reverse('commentary_sync_api', args=[self.tournament.slug, self.fixture.id])
+        resp = client.get(sync_url)
+        self.assertEqual(resp.status_code, 200)
+        json_data = resp.json()
+        self.assertIn('team_stats', json_data)
+        self.assertEqual(json_data['team_stats']['team_a']['points'], 6)
+        self.assertEqual(json_data['team_stats']['team_a']['field_goals'], 2)
+
+    def test_adjust_score_syncs_score_event(self):
+        client = Client()
+        client.force_login(self.user)
+        url = reverse('score_fixture', args=[self.tournament.slug, self.fixture.id])
+
+        # Score a +2
+        client.post(url, {
+            'action': 'score_point',
+            'points': '2',
+            'participant_id': self.part_a.id,
+            'membership_id': self.player_a1.id,
+        })
+        self.part_a.refresh_from_db()
+        self.assertEqual(self.part_a.score, Decimal('2.00'))
+        self.assertEqual(self.fixture.events.filter(participant=self.part_a, event_type='score').count(), 1)
+
+        # Adjust score (decrement by 1)
+        client.post(url, {
+            'action': 'adjust_score',
+            'participant_id': self.part_a.id,
+        })
+        self.part_a.refresh_from_db()
+        self.assertEqual(self.part_a.score, Decimal('1.00'))
+        ev = self.fixture.events.filter(participant=self.part_a, event_type='score').first()
+        self.assertIsNotNone(ev)
+        self.assertEqual(ev.score_snapshot['points'], 1)
+
+        # Adjust score again (decrement to 0) -> event should be deleted
+        client.post(url, {
+            'action': 'adjust_score',
+            'participant_id': self.part_a.id,
+        })
+        self.part_a.refresh_from_db()
+        self.assertEqual(self.part_a.score, Decimal('0.00'))
+        self.assertEqual(self.fixture.events.filter(participant=self.part_a, event_type='score').count(), 0)

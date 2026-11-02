@@ -243,6 +243,7 @@ def commentary_sync_api(request, slug, fixture_id):
         'clock': live_payload['clock'],
         'win_probability': live_payload['win_probability'],
         'individual_scoring_html': live_payload['individual_scoring_html'],
+        'team_stats': live_payload.get('team_stats'),
         'events': live_payload['events'],
         'entries': entries_data,
         'deleted_ids': list(deleted_entries),

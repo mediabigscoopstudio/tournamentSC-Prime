@@ -129,6 +129,51 @@
     initIndividualScoringSwitcher();
   }
 
+  window.updateMatchStats = function (teamStats, period) {
+    if (!teamStats) return;
+    const panel = document.getElementById('match-stats-panel');
+    if (panel) panel.style.display = '';
+
+    const periodEl = document.getElementById('match-stats-period');
+    if (periodEl && period) periodEl.textContent = period;
+
+    const a = teamStats.team_a;
+    const b = teamStats.team_b;
+    if (!a || !b) return;
+
+    const nameA = document.getElementById('match-stats-name-a');
+    if (nameA && a.name) nameA.textContent = a.name;
+    const nameB = document.getElementById('match-stats-name-b');
+    if (nameB && b.name) nameB.textContent = b.name;
+
+    const statsList = ['points', 'field_goals', 'rebounds', 'assists', 'steals', 'fouls'];
+    statsList.forEach((key) => {
+      const valA = document.getElementById('stat-val-a-' + key);
+      if (valA) valA.textContent = a[key] !== undefined && a[key] !== null ? a[key] : 0;
+      const barA = document.getElementById('stat-bar-a-' + key);
+      if (barA) barA.style.width = (a[key + '_pct'] || 0) + '%';
+
+      const valB = document.getElementById('stat-val-b-' + key);
+      if (valB) valB.textContent = b[key] !== undefined && b[key] !== null ? b[key] : 0;
+      const barB = document.getElementById('stat-bar-b-' + key);
+      if (barB) barB.style.width = (b[key + '_pct'] || 0) + '%';
+    });
+
+    const ftValA = document.getElementById('stat-val-a-free_throws');
+    if (ftValA) {
+      ftValA.textContent = (a.free_throws_made || 0) + '/' + (a.free_throws_att || 0);
+    }
+    const ftBarA = document.getElementById('stat-bar-a-free_throws');
+    if (ftBarA) ftBarA.style.width = (a.free_throws_pct || 0) + '%';
+
+    const ftValB = document.getElementById('stat-val-b-free_throws');
+    if (ftValB) {
+      ftValB.textContent = (b.free_throws_made || 0) + '/' + (b.free_throws_att || 0);
+    }
+    const ftBarB = document.getElementById('stat-bar-b-free_throws');
+    if (ftBarB) ftBarB.style.width = (b.free_throws_pct || 0) + '%';
+  };
+
   // Globally accessible real-time dispatcher (called by SSE and polling)
   window.applyFixtureLiveData = function (data) {
     if (!data) return;
@@ -150,6 +195,9 @@
     }
     if (data.individual_scoring_html !== undefined) {
       updateIndividualScoring(data.individual_scoring_html);
+    }
+    if (data.team_stats) {
+      window.updateMatchStats(data.team_stats, data.period || (data.clock && data.clock.period_display));
     }
 
     const feed = document.querySelector('[data-feed]');
