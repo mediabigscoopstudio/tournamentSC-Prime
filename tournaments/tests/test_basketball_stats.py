@@ -149,6 +149,20 @@ class BasketballStatsTest(TestCase):
                             'team_participant_id': self.part_a.id}
         )
 
+        ScoreEvent.objects.create(
+            fixture=self.fixture,
+            participant=self.part_b,
+            event_type='score',
+            description='Celtics +2 — Larry Bird (#33)',
+            score_snapshot={'membership_id': self.player_b1.id, 'player_name': 'Larry Bird',
+                            'jersey_number': '33', 'points': 2,
+                            'team_participant_id': self.part_b.id}
+        )
+        self.part_b.score = Decimal('2.00')
+        self.part_b.save()
+        self.part_a.score = Decimal('1.00')
+        self.part_a.save()
+
         client = Client()
         url = reverse('match_detail', args=[self.tournament.slug, self.fixture.id])
         resp = client.get(url)
@@ -163,6 +177,13 @@ class BasketballStatsTest(TestCase):
         # Check player names
         self.assertIn('Kobe Bryant', content)
         self.assertIn('Shaquille ONeal', content)
+        self.assertIn('Larry Bird', content)
+        # Check Match Stats section has Steals and both team bars
+        self.assertIn('Steals', content)
+        # Verify right-side team bar has display:flex and background #0f172a with height 100%
+        self.assertIn('justify-content:flex-start;', content)
+        self.assertIn('background:#0f172a;', content)
+        self.assertIn('height:100%;', content)
         # Check Match Stats section has Steals
         self.assertIn('Steals', content)
 

@@ -490,12 +490,12 @@
           <!-- Points -->
           <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
             <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.points }}</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-              <div style="width:{% widthratio team_stats.team_a.points 12 100 %}%; background:#F26A1B;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{{ team_stats.team_a.points_pct|default:'0' }}%; background:#F26A1B; border-radius:999px;"></div>
             </div>
             <span style="text-align:center; color:#64748b; font-weight:600;">Points</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-              <div style="width:{% widthratio team_stats.team_b.points 12 100 %}%; background:#0f172a;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{{ team_stats.team_b.points_pct|default:'0' }}%; background:#0f172a; border-radius:999px;"></div>
             </div>
             <span style="font-weight:800;">{{ team_stats.team_b.points }}</span>
           </div>
@@ -503,12 +503,12 @@
           <!-- Field Goals -->
           <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
             <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.field_goals }}</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-              <div style="width:{% widthratio team_stats.team_a.field_goals 4 100 %}%; background:#F26A1B;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{{ team_stats.team_a.field_goals_pct|default:'0' }}%; background:#F26A1B; border-radius:999px;"></div>
             </div>
             <span style="text-align:center; color:#64748b; font-weight:600;">Field Goals</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-              <div style="width:{% widthratio team_stats.team_b.field_goals 4 100 %}%; background:#0f172a;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{{ team_stats.team_b.field_goals_pct|default:'0' }}%; background:#0f172a; border-radius:999px;"></div>
             </div>
             <span style="font-weight:800;">{{ team_stats.team_b.field_goals }}</span>
           </div>
@@ -516,12 +516,12 @@
           <!-- Free Throws -->
           <div style="display:grid; grid-template-columns: 44px 1fr 70px 1fr 44px; align-items:center; gap:6px;">
             <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.free_throws_made }}/{{ team_stats.team_a.free_throws_att }}</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-              <div style="width:{% widthratio team_stats.team_a.free_throws_made 2 100 %}%; background:#F26A1B;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{{ team_stats.team_a.free_throws_pct|default:'0' }}%; background:#F26A1B; border-radius:999px;"></div>
             </div>
             <span style="text-align:center; color:#64748b; font-weight:600;">Free Throws</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-              <div style="width:{% widthratio team_stats.team_b.free_throws_made 2 100 %}%; background:#0f172a;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{{ team_stats.team_b.free_throws_pct|default:'0' }}%; background:#0f172a; border-radius:999px;"></div>
             </div>
             <span style="font-weight:800;">{{ team_stats.team_b.free_throws_made }}/{{ team_stats.team_b.free_throws_att }}</span>
           </div>
@@ -529,12 +529,12 @@
           <!-- Rebounds -->
           <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
             <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.rebounds }}</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-              <div style="width:{% widthratio team_stats.team_a.rebounds 6 100 %}%; background:#F26A1B;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{{ team_stats.team_a.rebounds_pct|default:'0' }}%; background:#F26A1B; border-radius:999px;"></div>
             </div>
             <span style="text-align:center; color:#64748b; font-weight:600;">Rebounds</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-              <div style="width:{% widthratio team_stats.team_b.rebounds 6 100 %}%; background:#0f172a;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{{ team_stats.team_b.rebounds_pct|default:'0' }}%; background:#0f172a; border-radius:999px;"></div>
             </div>
             <span style="font-weight:800;">{{ team_stats.team_b.rebounds }}</span>
           </div>
@@ -542,12 +542,12 @@
           <!-- Assists -->
           <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
             <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.assists }}</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-              <div style="width:{% widthratio team_stats.team_a.assists 4 100 %}%; background:#F26A1B;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{{ team_stats.team_a.assists_pct|default:'0' }}%; background:#F26A1B; border-radius:999px;"></div>
             </div>
             <span style="text-align:center; color:#64748b; font-weight:600;">Assists</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-              <div style="width:{% widthratio team_stats.team_b.assists 4 100 %}%; background:#0f172a;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{{ team_stats.team_b.assists_pct|default:'0' }}%; background:#0f172a; border-radius:999px;"></div>
             </div>
             <span style="font-weight:800;">{{ team_stats.team_b.assists }}</span>
           </div>
@@ -555,12 +555,12 @@
           <!-- Steals -->
           <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
             <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.steals|default:0 }}</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-              <div style="width:{% widthratio team_stats.team_a.steals|default:0 4 100 %}%; background:#F26A1B;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{{ team_stats.team_a.steals_pct|default:'0' }}%; background:#F26A1B; border-radius:999px;"></div>
             </div>
             <span style="text-align:center; color:#64748b; font-weight:600;">Steals</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-              <div style="width:{% widthratio team_stats.team_b.steals|default:0 4 100 %}%; background:#0f172a;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{{ team_stats.team_b.steals_pct|default:'0' }}%; background:#0f172a; border-radius:999px;"></div>
             </div>
             <span style="font-weight:800;">{{ team_stats.team_b.steals|default:0 }}</span>
           </div>
@@ -568,12 +568,12 @@
           <!-- Fouls -->
           <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
             <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.fouls }}</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
-              <div style="width:{% widthratio team_stats.team_a.fouls 4 100 %}%; background:#F26A1B;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{{ team_stats.team_a.fouls_pct|default:'0' }}%; background:#F26A1B; border-radius:999px;"></div>
             </div>
             <span style="text-align:center; color:#64748b; font-weight:600;">Fouls</span>
-            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-              <div style="width:{% widthratio team_stats.team_b.fouls 4 100 %}%; background:#0f172a;"></div>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{{ team_stats.team_b.fouls_pct|default:'0' }}%; background:#0f172a; border-radius:999px;"></div>
             </div>
             <span style="font-weight:800;">{{ team_stats.team_b.fouls }}</span>
           </div>

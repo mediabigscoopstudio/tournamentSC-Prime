@@ -587,6 +587,36 @@ def match_detail(request, slug, pk):
                     team_stats[target]['free_throws_made'] += 1
                     team_stats[target]['free_throws_att'] += 1
 
+        def _calc_pcts(a_val, b_val):
+            tot = (a_val or 0) + (b_val or 0)
+            if tot <= 0:
+                return 0, 0
+            p_a = round(((a_val or 0) / tot) * 100)
+            p_b = 100 - p_a
+            return p_a, p_b
+
+        team_stats['team_a']['points_pct'], team_stats['team_b']['points_pct'] = _calc_pcts(
+            team_stats['team_a']['points'], team_stats['team_b']['points']
+        )
+        team_stats['team_a']['field_goals_pct'], team_stats['team_b']['field_goals_pct'] = _calc_pcts(
+            team_stats['team_a']['field_goals'], team_stats['team_b']['field_goals']
+        )
+        team_stats['team_a']['free_throws_pct'], team_stats['team_b']['free_throws_pct'] = _calc_pcts(
+            team_stats['team_a']['free_throws_made'], team_stats['team_b']['free_throws_made']
+        )
+        team_stats['team_a']['rebounds_pct'], team_stats['team_b']['rebounds_pct'] = _calc_pcts(
+            team_stats['team_a']['rebounds'], team_stats['team_b']['rebounds']
+        )
+        team_stats['team_a']['assists_pct'], team_stats['team_b']['assists_pct'] = _calc_pcts(
+            team_stats['team_a']['assists'], team_stats['team_b']['assists']
+        )
+        team_stats['team_a']['steals_pct'], team_stats['team_b']['steals_pct'] = _calc_pcts(
+            team_stats['team_a']['steals'], team_stats['team_b']['steals']
+        )
+        team_stats['team_a']['fouls_pct'], team_stats['team_b']['fouls_pct'] = _calc_pcts(
+            team_stats['team_a']['fouls'], team_stats['team_b']['fouls']
+        )
+
         for idx, part in enumerate(ordered_parts):
             coach = ''
             captain_str = ''
