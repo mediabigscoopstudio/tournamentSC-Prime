@@ -40,9 +40,15 @@ Context: tournament, fx  (optional: table_no — this card's position within
       <div class="fxc__mid">
         {% if ps|length == 2 and fx.status != 'SCHEDULED' and fx.status != 'POSTPONED' %}
           <span class="fxc__score">
-            <b class="{% if fx.status == 'COMPLETED' and ps.0.is_winner %}is-win{% endif %}">{{ ps.0.score|default_if_none:'–'|floatformat:'-2' }}</b>
-            <i>-</i>
-            <b class="{% if fx.status == 'COMPLETED' and ps.1.is_winner %}is-win{% endif %}">{{ ps.1.score|default_if_none:'–'|floatformat:'-2' }}</b>
+            {% if fx.chess_score_display %}
+              <b class="{% if fx.status == 'COMPLETED' and fx.chess_score_display.0 == '1' %}is-win{% endif %}">{{ fx.chess_score_display.0 }}</b>
+              <i>-</i>
+              <b class="{% if fx.status == 'COMPLETED' and fx.chess_score_display.1 == '1' %}is-win{% endif %}">{{ fx.chess_score_display.1 }}</b>
+            {% else %}
+              <b class="{% if fx.status == 'COMPLETED' and ps.0.is_winner %}is-win{% endif %}">{{ ps.0.score|default_if_none:'–'|floatformat:'-2' }}</b>
+              <i>-</i>
+              <b class="{% if fx.status == 'COMPLETED' and ps.1.is_winner %}is-win{% endif %}">{{ ps.1.score|default_if_none:'–'|floatformat:'-2' }}</b>
+            {% endif %}
           </span>
         {% else %}
           <span class="fxc__vs">VS</span>

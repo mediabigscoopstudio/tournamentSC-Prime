@@ -517,7 +517,14 @@ def match_detail(request, slug, pk):
         Highlight.objects.filter(pk=highlight.pk).update(view_count=F('view_count') + 1)
         highlight.refresh_from_db(fields=['view_count'])
 
-    is_basketball = tournament.sport.slug == 'basketball'
+    sport_slug = tournament.sport.slug
+    is_basketball = sport_slug == 'basketball'
+    is_chess = sport_slug == 'chess'
+    is_racket = sport_slug in C.RACKET_SPORTS or sport_slug in ('badminton', 'pickleball', 'tennis', 'table-tennis')
+    is_combat = sport_slug in ('wrestling', 'boxing')
+    is_time_trial = tournament.format in (C.FORMAT_TIME_TRIAL, C.FORMAT_SINGLE_EVENT) or sport_slug in ('racing', 'marathon')
+    is_lobby = (tournament.format == C.FORMAT_ROUND_ROBIN and sport_slug == 'mobile-esports')
+
     commentary_entries = list(fixture.commentary_entries.filter(is_deleted=False).select_related('author').order_by('id'))
     active_commentators = list(fixture.commentator_assignments.all().select_related('user__commentator_profile'))
     user_can_commentate = False
@@ -532,7 +539,8 @@ def match_detail(request, slug, pk):
     team_rosters = {}
     ordered_parts = list(fixture.ordered_participants())
 
-    if len(ordered_parts) == 2 and fixture.status != 'SCHEDULED':
+    # Basketball-specific stats computation
+    if is_basketball and len(ordered_parts) == 2 and fixture.status != 'SCHEDULED':
         team_a = ordered_parts[0]
         team_b = ordered_parts[1]
         team_stats = {
@@ -617,6 +625,8 @@ def match_detail(request, slug, pk):
             team_stats['team_a']['fouls'], team_stats['team_b']['fouls']
         )
 
+    # Team rosters for team-based sports
+    if tournament.is_team_based:
         for idx, part in enumerate(ordered_parts):
             coach = ''
             captain_str = ''
@@ -645,6 +655,106 @@ def match_detail(request, slug, pk):
                 'captain': captain_str,
                 'players': players,
             }
+
+    # Chess info
+    chess_info = None
+    if is_chess and len(ordered_parts) >= 1:
+        white_player = ordered_parts[0]
+        black_player = ordered_parts[1] if len(ordered_parts) > 1 else None
+        is_draw = False
+        result_text = ''
+        white_score = '–'
+        black_score = '–'
+        if fixture.status == 'COMPLETED':
+            s0 = _num(white_player.score)
+            s1 = _num(black_player.score) if black_player else None
+            if s0 is not None and s1 is not None:
+                if s0 == 1.0 and s1 == 0.0:
+                    white_score, black_score = '1', '0'
+                    result_text = f"{white_player.name} won as White (1 – 0)"
+                elif s0 == 0.0 and s1 == 1.0:
+                    white_score, black_score = '0', '1'
+                    result_text = f"{black_player.name} won as Black (0 – 1)"
+                elif s0 == 0.5 and s1 == 0.5 or s0 == s1:
+                    is_draw = True
+                    white_score, black_score = '½', '½'
+                    result_text = "Game drawn (½ – ½)"
+                elif s0 > s1:
+                    white_score, black_score = '1', '0'
+                    result_text = f"{white_player.name} won as White"
+                else:
+                    white_score, black_score = '0', '1'
+                    result_text = f"{black_player.name} won as Black"
+            elif white_player.is_winner:
+                white_score, black_score = '1', '0'
+                result_text = f"{white_player.name} won as White"
+            elif black_player and black_player.is_winner:
+                white_score, black_score = '0', '1'
+                result_text = f"{black_player.name} won as Black"
+        elif fixture.status == 'LIVE':
+            result_text = "Live Match in Progress"
+        else:
+            result_text = "Scheduled"
+
+        chess_info = {
+            'white': white_player,
+            'black': black_player,
+            'white_rating': white_player.rating or '',
+            'black_rating': black_player.rating if black_player else '',
+            'white_score': white_score,
+            'black_score': black_score,
+            'is_draw': is_draw,
+            'result_text': result_text,
+            'table_no': fixture.sequence,
+        }
+
+    # Racket sports info
+    racket_info = None
+    if is_racket and len(ordered_parts) == 2:
+        part_a, part_b = ordered_parts[0], ordered_parts[1]
+        sets_won_a, sets_won_b = fixture.sets_won
+        set_history = []
+        tot_pts_a = 0
+        tot_pts_b = 0
+        for idx, s in enumerate(fixture.set_scores or [], start=1):
+            sa = s.get('a', 0)
+            sb = s.get('b', 0)
+            tot_pts_a += sa
+            tot_pts_b += sb
+            set_history.append({
+                'set_num': idx,
+                'a': sa,
+                'b': sb,
+                'winner': 'a' if sa > sb else ('b' if sb > sa else None),
+                'is_live': (fixture.status == 'LIVE' and idx == len(fixture.set_scores)),
+            })
+        tot_pts = tot_pts_a + tot_pts_b
+        pct_a = round((tot_pts_a / tot_pts) * 100) if tot_pts > 0 else 50
+        pct_b = 100 - pct_a if tot_pts > 0 else 50
+        is_doubles = (tournament.draw_category in C.DRAW_TEAM_CATEGORIES or tournament.is_team_based)
+        racket_info = {
+            'part_a': part_a,
+            'part_b': part_b,
+            'sets_won_a': sets_won_a,
+            'sets_won_b': sets_won_b,
+            'total_points_a': tot_pts_a,
+            'total_points_b': tot_pts_b,
+            'total_points_a_pct': pct_a,
+            'total_points_b_pct': pct_b,
+            'sets': set_history,
+            'sets_to_win': fixture.sets_to_win or 2,
+            'is_doubles': is_doubles,
+        }
+
+    # Combat sports info
+    combat_info = None
+    if is_combat and len(ordered_parts) == 2:
+        combat_info = {
+            'part_a': ordered_parts[0],
+            'part_b': ordered_parts[1],
+            'category': fixture.event_category.name if fixture.event_category else '',
+            'bout_no': fixture.sequence,
+        }
 
     # "More from TournamentSC" content highlights — latest uploaded 16:9 videos
     from content.models import Content
@@ -697,6 +807,13 @@ def match_detail(request, slug, pk):
         'is_lobby': (tournament.format == C.FORMAT_ROUND_ROBIN
                      and tournament.sport.slug == 'mobile-esports'),
         'is_basketball': is_basketball,
+        'is_chess': is_chess,
+        'is_racket': is_racket,
+        'is_combat': is_combat,
+        'is_time_trial': is_time_trial,
+        'chess_info': chess_info,
+        'racket_info': racket_info,
+        'combat_info': combat_info,
         'win_probability': fixture.win_probability,
         'format_ms': format_ms,
         'yt_id': youtube_id(fixture.effective_youtube_url),

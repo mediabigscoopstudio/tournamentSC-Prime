@@ -12,7 +12,10 @@ Context: tournament, fx, p (may be empty — an unfilled bracket slot), side
     </span>
     <span class="fxc__name{% if fx.status == 'COMPLETED' %}{% if p.is_winner %} is-win{% elif p.result_chip == 'l' %} is-lose{% endif %}{% endif %}">{{ p.name }}</span>
     {% if tournament.sport.slug == 'chess' %}
-      <span class="fxc__color-badge{% if side == 'r' %} fxc__color-badge--black{% endif %}">{% if side == 'l' %}White{% else %}Black{% endif %}</span>
+      <span class="fxc__color-badge{% if side == 'r' or p.slot == 1 %} fxc__color-badge--black{% endif %}">{% if side == 'l' or p.slot == 0 %}⚪ White{% else %}⚫ Black{% endif %}</span>
+      {% if p.rating %}
+        <span style="font-size:10px; font-weight:700; color:#64748b; margin-top:1px;">Rating {{ p.rating }}</span>
+      {% endif %}
     {% endif %}
   {% else %}
     <span class="fxc__crest fxc__crest--tbd" aria-hidden="true">?</span>

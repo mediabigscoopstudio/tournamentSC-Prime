@@ -91,7 +91,7 @@
             </div>
 
             <div style="text-align:center; padding:10px 0;">
-              <div style="font-size:42px; margin-bottom:6px;">🏀</div>
+              <div style="font-size:42px; margin-bottom:6px;">{{ tournament.sport.icon|default:'🏆' }}</div>
               <h2 style="margin:0 0 6px; font-size:24px; font-weight:800; color:#fff;">{{ tournament.name }}</h2>
               <p style="margin:0; font-size:14px; color:#94a3b8;">
                 {{ fixture.round_name }} {% if fixture.venue_detail %}· {{ fixture.venue_detail }}{% endif %}
@@ -116,8 +116,8 @@
         <!-- Header: Tournament info, Live Badge, Quarter Pill, Round Detail -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
           <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:34px; height:34px; border-radius:50%; background:#ffedd5; display:inline-flex; align-items:center; justify-content:center; font-size:18px;">
-              🏀
+            <div style="width:34px; height:34px; border-radius:50%; background:{% if is_basketball %}#ffedd5{% elif is_chess %}#f1f5f9{% elif is_racket %}#ecfdf5{% else %}#eff6ff{% endif %}; display:inline-flex; align-items:center; justify-content:center; font-size:18px;">
+              {{ tournament.sport.icon|default:'🏆' }}
             </div>
             <div>
               <div style="font-size:15px; font-weight:800; color:#0f172a; line-height:1.2;">{{ tournament.name }}</div>
@@ -130,16 +130,36 @@
               <span class="live" data-live-badge style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:#fff; background:#dc2626; padding:3px 10px; border-radius:999px;">
                 <span class="live__dot" style="width:5px; height:5px; border-radius:50%; background:#fff; animation:pulse 1.2s infinite;"></span> LIVE
               </span>
-              <span class="bball-quarter-pill" data-period-pill style="font-size:12px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:3px 10px; border-radius:999px; border:1px solid #e2e8f0;">
-                {{ fixture.period_display|default:"Q1" }}
-              </span>
+              {% if is_basketball %}
+                <span class="bball-quarter-pill" data-period-pill style="font-size:12px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:3px 10px; border-radius:999px; border:1px solid #e2e8f0;">
+                  {{ fixture.period_display|default:"Q1" }}
+                </span>
+              {% elif is_racket %}
+                <span style="font-size:12px; font-weight:700; color:#0f172a; background:#ecfdf5; padding:3px 10px; border-radius:999px; border:1px solid #a7f3d0;">
+                  Set {{ fixture.set_scores|length|default:1 }}
+                </span>
+              {% elif is_chess %}
+                <span style="font-size:12px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:3px 10px; border-radius:999px; border:1px solid #e2e8f0;">
+                  In Progress
+                </span>
+              {% endif %}
             {% elif fixture.status == 'COMPLETED' %}
               <span class="badge badge-completed" style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px; background:#e2e8f0; color:#1e293b; display:inline-flex; align-items:center; gap:4px;">
                 {% if is_final %}🏆{% endif %} Final
               </span>
-              <span class="bball-quarter-pill" style="font-size:12px; font-weight:700; color:#059669; background:#ecfdf5; padding:3px 10px; border-radius:999px; border:1px solid #a7f3d0;">
-                FT
-              </span>
+              {% if is_basketball %}
+                <span class="bball-quarter-pill" style="font-size:12px; font-weight:700; color:#059669; background:#ecfdf5; padding:3px 10px; border-radius:999px; border:1px solid #a7f3d0;">
+                  FT
+                </span>
+              {% elif is_racket %}
+                <span style="font-size:12px; font-weight:700; color:#059669; background:#ecfdf5; padding:3px 10px; border-radius:999px; border:1px solid #a7f3d0;">
+                  {{ fixture.sets_won.0 }}-{{ fixture.sets_won.1 }} Sets
+                </span>
+              {% elif is_chess %}
+                <span style="font-size:12px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:3px 10px; border-radius:999px; border:1px solid #e2e8f0;">
+                  {% if chess_info.is_draw %}Draw (½-½){% else %}Decided{% endif %}
+                </span>
+              {% endif %}
             {% else %}
               <span class="badge badge-upcoming" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; background:#eff6ff; color:#1e40af;">
                 Upcoming
@@ -152,7 +172,7 @@
             {% endif %}
 
             <span style="font-size:12px; font-weight:600; color:#64748b; margin-left:4px;">
-              {{ fixture.round_name }}
+              {% if is_chess %}Table {{ fixture.sequence }}{% else %}{{ fixture.round_name }}{% endif %}
             </span>
           </div>
         </div>
@@ -174,6 +194,20 @@
                 <div style="font-size:16px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">
                   {{ participants.0.name }}
                 </div>
+                {% if is_chess %}
+                  <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                    <span style="font-size:11px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; background:#fff; color:#0f172a; border:1.5px solid #cbd5e1; padding:2px 8px; border-radius:999px; box-shadow:0 1px 2px rgba(0,0,0,0.05); display:inline-flex; align-items:center; gap:4px;">
+                      ⚪ White
+                    </span>
+                    {% if chess_info.white_rating %}
+                      <span style="font-size:11px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:999px;">
+                        Rating {{ chess_info.white_rating }}
+                      </span>
+                    {% endif %}
+                  </div>
+                {% elif is_racket and racket_info.is_doubles %}
+                  <div style="font-size:11px; font-weight:700; color:#059669; margin-top:2px;">Doubles Pair</div>
+                {% endif %}
                 {% if winner_participant and participants.0.id == winner_participant.id %}
                   <div style="margin-top:2px;">
                     <span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:1px 8px; border-radius:999px;">
@@ -186,45 +220,94 @@
 
             <!-- Score & Digital Clock Center -->
             <div class="score-clock-center" style="display:flex; align-items:center; gap:20px; flex-shrink:0; padding:0 16px;">
-              <span class="score-num" data-score="{{ participants.0.id }}" style="font-size:38px; font-weight:900; color:{% if fixture.status == 'SCHEDULED' %}#cbd5e1{% elif winner_participant and participants.0.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
-                {% if fixture.status == 'SCHEDULED' %}–{% else %}{{ participants.0.score|default_if_none:'0'|floatformat:'-2' }}{% endif %}
-              </span>
-
-              <!-- Live Digital Clock OR Completed Status OR Scheduled VS -->
-              <div style="display:flex; flex-direction:column; align-items:center; min-width:76px;">
+              {% if is_chess %}
+                <!-- Chess: 1-0, 0-1, ½-½, or VS -->
                 {% if fixture.status == 'COMPLETED' %}
-                  <span style="font-size:13px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:4px 12px; border-radius:8px;">
-                    FINAL
+                  <span style="font-size:38px; font-weight:900; color:{% if chess_info.is_draw %}#475569{% elif winner_participant and participants.0.id == winner_participant.id %}#059669{% else %}#64748b{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
+                    {{ chess_info.white_score }}
+                  </span>
+                  <div style="display:flex; flex-direction:column; align-items:center; min-width:76px;">
+                    <span style="font-size:13px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:{% if chess_info.is_draw %}#475569{% else %}#059669{% endif %}; background:{% if chess_info.is_draw %}#f1f5f9{% else %}#ecfdf5{% endif %}; border:1px solid {% if chess_info.is_draw %}#cbd5e1{% else %}#a7f3d0{% endif %}; padding:4px 12px; border-radius:8px;">
+                      {% if chess_info.is_draw %}DRAW{% else %}FINAL{% endif %}
+                    </span>
+                  </div>
+                  <span style="font-size:38px; font-weight:900; color:{% if chess_info.is_draw %}#475569{% elif winner_participant and participants.1.id == winner_participant.id %}#059669{% else %}#64748b{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
+                    {{ chess_info.black_score }}
                   </span>
                 {% elif fixture.status == 'SCHEDULED' %}
-                  <span style="font-size:15px; font-weight:900; letter-spacing:0.06em; color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 14px; border-radius:8px;">
-                    VS
+                  <span style="font-size:38px; font-weight:900; color:#cbd5e1; line-height:1;">–</span>
+                  <div style="display:flex; flex-direction:column; align-items:center; min-width:76px;">
+                    <span style="font-size:15px; font-weight:900; letter-spacing:0.06em; color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 14px; border-radius:8px;">VS</span>
+                    {% if fixture.scheduled_time %}<span style="font-size:11px; font-weight:700; color:#64748b; margin-top:3px;">{{ fixture.scheduled_time|date:"H:i" }}</span>{% endif %}
+                  </div>
+                  <span style="font-size:38px; font-weight:900; color:#cbd5e1; line-height:1;">–</span>
+                {% else %}
+                  <span style="font-size:38px; font-weight:900; color:#0f172a; line-height:1;">–</span>
+                  <div style="display:flex; flex-direction:column; align-items:center; min-width:76px;">
+                    <span style="font-size:12px; font-weight:800; color:#dc2626; background:#fee2e2; border:1px solid #fecaca; padding:4px 12px; border-radius:8px;">LIVE</span>
+                  </div>
+                  <span style="font-size:38px; font-weight:900; color:#0f172a; line-height:1;">–</span>
+                {% endif %}
+
+              {% elif is_racket %}
+                <!-- Racket Sports: Sets Won in Center -->
+                <span class="score-num" style="font-size:38px; font-weight:900; color:{% if fixture.status == 'SCHEDULED' %}#cbd5e1{% elif winner_participant and participants.0.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
+                  {% if fixture.status == 'SCHEDULED' %}–{% else %}{{ racket_info.sets_won_a }}{% endif %}
+                </span>
+                <div style="display:flex; flex-direction:column; align-items:center; min-width:76px;">
+                  <span style="font-size:11px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:3px 10px; border-radius:8px;">
+                    {% if fixture.status == 'COMPLETED' %}FINAL (SETS){% elif fixture.status == 'SCHEDULED' %}VS{% else %}SETS{% endif %}
                   </span>
-                  {% if fixture.scheduled_time %}
-                    <span style="font-size:11px; font-weight:700; color:#64748b; margin-top:3px;">
-                      {{ fixture.scheduled_time|date:"H:i" }}
+                  {% if fixture.status == 'SCHEDULED' and fixture.scheduled_time %}
+                    <span style="font-size:11px; font-weight:700; color:#64748b; margin-top:3px;">{{ fixture.scheduled_time|date:"H:i" }}</span>
+                  {% endif %}
+                </div>
+                <span class="score-num" style="font-size:38px; font-weight:900; color:{% if fixture.status == 'SCHEDULED' %}#cbd5e1{% elif winner_participant and participants.1.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
+                  {% if fixture.status == 'SCHEDULED' %}–{% else %}{{ racket_info.sets_won_b }}{% endif %}
+                </span>
+
+              {% else %}
+                <!-- Basketball / Standard Points -->
+                <span class="score-num" data-score="{{ participants.0.id }}" style="font-size:38px; font-weight:900; color:{% if fixture.status == 'SCHEDULED' %}#cbd5e1{% elif winner_participant and participants.0.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
+                  {% if fixture.status == 'SCHEDULED' %}–{% else %}{{ participants.0.score|default_if_none:'0'|floatformat:'-2' }}{% endif %}
+                </span>
+
+                <!-- Live Digital Clock OR Completed Status OR Scheduled VS -->
+                <div style="display:flex; flex-direction:column; align-items:center; min-width:76px;">
+                  {% if fixture.status == 'COMPLETED' %}
+                    <span style="font-size:13px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:4px 12px; border-radius:8px;">
+                      FINAL
+                    </span>
+                  {% elif fixture.status == 'SCHEDULED' %}
+                    <span style="font-size:15px; font-weight:900; letter-spacing:0.06em; color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 14px; border-radius:8px;">
+                      VS
+                    </span>
+                    {% if fixture.scheduled_time %}
+                      <span style="font-size:11px; font-weight:700; color:#64748b; margin-top:3px;">
+                        {{ fixture.scheduled_time|date:"H:i" }}
+                      </span>
+                    {% endif %}
+                  {% else %}
+                    <span class="bball-digital-clock" data-quarter-clock
+                          data-clock-status="{{ fixture.status }}"
+                          data-started-at="{{ fixture.live_started_at|date:'c' }}"
+                          data-extra-seconds="{{ fixture.extra_time_seconds }}"
+                          data-quarter-length-seconds="{{ fixture.quarter_length_seconds }}"
+                          data-paused="{% if fixture.clock_paused_at %}1{% else %}0{% endif %}"
+                          data-paused-remaining-seconds="{{ fixture.paused_quarter_remaining_seconds|default_if_none:'' }}"
+                          style="font-size:17px; font-weight:800; font-family:monospace; color:#0f172a; background:#f8fafc; border:1px solid #e2e8f0; padding:3px 10px; border-radius:8px;">
+                      00:00
+                    </span>
+                    <span class="badge badge-upcoming" data-clock-paused-badge {% if not fixture.clock_paused_at %}hidden{% endif %} style="font-size:10px; font-weight:700; color:#b45309; margin-top:2px;">
+                      Paused
                     </span>
                   {% endif %}
-                {% else %}
-                  <span class="bball-digital-clock" data-quarter-clock
-                        data-clock-status="{{ fixture.status }}"
-                        data-started-at="{{ fixture.live_started_at|date:'c' }}"
-                        data-extra-seconds="{{ fixture.extra_time_seconds }}"
-                        data-quarter-length-seconds="{{ fixture.quarter_length_seconds }}"
-                        data-paused="{% if fixture.clock_paused_at %}1{% else %}0{% endif %}"
-                        data-paused-remaining-seconds="{{ fixture.paused_quarter_remaining_seconds|default_if_none:'' }}"
-                        style="font-size:17px; font-weight:800; font-family:monospace; color:#0f172a; background:#f8fafc; border:1px solid #e2e8f0; padding:3px 10px; border-radius:8px;">
-                    00:00
-                  </span>
-                  <span class="badge badge-upcoming" data-clock-paused-badge {% if not fixture.clock_paused_at %}hidden{% endif %} style="font-size:10px; font-weight:700; color:#b45309; margin-top:2px;">
-                    Paused
-                  </span>
-                {% endif %}
-              </div>
+                </div>
 
-              <span class="score-num" data-score="{{ participants.1.id }}" style="font-size:38px; font-weight:900; color:{% if fixture.status == 'SCHEDULED' %}#cbd5e1{% elif winner_participant and participants.1.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
-                {% if fixture.status == 'SCHEDULED' %}–{% else %}{{ participants.1.score|default_if_none:'0'|floatformat:'-2' }}{% endif %}
-              </span>
+                <span class="score-num" data-score="{{ participants.1.id }}" style="font-size:38px; font-weight:900; color:{% if fixture.status == 'SCHEDULED' %}#cbd5e1{% elif winner_participant and participants.1.id == winner_participant.id %}#059669{% elif winner_participant %}#64748b{% else %}#0f172a{% endif %}; font-variant-numeric:tabular-nums; line-height:1;">
+                  {% if fixture.status == 'SCHEDULED' %}–{% else %}{{ participants.1.score|default_if_none:'0'|floatformat:'-2' }}{% endif %}
+                </span>
+              {% endif %}
             </div>
 
             <!-- Team 2 -->
@@ -233,6 +316,20 @@
                 <div style="font-size:16px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word; text-align:right;">
                   {{ participants.1.name }}
                 </div>
+                {% if is_chess %}
+                  <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px; margin-top:4px;">
+                    {% if chess_info.black_rating %}
+                      <span style="font-size:11px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:999px;">
+                        Rating {{ chess_info.black_rating }}
+                      </span>
+                    {% endif %}
+                    <span style="font-size:11px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; background:#0f172a; color:#fff; border:1.5px solid #0f172a; padding:2px 8px; border-radius:999px; box-shadow:0 1px 2px rgba(0,0,0,0.1); display:inline-flex; align-items:center; gap:4px;">
+                      ⚫ Black
+                    </span>
+                  </div>
+                {% elif is_racket and racket_info.is_doubles %}
+                  <div style="font-size:11px; font-weight:700; color:#059669; margin-top:2px; text-align:right;">Doubles Pair</div>
+                {% endif %}
                 {% if winner_participant and participants.1.id == winner_participant.id %}
                   <div style="margin-top:2px; display:flex; justify-content:flex-end;">
                     <span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:1px 8px; border-radius:999px;">
@@ -252,24 +349,56 @@
 
           </div>
 
+          {% if is_racket and racket_info.sets %}
+            <!-- Racket Sports: Set-by-Set Pills Row -->
+            <div style="display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 0 12px; border-top:1px dashed #f1f5f9; margin-top:8px;">
+              {% for s in racket_info.sets %}
+                <span style="font-size:12px; font-weight:700; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; padding:3px 10px; border-radius:999px;">
+                  Set {{ s.set_num }}: <b style="color:{% if s.winner == 'a' %}#059669{% else %}#0f172a{% endif %};">{{ s.a }}</b>–<b style="color:{% if s.winner == 'b' %}#059669{% else %}#0f172a{% endif %};">{{ s.b }}</b>
+                  {% if s.is_live %}<span style="color:#dc2626; font-size:10px; margin-left:3px;">• Live</span>{% endif %}
+                </span>
+              {% endfor %}
+            </div>
+          {% endif %}
+
           {% if fixture.status == 'COMPLETED' %}
             <!-- Completed Match Summary Banner -->
             <div style="margin-top:8px; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
               <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:20px;">{% if is_final %}🏆{% else %}🏁{% endif %}</span>
+                <span style="font-size:20px;">{% if is_final %}🏆{% elif is_chess %}♟️{% elif is_racket %}🏸{% else %}🏁{% endif %}</span>
                 <span style="font-size:13.5px; font-weight:700; color:#0f172a;">
-                  {% if is_final and winner_participant %}
-                    <b>{{ winner_participant.name }}</b> won the Final and is crowned <b>Tournament Champion!</b>
-                  {% elif winner_participant %}
-                    <b>{{ winner_participant.name }}</b> won this match {% if margin %}by {{ margin }} point{{ margin|pluralize }}{% endif %}
+                  {% if is_chess %}
+                    {% if chess_info.is_draw %}
+                      Game drawn by agreement / stalemate (½ – ½)
+                    {% elif winner_participant %}
+                      <b>{{ winner_participant.name }}</b> won playing as {% if winner_participant.id == participants.0.id %}<b>White ⚪</b>{% else %}<b>Black ⚫</b>{% endif %} ({{ chess_info.white_score }} – {{ chess_info.black_score }})
+                    {% else %}
+                      Game ended: {{ chess_info.result_text }}
+                    {% endif %}
+                  {% elif is_racket %}
+                    {% if winner_participant %}
+                      <b>{{ winner_participant.name }}</b> won {{ racket_info.sets_won_a }}–{{ racket_info.sets_won_b }} in sets
+                    {% else %}
+                      Match completed
+                    {% endif %}
                   {% else %}
-                    Match ended in a draw ({{ participants.0.score|default_if_none:'0'|floatformat:'-2' }} – {{ participants.1.score|default_if_none:'0'|floatformat:'-2' }})
+                    {% if is_final and winner_participant %}
+                      <b>{{ winner_participant.name }}</b> won the Final and is crowned <b>Tournament Champion!</b>
+                    {% elif winner_participant %}
+                      <b>{{ winner_participant.name }}</b> won this match {% if margin %}by {{ margin }} point{{ margin|pluralize }}{% endif %}
+                    {% else %}
+                      Match ended in a draw ({{ participants.0.score|default_if_none:'0'|floatformat:'-2' }} – {{ participants.1.score|default_if_none:'0'|floatformat:'-2' }})
+                    {% endif %}
                   {% endif %}
                 </span>
               </div>
-              {% if winner_participant and margin %}
+              {% if winner_participant and margin and is_basketball %}
                 <span style="font-size:12px; font-weight:700; color:#059669; background:#ecfdf5; padding:3px 10px; border-radius:999px; border:1px solid #a7f3d0;">
                   +{{ margin }} pts margin
+                </span>
+              {% elif is_racket and racket_info.sets %}
+                <span style="font-size:12px; font-weight:700; color:#059669; background:#ecfdf5; padding:3px 10px; border-radius:999px; border:1px solid #a7f3d0;">
+                  Best of {{ racket_info.sets_to_win|add:racket_info.sets_to_win|add:"-1" }}
                 </span>
               {% endif %}
             </div>
@@ -292,62 +421,316 @@
 
       <!-- 3. Horizontal Navigation Tabs -->
       <div class="match-tab-bar" style="display:flex; gap:8px; border-bottom:2px solid #f1f5f9; padding-bottom:2px;">
-        <button type="button" class="match-tab-btn is-active" data-tab="scorecard"
-                style="padding:10px 18px; font-size:14px; font-weight:800; color:#0f172a; background:transparent; border:none; border-bottom:2px solid #10b981; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
-          Scorecard
-        </button>
-        <button type="button" class="match-tab-btn" data-tab="teams"
-                style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
-          Teams
-        </button>
+        {% if is_basketball %}
+          <button type="button" class="match-tab-btn is-active" data-tab="scorecard"
+                  style="padding:10px 18px; font-size:14px; font-weight:800; color:#0f172a; background:transparent; border:none; border-bottom:2px solid #10b981; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+            Scorecard
+          </button>
+          <button type="button" class="match-tab-btn" data-tab="teams"
+                  style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+            Teams
+          </button>
+        {% elif is_chess %}
+          <button type="button" class="match-tab-btn is-active" data-tab="chess-overview"
+                  style="padding:10px 18px; font-size:14px; font-weight:800; color:#0f172a; background:transparent; border:none; border-bottom:2px solid #10b981; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+            Match Details
+          </button>
+        {% elif is_racket %}
+          <button type="button" class="match-tab-btn is-active" data-tab="racket-sets"
+                  style="padding:10px 18px; font-size:14px; font-weight:800; color:#0f172a; background:transparent; border:none; border-bottom:2px solid #10b981; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+            Set Scores
+          </button>
+          <button type="button" class="match-tab-btn" data-tab="racket-parts"
+                  style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+            {% if racket_info.is_doubles %}Pairs &amp; Rosters{% else %}Competitors{% endif %}
+          </button>
+        {% else %}
+          <button type="button" class="match-tab-btn is-active" data-tab="general-parts"
+                  style="padding:10px 18px; font-size:14px; font-weight:800; color:#0f172a; background:transparent; border:none; border-bottom:2px solid #10b981; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+            Participants
+          </button>
+        {% endif %}
       </div>
 
       <!-- 4. Tab Panels -->
-
-      <!-- TAB 1: SCORECARD -->
-      <div class="match-tab-panel is-active" id="tab-panel-scorecard" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
-        <div id="individual-scoring" data-active-team="{{ participants.0.id }}">
-          <div id="individual-scoring-body">
-            {% include 'public/_individual_scoring.html' %}
+      {% if is_basketball %}
+        <!-- TAB 1: SCORECARD -->
+        <div class="match-tab-panel is-active" id="tab-panel-scorecard" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+          <div id="individual-scoring" data-active-team="{{ participants.0.id }}">
+            <div id="individual-scoring-body">
+              {% include 'public/_individual_scoring.html' %}
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- TAB 2: TEAMS -->
-      <div class="match-tab-panel" id="tab-panel-teams" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
-        <h3 style="margin:0 0 18px; font-size:17px; font-weight:800; color:#0f172a;">Full Team Rosters</h3>
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
-          {% for part in participants %}
-            {% with r=team_rosters|lookup:part.id %}
+        <!-- TAB 2: TEAMS -->
+        <div class="match-tab-panel" id="tab-panel-teams" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+          <h3 style="margin:0 0 18px; font-size:17px; font-weight:800; color:#0f172a;">Full Team Rosters</h3>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+            {% for part in participants %}
+              {% with r=team_rosters|lookup:part.id %}
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+                  <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                    <div style="width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0;">
+                      {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
+                    </div>
+                    <div style="min-width:0;">
+                      <div style="font-size:16px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">{{ part.name }}</div>
+                      {% if r.coach or r.captain %}
+                      <div style="font-size:12px; color:#64748b; margin-top:2px;">
+                        {% if r.coach %}Coach: <b>{{ r.coach }}</b>{% endif %}
+                        {% if r.coach and r.captain %} · {% endif %}
+                        {% if r.captain %}Captain: <b>{{ r.captain }}</b>{% endif %}
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    {% for p in r.players %}
+                      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#fff; border:1px solid #f1f5f9; border-radius:8px; font-size:13px;">
+                        <span style="font-weight:600; color:#0f172a;">{{ p.name }}</span>
+                        <span style="font-family:monospace; font-size:12px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:999px;">#{{ p.jersey }}</span>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endwith %}
+            {% endfor %}
+          </div>
+        </div>
+
+      {% elif is_chess %}
+        <!-- TAB CHESS: MATCH DETAILS -->
+        <div class="match-tab-panel is-active" id="tab-panel-chess-overview" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:24px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+          <h3 style="margin:0 0 20px; font-size:17px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <span>♟️</span> Match Players &amp; Game Details
+          </h3>
+
+          <!-- White vs Black Comparison Cards -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-bottom:24px;">
+            
+            <!-- White Player Card -->
+            <div style="background:#ffffff; border:2px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; background:#fff; color:#0f172a; border:1.5px solid #cbd5e1; padding:3px 12px; border-radius:999px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                  ⚪ White Piece (First Move)
+                </span>
+                {% if chess_info.is_draw %}
+                  <span style="font-size:12px; font-weight:800; color:#475569; background:#f1f5f9; border:1px solid #cbd5e1; padding:2px 10px; border-radius:999px;">Draw (½ pt)</span>
+                {% elif winner_participant and winner_participant.id == participants.0.id %}
+                  <span style="font-size:12px; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 10px; border-radius:999px;">🏆 Winner (1 pt)</span>
+                {% elif fixture.status == 'COMPLETED' %}
+                  <span style="font-size:12px; font-weight:700; color:#94a3b8; background:#f8fafc; border:1px solid #e2e8f0; padding:2px 10px; border-radius:999px;">0 pt</span>
+                {% endif %}
+              </div>
+
+              <div style="display:flex; align-items:center; gap:14px;">
+                <div style="width:52px; height:52px; border-radius:50%; background:#f8fafc; border:2px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; color:#0f172a; flex-shrink:0;">
+                  {{ chess_info.white.initials }}
+                </div>
+                <div style="min-width:0;">
+                  <div style="font-size:17px; font-weight:800; color:#0f172a; line-height:1.25; word-break:break-word;">
+                    {{ chess_info.white.name }}
+                  </div>
+                  <div style="font-size:13px; font-weight:600; color:#64748b; margin-top:3px;">
+                    {% if chess_info.white_rating %}FIDE Rating: <b style="color:#0f172a;">{{ chess_info.white_rating }}</b>{% else %}Unrated / Club{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Black Player Card -->
+            <div style="background:#0f172a; border:2px solid #0f172a; border-radius:16px; padding:20px; box-shadow:0 4px 12px rgba(15,23,42,0.15); color:#fff;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; background:#1e293b; color:#fff; border:1.5px solid #334155; padding:3px 12px; border-radius:999px;">
+                  ⚫ Black Piece (Second Move)
+                </span>
+                {% if chess_info.is_draw %}
+                  <span style="font-size:12px; font-weight:800; color:#cbd5e1; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); padding:2px 10px; border-radius:999px;">Draw (½ pt)</span>
+                {% elif winner_participant and winner_participant.id == participants.1.id %}
+                  <span style="font-size:12px; font-weight:800; color:#10b981; background:rgba(16,185,129,0.15); border:1px solid #10b981; padding:2px 10px; border-radius:999px;">🏆 Winner (1 pt)</span>
+                {% elif fixture.status == 'COMPLETED' %}
+                  <span style="font-size:12px; font-weight:700; color:#94a3b8; background:rgba(255,255,255,0.05); padding:2px 10px; border-radius:999px;">0 pt</span>
+                {% endif %}
+              </div>
+
+              <div style="display:flex; align-items:center; gap:14px;">
+                <div style="width:52px; height:52px; border-radius:50%; background:#1e293b; border:2px solid #475569; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; color:#fff; flex-shrink:0;">
+                  {{ chess_info.black.initials|default:'?' }}
+                </div>
+                <div style="min-width:0;">
+                  <div style="font-size:17px; font-weight:800; color:#fff; line-height:1.25; word-break:break-word;">
+                    {{ chess_info.black.name|default:'TBD' }}
+                  </div>
+                  <div style="font-size:13px; font-weight:600; color:#94a3b8; margin-top:3px;">
+                    {% if chess_info.black_rating %}FIDE Rating: <b style="color:#fff;">{{ chess_info.black_rating }}</b>{% else %}Unrated / Club{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Game Specifications & Rules Grid -->
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+            <div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:12px;">Board &amp; Tournament Context</div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px; font-size:13px;">
+              <div>
+                <span style="color:#64748b; font-size:11.5px; text-transform:uppercase; font-weight:700;">Board Table</span>
+                <div style="font-weight:700; color:#0f172a; margin-top:2px;">Table #{{ fixture.sequence }}</div>
+              </div>
+              <div>
+                <span style="color:#64748b; font-size:11.5px; text-transform:uppercase; font-weight:700;">Round / Stage</span>
+                <div style="font-weight:700; color:#0f172a; margin-top:2px;">{{ fixture.round_name }}</div>
+              </div>
+              <div>
+                <span style="color:#64748b; font-size:11.5px; text-transform:uppercase; font-weight:700;">Format Engine</span>
+                <div style="font-weight:700; color:#0f172a; margin-top:2px;">{{ tournament.get_format_display }}</div>
+              </div>
+              <div>
+                <span style="color:#64748b; font-size:11.5px; text-transform:uppercase; font-weight:700;">Status</span>
+                <div style="font-weight:700; color:{% if chess_info.is_draw %}#475569{% elif winner_participant %}#059669{% else %}#0f172a{% endif %}; margin-top:2px;">
+                  {{ chess_info.result_text }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      {% elif is_racket %}
+        <!-- TAB RACKET 1: SET SCORES -->
+        <div class="match-tab-panel is-active" id="tab-panel-racket-sets" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:24px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+          <h3 style="margin:0 0 16px; font-size:17px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <span>🏸</span> Set-by-Set Score Breakdown
+          </h3>
+
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13.5px; text-align:left;">
+              <thead>
+                <tr style="border-bottom:2px solid #e2e8f0; color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:0.04em;">
+                  <th style="padding:10px 12px; font-weight:800;">Competitor</th>
+                  {% for s in racket_info.sets %}
+                    <th style="padding:10px 12px; text-align:center; font-weight:800;">Set {{ s.set_num }}</th>
+                  {% empty %}
+                    <th style="padding:10px 12px; text-align:center; font-weight:800;">Set 1</th>
+                  {% endfor %}
+                  <th style="padding:10px 12px; text-align:center; font-weight:800; color:#059669;">Sets Won</th>
+                  <th style="padding:10px 12px; text-align:center; font-weight:800;">Total Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Player / Pair A -->
+                <tr style="border-bottom:1px solid #f1f5f9; background:{% if winner_participant and winner_participant.id == participants.0.id %}#f0fdf4{% else %}#fff{% endif %};">
+                  <td style="padding:12px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:10px;">
+                    <div style="width:30px; height:30px; border-radius:50%; background:#fff7ed; border:1px solid #fed7aa; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#F26A1B; flex-shrink:0;">
+                      {{ participants.0.initials }}
+                    </div>
+                    <span>{{ participants.0.name }}</span>
+                    {% if winner_participant and winner_participant.id == participants.0.id %}
+                      <span style="font-size:10.5px; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:1px 6px; border-radius:999px;">✓ WIN</span>
+                    {% endif %}
+                  </td>
+                  {% for s in racket_info.sets %}
+                    <td style="padding:12px; text-align:center; font-weight:{% if s.winner == 'a' %}800{% else %}600{% endif %}; color:{% if s.winner == 'a' %}#059669{% else %}#64748b{% endif %}; font-variant-numeric:tabular-nums; font-size:15px;">
+                      {{ s.a }}
+                    </td>
+                  {% empty %}
+                    <td style="padding:12px; text-align:center; color:#94a3b8;">–</td>
+                  {% endfor %}
+                  <td style="padding:12px; text-align:center; font-weight:900; color:#059669; font-size:17px; font-variant-numeric:tabular-nums;">
+                    {{ racket_info.sets_won_a }}
+                  </td>
+                  <td style="padding:12px; text-align:center; font-weight:700; color:#0f172a; font-size:14px; font-variant-numeric:tabular-nums;">
+                    {{ racket_info.total_points_a }}
+                  </td>
+                </tr>
+
+                <!-- Player / Pair B -->
+                <tr style="background:{% if winner_participant and winner_participant.id == participants.1.id %}#f0fdf4{% else %}#fff{% endif %};">
+                  <td style="padding:12px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:10px;">
+                    <div style="width:30px; height:30px; border-radius:50%; background:#f1f5f9; border:1px solid #cbd5e1; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#1e293b; flex-shrink:0;">
+                      {{ participants.1.initials }}
+                    </div>
+                    <span>{{ participants.1.name }}</span>
+                    {% if winner_participant and winner_participant.id == participants.1.id %}
+                      <span style="font-size:10.5px; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:1px 6px; border-radius:999px;">✓ WIN</span>
+                    {% endif %}
+                  </td>
+                  {% for s in racket_info.sets %}
+                    <td style="padding:12px; text-align:center; font-weight:{% if s.winner == 'b' %}800{% else %}600{% endif %}; color:{% if s.winner == 'b' %}#059669{% else %}#64748b{% endif %}; font-variant-numeric:tabular-nums; font-size:15px;">
+                      {{ s.b }}
+                    </td>
+                  {% empty %}
+                    <td style="padding:12px; text-align:center; color:#94a3b8;">–</td>
+                  {% endfor %}
+                  <td style="padding:12px; text-align:center; font-weight:900; color:#059669; font-size:17px; font-variant-numeric:tabular-nums;">
+                    {{ racket_info.sets_won_b }}
+                  </td>
+                  <td style="padding:12px; text-align:center; font-weight:700; color:#0f172a; font-size:14px; font-variant-numeric:tabular-nums;">
+                    {{ racket_info.total_points_b }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB RACKET 2: PARTICIPANTS -->
+        <div class="match-tab-panel" id="tab-panel-racket-parts" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+          <h3 style="margin:0 0 18px; font-size:17px; font-weight:800; color:#0f172a;">{% if racket_info.is_doubles %}Doubles Pairs &amp; Squads{% else %}Match Competitors{% endif %}</h3>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+            {% for part in participants %}
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
-                <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-                  <div style="width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                  <div style="width:44px; height:44px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; overflow:hidden; flex-shrink:0;">
                     {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
                   </div>
                   <div style="min-width:0;">
                     <div style="font-size:16px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">{{ part.name }}</div>
-                    {% if r.coach or r.captain %}
-                    <div style="font-size:12px; color:#64748b; margin-top:2px;">
-                      {% if r.coach %}Coach: <b>{{ r.coach }}</b>{% endif %}
-                      {% if r.coach and r.captain %} · {% endif %}
-                      {% if r.captain %}Captain: <b>{{ r.captain }}</b>{% endif %}
-                    </div>
+                    {% if racket_info.is_doubles %}
+                      <div style="font-size:12px; color:#059669; font-weight:700; margin-top:2px;">Doubles Pair</div>
                     {% endif %}
                   </div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  {% for p in r.players %}
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#fff; border:1px solid #f1f5f9; border-radius:8px; font-size:13px;">
-                      <span style="font-weight:600; color:#0f172a;">{{ p.name }}</span>
-                      <span style="font-family:monospace; font-size:12px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:999px;">#{{ p.jersey }}</span>
-                    </div>
-                  {% endfor %}
+
+                {% if part.team %}
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    {% for m in part.team.memberships.all %}
+                      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#fff; border:1px solid #f1f5f9; border-radius:8px; font-size:13px;">
+                        <span style="font-weight:600; color:#0f172a;">{{ m.display_name|default:m.player.user.get_full_name }}</span>
+                        <span style="font-size:11px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:999px;">{{ m.get_role_display|default:"Partner" }}</span>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      {% else %}
+        <!-- GENERIC SPORT TAB -->
+        <div class="match-tab-panel is-active" id="tab-panel-general-parts" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+          <h3 style="margin:0 0 18px; font-size:17px; font-weight:800; color:#0f172a;">Match Participants</h3>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+            {% for part in participants %}
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+                <div style="width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0;">
+                  {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
+                </div>
+                <div style="min-width:0;">
+                  <div style="font-size:15px; font-weight:800; color:#0f172a;">{{ part.name }}</div>
+                  {% if part.score is not None %}
+                    <div style="font-size:12px; font-weight:700; color:#059669; margin-top:2px;">Score: {{ part.score|floatformat:'-2' }}</div>
+                  {% elif part.time_display %}
+                    <div style="font-size:12px; font-weight:700; color:#059669; margin-top:2px;">Time: {{ part.time_display }}</div>
+                  {% endif %}
                 </div>
               </div>
-            {% endwith %}
-          {% endfor %}
+            {% endfor %}
+          </div>
         </div>
-      </div>
+      {% endif %}
 
     </div>
 
@@ -383,9 +766,13 @@
         <div style="display:flex; gap:5px; margin-bottom:12px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none;" id="comm-filter-tabs">
           <button type="button" class="comm-f-btn is-active" data-filter="ALL" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; background:#0f172a; color:#fff; border:none; cursor:pointer; white-space:nowrap;">All</button>
           <button type="button" class="comm-f-btn" data-filter="KEY_MOMENT" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">⚡ Key Moments</button>
-          <button type="button" class="comm-f-btn" data-filter="SCORING" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🏀 Scoring</button>
-          <button type="button" class="comm-f-btn" data-filter="FOUL" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🔴 Fouls</button>
-          <button type="button" class="comm-f-btn" data-filter="MATCH_UPDATE" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🔄 Substitutions</button>
+          {% if is_basketball %}
+            <button type="button" class="comm-f-btn" data-filter="SCORING" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🏀 Scoring</button>
+            <button type="button" class="comm-f-btn" data-filter="FOUL" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🔴 Fouls</button>
+            <button type="button" class="comm-f-btn" data-filter="MATCH_UPDATE" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🔄 Substitutions</button>
+          {% else %}
+            <button type="button" class="comm-f-btn" data-filter="SCORING" style="font-size:11px; padding:4px 10px; border-radius:999px; font-weight:700; color:#475569; background:#f1f5f9; border:none; cursor:pointer; white-space:nowrap;">🎯 Scoring / Updates</button>
+          {% endif %}
         </div>
 
         <!-- Real-time commentary stream list -->
@@ -400,7 +787,7 @@
           {% for ev in events %}
             <div class="comm-entry-card" data-category="{% if ev.event_type == 'score' %}SCORING{% elif ev.event_type == 'foul' %}FOUL{% else %}KEY_MOMENT{% endif %}" style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9; font-size:12.5px;">
               <span style="font-family:monospace; font-size:11px; color:#94a3b8; font-weight:600; padding-top:1px;">{{ ev.created_at|date:'i:s'|default:'06:24' }}</span>
-              <span style="font-size:13px;">{% if ev.event_type == 'score' %}🏀{% elif ev.event_type == 'foul' %}🔴{% else %}⚡{% endif %}</span>
+              <span style="font-size:13px;">{% if ev.event_type == 'score' %}{{ tournament.sport.icon|default:'🎯' }}{% elif ev.event_type == 'foul' %}🔴{% else %}⚡{% endif %}</span>
               <div style="flex:1; min-width:0; line-height:1.4;">
                 <span style="font-weight:700; color:#0f172a;">{{ ev.description }}</span>
               </div>
@@ -425,50 +812,128 @@
 
       </div>
 
-      <!-- CARD 2: TEAMS & PARTICIPANTS (Exact Reference Match) -->
+      <!-- CARD 2: TEAMS & PARTICIPANTS / PLAYERS -->
       <div class="panel pm-teams-card" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-          <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Teams &amp; Participants</h3>
-          <button type="button" onclick="switchMatchTab('teams')" style="background:none; border:none; font-size:11.5px; font-weight:700; color:#F26A1B; cursor:pointer;">
-            View full squads →
-          </button>
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">
+            {% if is_chess %}Players &amp; Colors{% elif is_racket and not racket_info.is_doubles %}Competitors{% else %}Teams &amp; Participants{% endif %}
+          </h3>
+          {% if is_basketball %}
+            <button type="button" onclick="switchMatchTab('teams')" style="background:none; border:none; font-size:11.5px; font-weight:700; color:#F26A1B; cursor:pointer;">
+              View full squads →
+            </button>
+          {% elif is_racket and racket_info.is_doubles %}
+            <button type="button" onclick="switchMatchTab('racket-parts')" style="background:none; border:none; font-size:11.5px; font-weight:700; color:#F26A1B; cursor:pointer;">
+              View pairs →
+            </button>
+          {% endif %}
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
-          {% for part in participants %}
-            {% with r=team_rosters|lookup:part.id %}
-              <div style="display:flex; flex-direction:column; gap:6px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <div style="width:34px; height:34px; border-radius:10px; background:{% if forloop.first %}#F26A1B{% else %}#0f172a{% endif %}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; overflow:hidden; flex-shrink:0;">
-                    {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
-                  </div>
-                  <div style="min-width:0; flex:1;">
-                    <div style="font-size:13px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">{{ part.name }}</div>
-                  </div>
+        {% if is_chess %}
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+            <!-- White Player -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:34px; height:34px; border-radius:10px; background:#fff; border:1.5px solid #cbd5e1; color:#0f172a; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; overflow:hidden; flex-shrink:0;">
+                  {{ chess_info.white.initials }}
                 </div>
-                {% if r.coach or r.captain %}
-                <div style="font-size:11px; color:#64748b; line-height:1.3;">
-                  {% if r.coach %}<div>Coach: <span style="color:#0f172a; font-weight:600;">{{ r.coach }}</span></div>{% endif %}
-                  {% if r.captain %}<div>Captain: <span style="color:#0f172a; font-weight:600;">{{ r.captain }}</span></div>{% endif %}
-                </div>
-                {% endif %}
-                <!-- Jersey chips -->
-                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
-                  {% for p in r.players|slice:":5" %}
-                    <div style="display:flex; flex-direction:column; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:3px 5px; min-width:24px;">
-                      <span style="font-size:10px; font-weight:800; color:#0f172a;">{{ p.jersey }}</span>
-                      <span style="font-size:9px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:40px;">{{ p.short_name }}</span>
-                    </div>
-                  {% endfor %}
+                <div style="min-width:0; flex:1;">
+                  <div style="font-size:13px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">
+                    {{ chess_info.white.name }}
+                  </div>
                 </div>
               </div>
-            {% endwith %}
-          {% endfor %}
-        </div>
+              <div style="margin-top:2px;">
+                <span style="font-size:10.5px; font-weight:800; background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; padding:2px 8px; border-radius:999px;">⚪ White</span>
+                {% if chess_info.white_rating %}
+                  <div style="font-size:11px; font-weight:600; color:#64748b; margin-top:3px;">Rating: {{ chess_info.white_rating }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Black Player -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:34px; height:34px; border-radius:10px; background:#0f172a; border:1.5px solid #0f172a; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; overflow:hidden; flex-shrink:0;">
+                  {{ chess_info.black.initials|default:'?' }}
+                </div>
+                <div style="min-width:0; flex:1;">
+                  <div style="font-size:13px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">
+                    {{ chess_info.black.name|default:'TBD' }}
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:2px;">
+                <span style="font-size:10.5px; font-weight:800; background:#0f172a; color:#fff; border:1px solid #0f172a; padding:2px 8px; border-radius:999px;">⚫ Black</span>
+                {% if chess_info.black_rating %}
+                  <div style="font-size:11px; font-weight:600; color:#64748b; margin-top:3px;">Rating: {{ chess_info.black_rating }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+        {% elif is_racket and not racket_info.is_doubles %}
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+            {% for part in participants %}
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width:34px; height:34px; border-radius:10px; background:{% if forloop.first %}#059669{% else %}#0f172a{% endif %}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; overflow:hidden; flex-shrink:0;">
+                    {{ part.initials }}
+                  </div>
+                  <div style="min-width:0; flex:1;">
+                    <div style="font-size:13px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">
+                      {{ part.name }}
+                    </div>
+                  </div>
+                </div>
+                {% if part.score is not None %}
+                  <div style="font-size:11.5px; font-weight:700; color:#059669;">
+                    Sets: {{ part.score|floatformat:'0' }}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+        {% else %}
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+            {% for part in participants %}
+              {% with r=team_rosters|lookup:part.id %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:34px; height:34px; border-radius:10px; background:{% if forloop.first %}#F26A1B{% else %}#0f172a{% endif %}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; overflow:hidden; flex-shrink:0;">
+                      {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
+                    </div>
+                    <div style="min-width:0; flex:1;">
+                      <div style="font-size:13px; font-weight:800; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25; word-break:break-word;">{{ part.name }}</div>
+                    </div>
+                  </div>
+                  {% if r.coach or r.captain %}
+                  <div style="font-size:11px; color:#64748b; line-height:1.3;">
+                    {% if r.coach %}<div>Coach: <span style="color:#0f172a; font-weight:600;">{{ r.coach }}</span></div>{% endif %}
+                    {% if r.captain %}<div>Captain: <span style="color:#0f172a; font-weight:600;">{{ r.captain }}</span></div>{% endif %}
+                  </div>
+                  {% endif %}
+                  {% if r.players %}
+                  <!-- Jersey chips -->
+                  <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
+                    {% for p in r.players|slice:":5" %}
+                      <div style="display:flex; flex-direction:column; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:3px 5px; min-width:24px;">
+                        <span style="font-size:10px; font-weight:800; color:#0f172a;">{{ p.jersey }}</span>
+                        <span style="font-size:9px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:40px;">{{ p.short_name }}</span>
+                      </div>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+              {% endwith %}
+            {% endfor %}
+          </div>
+        {% endif %}
       </div>
 
-      <!-- CARD 3: MATCH STATS BARS (Exact Reference Match) -->
-      {% if team_stats and fixture.status != 'SCHEDULED' %}
+      <!-- CARD 3: MATCH STATS BARS -->
+      {% if is_basketball and team_stats and fixture.status != 'SCHEDULED' %}
       <div class="panel pm-stats-card" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Match Stats</h3>
@@ -576,6 +1041,97 @@
               <div style="height:100%; width:{{ team_stats.team_b.fouls_pct|default:'0' }}%; background:#0f172a; border-radius:999px;"></div>
             </div>
             <span style="font-weight:800;">{{ team_stats.team_b.fouls }}</span>
+          </div>
+        </div>
+      </div>
+      {% elif is_racket and racket_info.sets and fixture.status != 'SCHEDULED' %}
+      <!-- RACKET MATCH STATS -->
+      <div class="panel pm-stats-card" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Match Stats</h3>
+          <span style="font-size:11px; font-weight:700; color:#059669; background:#ecfdf5; padding:2px 8px; border-radius:999px;">Sets &amp; Points</span>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color:#0f172a; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:5px;">
+            <span style="width:8px; height:8px; border-radius:50%; background:#F26A1B;"></span>
+            <span>{{ racket_info.part_a.name }}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:5px;">
+            <span>{{ racket_info.part_b.name }}</span>
+            <span style="width:8px; height:8px; border-radius:50%; background:#0f172a;"></span>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:11.5px;">
+          <!-- Sets Won -->
+          <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ racket_info.sets_won_a }}</span>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{% if racket_info.sets_won_a > racket_info.sets_won_b %}100%{% elif racket_info.sets_won_a == racket_info.sets_won_b %}50%{% else %}0%{% endif %}; background:#F26A1B; border-radius:999px;"></div>
+            </div>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Sets Won</span>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{% if racket_info.sets_won_b > racket_info.sets_won_a %}100%{% elif racket_info.sets_won_a == racket_info.sets_won_b %}50%{% else %}0%{% endif %}; background:#0f172a; border-radius:999px;"></div>
+            </div>
+            <span style="font-weight:800;">{{ racket_info.sets_won_b }}</span>
+          </div>
+
+          <!-- Total Points -->
+          <div style="display:grid; grid-template-columns: 28px 1fr 70px 1fr 28px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ racket_info.total_points_a }}</span>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="height:100%; width:{{ racket_info.total_points_a_pct }}%; background:#F26A1B; border-radius:999px;"></div>
+            </div>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Total Pts</span>
+            <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+              <div style="height:100%; width:{{ racket_info.total_points_b_pct }}%; background:#0f172a; border-radius:999px;"></div>
+            </div>
+            <span style="font-weight:800;">{{ racket_info.total_points_b }}</span>
+          </div>
+
+          <!-- Individual Sets -->
+          {% for s in racket_info.sets %}
+            <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+              <span style="font-weight:800; text-align:right; color:{% if s.winner == 'a' %}#059669{% else %}#0f172a{% endif %};">{{ s.a }}</span>
+              <div style="height:4px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+                <div style="height:100%; width:{% if s.winner == 'a' %}100%{% else %}40%{% endif %}; background:{% if s.winner == 'a' %}#10b981{% else %}#cbd5e1{% endif %}; border-radius:999px;"></div>
+              </div>
+              <span style="text-align:center; color:#64748b; font-weight:600; font-size:11px;">Set {{ s.set_num }}</span>
+              <div style="height:4px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-start;">
+                <div style="height:100%; width:{% if s.winner == 'b' %}100%{% else %}40%{% endif %}; background:{% if s.winner == 'b' %}#10b981{% else %}#cbd5e1{% endif %}; border-radius:999px;"></div>
+              </div>
+              <span style="font-weight:800; color:{% if s.winner == 'b' %}#059669{% else %}#0f172a{% endif %};">{{ s.b }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% elif is_chess and fixture.status == 'COMPLETED' %}
+      <!-- CHESS OUTCOME CARD -->
+      <div class="panel pm-stats-card" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Match Outcome</h3>
+          <span style="font-size:11px; font-weight:700; color:#0f172a; background:#f1f5f9; padding:2px 8px; border-radius:999px;">Official</span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:12.5px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9;">
+            <span style="color:#64748b; font-weight:600;">Result</span>
+            <span style="font-weight:800; font-size:14px; color:{% if chess_info.is_draw %}#475569{% else %}#059669{% endif %};">
+              {% if chess_info.is_draw %}Draw (½ – ½){% elif winner_participant %}Win for {{ winner_participant.name }}{% else %}{{ chess_info.result_text }}{% endif %}
+            </span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9;">
+            <span style="color:#64748b; font-weight:600;">Table</span>
+            <span style="font-weight:700; color:#0f172a;">Table #{{ fixture.sequence }}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9;">
+            <span style="color:#64748b; font-weight:600;">White Player</span>
+            <span style="font-weight:700; color:#0f172a;">⚪ {{ chess_info.white.name }}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9;">
+            <span style="color:#64748b; font-weight:600;">Black Player</span>
+            <span style="font-weight:700; color:#0f172a;">⚫ {{ chess_info.black.name|default:'TBD' }}</span>
           </div>
         </div>
       </div>

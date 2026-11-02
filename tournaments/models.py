@@ -644,6 +644,31 @@ class Fixture(TimeStamped):
         b = sum(1 for s in finished if s.get('b', 0) > s.get('a', 0))
         return a, b
 
+    @property
+    def chess_score_display(self):
+        """Returns ('1', '0'), ('0', '1'), ('½', '½'), or None for chess fixtures."""
+        if self.tournament.sport.slug != 'chess':
+            return None
+        parts = list(self.ordered_participants())
+        if len(parts) != 2 or self.status == 'SCHEDULED':
+            return None
+        s0, s1 = parts[0].score, parts[1].score
+        if s0 is None or s1 is None:
+            return None
+        try:
+            f0, f1 = float(s0), float(s1)
+        except (ValueError, TypeError):
+            return None
+        if f0 == 1.0 and f1 == 0.0:
+            return ('1', '0')
+        elif f0 == 0.0 and f1 == 1.0:
+            return ('0', '1')
+        elif f0 == 0.5 and f1 == 0.5:
+            return ('½', '½')
+        elif f0 == f1:
+            return ('½', '½')
+        return (str(parts[0].score), str(parts[1].score))
+
 
 class FixtureParticipant(models.Model):
     """One row per competitor. Exactly one of team/player is set (enforced by a
