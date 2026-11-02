@@ -74,79 +74,160 @@
       });
     });
 
-    document.querySelectorAll('[data-bball-open]').forEach(function (btn) {
+    // Unified Action Dialog Handler (Points, Stats, Fouls)
+    function openActionDialog(participantId, actionType, options) {
+      options = options || {};
+
+      // If individual scoring is disabled, post directly to team
+      if (!individualScoringEnabled) {
+        if (actionType === 'score') {
+          const form = document.getElementById('score-form-' + participantId);
+          const pointsInput = document.getElementById('points-input-' + participantId);
+          if (form && pointsInput) {
+            pointsInput.value = options.points || '1';
+            bballSubmit(form);
+          }
+        } else if (actionType === 'stat') {
+          const form = document.getElementById('stat-form-' + participantId);
+          const statInput = document.getElementById('stat-type-input-' + participantId);
+          if (form && statInput) {
+            statInput.value = options.stat || 'free_throw';
+            bballSubmit(form);
+          }
+        } else if (actionType === 'foul') {
+          const form = document.getElementById('foul-form-' + participantId);
+          if (form) bballSubmit(form);
+        }
+        return;
+      }
+
+      const dialog = document.getElementById('action-dialog-' + participantId) ||
+                     document.getElementById('player-dialog-' + participantId) ||
+                     document.getElementById('foul-dialog-' + participantId);
+      if (!dialog) return;
+
+      dialog.setAttribute('data-active-action', actionType);
+      if (options.points) dialog.setAttribute('data-active-points', options.points);
+      if (options.stat) dialog.setAttribute('data-active-stat', options.stat);
+
+      const titleEl = dialog.querySelector('[data-bball-dialog-title]');
+      const subEl = dialog.querySelector('[data-bball-dialog-subtitle]');
+      if (titleEl) {
+        if (actionType === 'score') {
+          const pts = options.points || '2';
+          titleEl.textContent = pts === '1' ? '🎯 Free Throw (+1 PT)' : (pts === '3' ? '🔥 3-Pointer (+3 PTS)' : '🏀 2 Points (+2 PTS)');
+        } else if (actionType === 'stat') {
+          const statMap = {
+            'free_throw': '🎯 Free Throw (+1 PT)',
+            'assist': '🤝 Assist (+1 AST)',
+            'rebound': '🛡️ Rebound (+1 REB)',
+            'steal': '⚡ Steal (+1 STL)'
+          };
+          titleEl.textContent = statMap[options.stat] || 'Record Stat';
+        } else if (actionType === 'foul') {
+          titleEl.textContent = '⚠️ Personal Foul';
+        }
+      }
+      if (subEl) {
+        subEl.textContent = 'Select player below to record';
+      }
+
+      if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+      }
+    }
+
+    // Bind data-bball-action clicks (Scoring, Stats, Fouls)
+    document.querySelectorAll('[data-bball-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        const participantId = btn.getAttribute('data-bball-open');
+        const actionType = btn.getAttribute('data-bball-action');
+        const participantId = btn.getAttribute('data-bball-participant');
         const points = btn.getAttribute('data-bball-points');
-        // Individual scoring off: apply the points straight to the team,
-        // same score-form as the roster-pick path below just posts with no
-        // membership_id — skip the "who scored?" dialog entirely.
-        if (!individualScoringEnabled) {
-          const pointsInput = document.getElementById('points-input-' + participantId);
-          const form = document.getElementById('score-form-' + participantId);
-          if (!pointsInput || !form) return;
-          pointsInput.value = points;
-          bballSubmit(form);
-          return;
-        }
-        const dialog = document.getElementById('player-dialog-' + participantId);
-        if (!dialog) return;
-        dialog.setAttribute('data-bball-active-points', points);
-        const label = dialog.querySelector('[data-bball-points-label]');
-        if (label) label.textContent = '(+' + points + ')';
-        if (typeof dialog.showModal === 'function') dialog.showModal();
+        const stat = btn.getAttribute('data-bball-stat');
+        openActionDialog(participantId, actionType, { points: points, stat: stat });
       });
     });
 
-    document.querySelectorAll('.bball-player-dialog').forEach(function (dialog) {
-      const participantId = dialog.getAttribute('data-bball-participant');
-
-      dialog.querySelectorAll('[data-bball-membership]').forEach(function (rosterBtn) {
-        rosterBtn.addEventListener('click', function () {
-          const membershipId = rosterBtn.getAttribute('data-bball-membership');
-          const points = dialog.getAttribute('data-bball-active-points');
-          const membershipInput = document.getElementById('membership-input-' + participantId);
-          const pointsInput = document.getElementById('points-input-' + participantId);
-          const form = document.getElementById('score-form-' + participantId);
-          if (!membershipInput || !pointsInput || !form) return;
-          membershipInput.value = membershipId;
-          pointsInput.value = points;
-          bballSubmit(form);
+    // Also support legacy data-bball-open if any exists
+    document.querySelectorAll('[data-bball-open]').forEach(function (btn) {
+      if (!btn.getAttribute('data-bball-action')) {
+        btn.addEventListener('click', function () {
+          const participantId = btn.getAttribute('data-bball-open');
+          const points = btn.getAttribute('data-bball-points');
+          openActionDialog(participantId, 'score', { points: points });
         });
-      });
-
-      const cancelBtn = dialog.querySelector('.bball-dialog-cancel');
-      if (cancelBtn) cancelBtn.addEventListener('click', function () { dialog.close(); });
+      }
     });
 
+    // Also support legacy data-bball-open-foul if any exists
     document.querySelectorAll('[data-bball-open-foul]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const participantId = btn.getAttribute('data-bball-open-foul');
-        // Individual scoring off: same "team foul (no player)" outcome the
-        // dialog's own team-foul option already produces — post it directly.
-        if (!individualScoringEnabled) {
-          const form = document.getElementById('foul-form-' + participantId);
-          if (!form) return;
-          bballSubmit(form);
-          return;
-        }
-        const dialog = document.getElementById('foul-dialog-' + participantId);
-        if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
-      });
+      if (!btn.getAttribute('data-bball-action')) {
+        btn.addEventListener('click', function () {
+          const participantId = btn.getAttribute('data-bball-open-foul');
+          openActionDialog(participantId, 'foul', {});
+        });
+      }
     });
 
-    document.querySelectorAll('[data-bball-foul-participant]').forEach(function (dialog) {
-      const participantId = dialog.getAttribute('data-bball-foul-participant');
+    // Player selection inside dialogs
+    document.querySelectorAll('.bball-player-dialog').forEach(function (dialog) {
+      const participantId = dialog.getAttribute('data-bball-participant') || dialog.getAttribute('data-bball-foul-participant');
 
-      dialog.querySelectorAll('[data-bball-foul-membership]').forEach(function (rosterBtn) {
+      // Click outside dialog to close
+      dialog.addEventListener('click', function (e) {
+        const rect = dialog.getBoundingClientRect();
+        const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height
+          && rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+        if (!isInDialog) {
+          dialog.close();
+        }
+      });
+
+      // Handle roster player selection (supports both data-bball-select-membership and legacy data-bball-membership / data-bball-foul-membership)
+      dialog.querySelectorAll('[data-bball-select-membership], [data-bball-membership], [data-bball-foul-membership]').forEach(function (rosterBtn) {
         rosterBtn.addEventListener('click', function () {
-          const membershipId = rosterBtn.getAttribute('data-bball-foul-membership');
-          const membershipInput = document.getElementById('foul-membership-input-' + participantId);
-          const form = document.getElementById('foul-form-' + participantId);
-          if (!membershipInput || !form) return;
-          membershipInput.value = membershipId || '';
-          bballSubmit(form);
+          const membershipId = rosterBtn.getAttribute('data-bball-select-membership') !== null
+            ? rosterBtn.getAttribute('data-bball-select-membership')
+            : (rosterBtn.getAttribute('data-bball-membership') !== null
+                ? rosterBtn.getAttribute('data-bball-membership')
+                : rosterBtn.getAttribute('data-bball-foul-membership'));
+
+          const actionType = dialog.getAttribute('data-active-action') ||
+            (dialog.hasAttribute('data-bball-foul-participant') ? 'foul' : 'score');
+
+          if (actionType === 'score') {
+            const points = dialog.getAttribute('data-active-points') || dialog.getAttribute('data-bball-active-points') || '1';
+            const membershipInput = document.getElementById('membership-input-' + participantId);
+            const pointsInput = document.getElementById('points-input-' + participantId);
+            const form = document.getElementById('score-form-' + participantId);
+            if (!membershipInput || !pointsInput || !form) return;
+            membershipInput.value = membershipId || '';
+            pointsInput.value = points;
+            dialog.close();
+            bballSubmit(form);
+          } else if (actionType === 'stat') {
+            const statType = dialog.getAttribute('data-active-stat') || 'free_throw';
+            const membershipInput = document.getElementById('stat-membership-input-' + participantId);
+            const statInput = document.getElementById('stat-type-input-' + participantId);
+            const form = document.getElementById('stat-form-' + participantId);
+            if (!membershipInput || !statInput || !form) return;
+            membershipInput.value = membershipId || '';
+            statInput.value = statType;
+            dialog.close();
+            bballSubmit(form);
+          } else if (actionType === 'foul') {
+            const membershipInput = document.getElementById('foul-membership-input-' + participantId);
+            const form = document.getElementById('foul-form-' + participantId);
+            if (!membershipInput || !form) return;
+            membershipInput.value = membershipId || '';
+            dialog.close();
+            bballSubmit(form);
+          }
         });
+      });
+
+      dialog.querySelectorAll('.bball-dialog-cancel').forEach(function (cancelBtn) {
+        cancelBtn.addEventListener('click', function () { dialog.close(); });
       });
     });
 

@@ -41,11 +41,12 @@
                 <th style="padding:10px 12px; width:45px; text-align:center;">#</th>
                 <th style="padding:10px 12px;">Player</th>
                 <th style="padding:10px 12px; text-align:center; font-weight:800; color:#0f172a;">PTS</th>
-                <th style="padding:10px 12px; text-align:center;">1PT</th>
+                <th style="padding:10px 12px; text-align:center;">FT</th>
                 <th style="padding:10px 12px; text-align:center;">2PT</th>
                 <th style="padding:10px 12px; text-align:center;">3PT</th>
                 <th style="padding:10px 12px; text-align:center;">REB</th>
                 <th style="padding:10px 12px; text-align:center;">AST</th>
+                <th style="padding:10px 12px; text-align:center;">STL</th>
                 <th style="padding:10px 12px; text-align:center;">FOULS</th>
               </tr>
             </thead>
@@ -66,11 +67,12 @@
                     </div>
                   </td>
                   <td style="padding:12px; text-align:center; font-weight:800; font-size:14px; color:#0f172a;">{{ r.total }}</td>
-                  <td style="padding:12px; text-align:center; color:#475569;">{{ r.pt1 }}</td>
+                  <td style="padding:12px; text-align:center; color:#475569;">{{ r.ft|default:r.pt1|default:'0' }}</td>
                   <td style="padding:12px; text-align:center; color:#475569;">{{ r.pt2 }}</td>
                   <td style="padding:12px; text-align:center; color:#475569;">{{ r.pt3 }}</td>
                   <td style="padding:12px; text-align:center; color:#475569;">{{ r.reb|default:'0' }}</td>
                   <td style="padding:12px; text-align:center; color:#475569;">{{ r.ast|default:'0' }}</td>
+                  <td style="padding:12px; text-align:center; color:#475569;">{{ r.stl|default:'0' }}</td>
                   <td style="padding:12px; text-align:center; color:{% if r.fouls >= 4 %}#dc2626; font-weight:700;{% else %}#475569;{% endif %}">{{ r.fouls }}</td>
                 </tr>
               {% endfor %}

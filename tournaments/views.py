@@ -1734,10 +1734,12 @@ def _basketball_scoring_context(fixture):
 
     def row_for(mid, snap, participant):
         return totals.setdefault(mid, {
+            'membership_id': mid,
             'name': snap.get('player_name', ''), 'jersey_number': snap.get('jersey_number', ''),
             'team_name': participant.name if participant else '',
             'team_participant_id': participant.id if participant else None,
             'pt1': 0, 'pt2': 0, 'pt3': 0, 'total': 0, 'fouls': 0,
+            'ft': 0, 'reb': 0, 'ast': 0, 'stl': 0,
         })
 
     for ev in fixture.events.filter(event_type='score').select_related('participant__team'):
@@ -1749,6 +1751,8 @@ def _basketball_scoring_context(fixture):
         row = row_for(mid, snap, ev.participant)
         row[f'pt{pts}'] += 1
         row['total'] += pts
+        if pts == 1 or snap.get('is_ft'):
+            row['ft'] += 1
 
     for ev in fixture.events.filter(event_type='foul').select_related('participant__team'):
         snap = ev.score_snapshot or {}
@@ -1758,7 +1762,31 @@ def _basketball_scoring_context(fixture):
         row = row_for(mid, snap, ev.participant)
         row['fouls'] += 1
 
-    individual_rows = sorted(totals.values(), key=lambda r: (-r['total'], -r['fouls'], r['name'].lower()))
+    for ev in fixture.events.filter(event_type='assist').select_related('participant__team'):
+        snap = ev.score_snapshot or {}
+        mid = snap.get('membership_id')
+        if not mid:
+            continue
+        row = row_for(mid, snap, ev.participant)
+        row['ast'] += 1
+
+    for ev in fixture.events.filter(event_type='rebound').select_related('participant__team'):
+        snap = ev.score_snapshot or {}
+        mid = snap.get('membership_id')
+        if not mid:
+            continue
+        row = row_for(mid, snap, ev.participant)
+        row['reb'] += 1
+
+    for ev in fixture.events.filter(event_type='steal').select_related('participant__team'):
+        snap = ev.score_snapshot or {}
+        mid = snap.get('membership_id')
+        if not mid:
+            continue
+        row = row_for(mid, snap, ev.participant)
+        row['stl'] += 1
+
+    individual_rows = sorted(totals.values(), key=lambda r: (-r['total'], -r['reb'], -r['ast'], -r['stl'], -r['fouls'], r['name'].lower()))
     # Same rows, split per team-side — the redesigned individual-scoring panel
     # (score.html) shows one team's players at a time and needs its own list
     # + count per participant without re-deriving anything from the events.
@@ -2359,6 +2387,55 @@ def score_fixture(request, slug, fixture_id):
                 messages.success(request, f'{participant.name} +{points}.')
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
+        if action == 'record_stat':
+            if not is_basketball:
+                messages.error(request, 'Stats tracking is only available for basketball matches.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            if fixture.status != 'LIVE':
+                messages.error(request, 'Start the match before recording stats.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            stat_type = request.POST.get('stat_type')
+            if stat_type not in ('assist', 'steal', 'rebound', 'free_throw'):
+                messages.error(request, 'Choose assist, steal, rebound, or free throw.')
+                return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+            participant = get_object_or_404(FixtureParticipant, id=request.POST.get('participant_id'),
+                                            fixture=fixture)
+            membership_id = request.POST.get('membership_id')
+            membership = None
+            if membership_id and participant.team_id:
+                membership = get_object_or_404(TeamMembership, id=membership_id, team_id=participant.team_id)
+
+            with transaction.atomic():
+                if stat_type == 'free_throw':
+                    participant.score = (participant.score or 0) + 1
+                    participant.save(update_fields=['score'])
+                    ScoreEvent.objects.create(
+                        fixture=fixture, participant=participant, event_type='score',
+                        description=(f'{participant.name} +1 FT — {membership.name} (#{membership.jersey_number or "-"})'
+                                     if membership else f'{participant.name} +1 FT'),
+                        score_snapshot={'membership_id': membership.id if membership else None,
+                                        'player_name': membership.name if membership else '',
+                                        'jersey_number': membership.jersey_number if membership else '',
+                                        'points': 1, 'is_ft': True,
+                                        'team_participant_id': participant.id},
+                        created_by=request.user)
+                    messages.success(request, f'+1 Free Throw — {membership.name if membership else participant.name}.')
+                else:
+                    label_map = {'assist': 'Assist', 'steal': 'Steal', 'rebound': 'Rebound'}
+                    label = label_map.get(stat_type, stat_type.title())
+                    ScoreEvent.objects.create(
+                        fixture=fixture, participant=participant, event_type=stat_type,
+                        description=(f'{label} — {membership.name} (#{membership.jersey_number or "-"})'
+                                     if membership else f'{label} — {participant.name} (team)'),
+                        score_snapshot={'membership_id': membership.id if membership else None,
+                                        'player_name': membership.name if membership else '',
+                                        'jersey_number': membership.jersey_number if membership else '',
+                                        'stat': stat_type,
+                                        'team_participant_id': participant.id},
+                        created_by=request.user)
+                    messages.success(request, f'{label} recorded — {membership.name if membership else participant.name}.')
+            return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
+
         if action == 'undo_last_score':
             if not is_basketball:
                 messages.error(request, 'Undo is only available for basketball matches.')
@@ -2368,21 +2445,33 @@ def score_fixture(request, slug, fixture_id):
                 return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
             # Most-recent-first ordering by primary key (not created_at,
             # which can tie within the same second) gives a reliable LIFO
-            # undo stack over the score events already persisted per point.
-            last_event = fixture.events.filter(event_type='score').order_by('-id').first()
+            # undo stack over all score and stat events.
+            last_event = fixture.events.filter(
+                event_type__in=['score', 'foul', 'assist', 'steal', 'rebound']
+            ).order_by('-id').first()
             if not last_event:
                 messages.error(request, 'Nothing to undo.')
                 return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
             with transaction.atomic():
                 snap = last_event.score_snapshot or {}
-                points = int(snap.get('points') or 0)
                 participant = last_event.participant
-                if participant is not None:
-                    participant.score = max(0, (participant.score or 0) - points)
-                    participant.save(update_fields=['score'])
-                player_name = snap.get('player_name') or 'that player'
+                player_name = snap.get('player_name') or 'team'
+                if last_event.event_type == 'score':
+                    points = int(snap.get('points') or 0)
+                    if participant is not None:
+                        participant.score = max(0, (participant.score or 0) - points)
+                        participant.save(update_fields=['score'])
+                    desc = f'+{points} — {player_name}'
+                elif last_event.event_type == 'foul':
+                    if participant is not None:
+                        participant.fouls = max(0, (participant.fouls or 0) - 1)
+                        participant.save(update_fields=['fouls'])
+                    desc = f'Foul — {player_name}'
+                else:
+                    label = {'assist': 'Assist', 'steal': 'Steal', 'rebound': 'Rebound'}.get(last_event.event_type, last_event.event_type.title())
+                    desc = f'{label} — {player_name}'
                 last_event.delete()
-            messages.success(request, f'Undid +{points} — {player_name}.')
+            messages.success(request, f'Undid {desc}.')
             return redirect('score_fixture', slug=slug, fixture_id=fixture_id)
 
         # --- parse a score submission per format ---
@@ -2445,7 +2534,7 @@ def score_fixture(request, slug, fixture_id):
         ctx['player_choices'] = player_choices
         ctx['individual_rows'] = individual_rows
         ctx['individual_rows_by_team'] = individual_rows_by_team
-        ctx['can_undo_score'] = fixture.events.filter(event_type='score').exists()
+        ctx['can_undo_score'] = fixture.events.filter(event_type__in=['score', 'foul', 'assist', 'steal', 'rebound']).exists()
     elif is_racket and t.is_team_based:
         ctx['player_choices'] = _roster_choices_for(participants)
     return render(request, 'organizer/score.html', ctx)

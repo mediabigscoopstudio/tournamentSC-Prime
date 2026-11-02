@@ -1092,7 +1092,7 @@ button.bball-setup-switch:focus-visible .bball-setup-switch-track{ box-shadow:0 
 .bball-indiv-empty{ text-align:center; padding:28px 12px; color:var(--muted); font-size:14px; margin-top:14px;
   border:1.5px dashed var(--line-2); border-radius:var(--r-lg); }
 
-.bball-buttons-row{ display:flex; align-items:center; justify-content:center; gap:28px; margin-top:28px; flex-wrap:wrap; }
+.bball-buttons-row{ display:flex; align-items:flex-start; justify-content:center; gap:20px; margin-top:24px; flex-wrap:wrap; }
 .bball-team-buttons{ display:flex; gap:14px; }
 .bball-point-btn{ width:64px; height:64px; border-radius:50%; border:none; color:#fff; font-family:var(--font-display);
   font-weight:800; font-size:17px; cursor:pointer; box-shadow:var(--shadow-sm); transition:transform .18s var(--ease); }
@@ -1100,21 +1100,190 @@ button.bball-setup-switch:focus-visible .bball-setup-switch-track{ box-shadow:0 
 .bball-point-btn--a{ background:var(--orange); }
 .bball-point-btn--b{ background:var(--navy); }
 
-.bball-player-dialog{ border:none; border-radius:var(--r-lg); padding:20px; box-shadow:var(--shadow); max-width:340px;
-  width:90vw; }
-.bball-player-dialog::backdrop{ background:rgba(10,14,30,.45); }
+/* Basketball Team Control Deck (Points, Assists, Steals, Rebounds, Free Throws) */
+.bball-team-deck {
+  flex: 1 1 300px;
+  max-width: 340px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.bball-team-deck--a {
+  border-top: 4px solid var(--orange);
+}
+.bball-team-deck--b {
+  border-top: 4px solid var(--navy);
+}
+.bball-team-deck-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.bball-team-deck--a .bball-team-deck-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--orange);
+  flex-shrink: 0;
+}
+.bball-team-deck--b .bball-team-deck-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--navy);
+  flex-shrink: 0;
+}
+.bball-team-deck-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+.bball-deck-group-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.bball-deck-btns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.bball-deck-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  padding: 8px 4px;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.bball-deck-btn:active {
+  transform: scale(0.94);
+}
+.bball-deck-btn--pts {
+  color: #ffffff;
+  min-height: 50px;
+}
+.bball-team-deck--a .bball-deck-btn--pts {
+  background: var(--orange);
+  box-shadow: 0 2px 8px rgba(242, 106, 27, 0.28);
+}
+.bball-team-deck--a .bball-deck-btn--pts:hover {
+  background: #ea580c;
+  transform: translateY(-1px);
+}
+.bball-team-deck--b .bball-deck-btn--pts {
+  background: var(--navy);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.28);
+}
+.bball-team-deck--b .bball-deck-btn--pts:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
+.bball-deck-btn--stat {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+  min-height: 44px;
+}
+.bball-team-deck--a .bball-deck-btn--stat:hover {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #c2410c;
+  transform: translateY(-1px);
+}
+.bball-team-deck--b .bball-deck-btn--stat:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+.bball-deck-val {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.bball-deck-sub {
+  font-size: 9.5px;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-top: 1px;
+}
+
+/* Animated Player Selection Popup (Desktop Centered Modal + Mobile Bottom Sheet) */
+.bball-player-dialog {
+  border: none;
+  border-radius: 20px;
+  padding: 22px 24px;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  max-width: 380px;
+  width: 90vw;
+  background: #ffffff;
+  color: #0f172a;
+}
+.bball-player-dialog[open] {
+  animation: bballModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.bball-player-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: bballFadeIn 0.2s ease forwards;
+}
+.bball-dialog-sheet-handle {
+  display: none;
+}
+@keyframes bballModalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes bballFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 .poolassign-dialog{ border:none; border-radius:var(--r-lg); padding:22px; box-shadow:var(--shadow); max-width:640px;
   width:92vw; }
 .poolassign-dialog::backdrop{ background:rgba(10,14,30,.45); }
-/* Wider variant for the drag-and-drop pool-assignment dialog — a 640px cap
-   leaves no room for 10+ pool columns side by side. */
 .poolassign-dialog--wide{ max-width:min(96vw,1100px); }
-.bball-roster-list{ display:flex; flex-direction:column; gap:6px; margin:14px 0; max-height:280px; overflow-y:auto; }
-.bball-roster-btn{ text-align:left; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:#fff;
-  font-weight:600; font-size:14px; color:var(--navy); cursor:pointer; font-family:var(--font-body); }
-.bball-roster-btn:hover{ background:var(--bg-2); border-color:var(--navy); }
-.bball-roster-btn--team{ border-style:dashed; color:var(--ink-2); font-style:italic; }
+
+.bball-roster-list{ display:flex; flex-direction:column; gap:7px; margin:14px 0; max-height:290px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.bball-roster-btn{ text-align:left; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; background:#fff;
+  font-weight:600; font-size:13.5px; color:#0f172a; cursor:pointer; font-family:var(--font-body);
+  display:flex; align-items:center; justify-content:space-between; transition:all .15s ease; width:100%; box-sizing:border-box; }
+.bball-roster-btn:hover{ background:#f8fafc; border-color:#0f172a; }
+.bball-roster-btn:active{ transform:scale(0.98); background:#f1f5f9; }
+.bball-roster-btn--team{ border-style:dashed; border-color:#cbd5e1; background:#f8fafc; color:#64748b; font-weight:700; }
+.bball-roster-jersey{ width:26px; height:26px; border-radius:6px; background:#f1f5f9; color:#0f172a; border:1px solid #e2e8f0;
+  display:inline-flex; align-items:center; justify-content:center; font-family:monospace; font-size:11px; font-weight:800; flex-shrink:0; }
+.bball-roster-name{ font-size:13.5px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bball-roster-arrow{ color:#94a3b8; font-size:15px; }
 
 .bball-highlight{ animation:bballHighlight 1.5s ease-out; }
 @keyframes bballHighlight{ 0%{ box-shadow:0 0 0 3px color-mix(in srgb,var(--orange) 45%,#fff); } 100%{ box-shadow:none; } }
@@ -1124,7 +1293,46 @@ button.bball-setup-switch:focus-visible .bball-setup-switch-track{ box-shadow:0 
   .bball-team-name{ font-size:12px; }
   .bball-board-row{ gap:14px; }
   .bball-score{ font-size:clamp(40px,14vw,64px); }
-  .bball-buttons-row{ gap:14px; }
+  .bball-buttons-row{ gap:12px; flex-direction:column; align-items:stretch; }
+  .bball-team-deck { max-width:100%; min-width:0; padding:12px 14px; }
+  .bball-player-dialog {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100vw;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 22px 22px 0 0;
+    padding: 16px 20px calc(20px + env(safe-area-inset-bottom, 12px));
+    max-height: 82vh;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  }
+  .bball-player-dialog[open] {
+    animation: bballSheetSlideUp 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .bball-dialog-sheet-handle {
+    display: block;
+    width: 38px;
+    height: 4px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    margin: 0 auto 12px;
+  }
+  .bball-roster-list {
+    max-height: 46vh !important;
+  }
+  @keyframes bballSheetSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   .bball-team-buttons{ gap:8px; }
   .bball-point-btn{ width:52px; height:52px; font-size:14px; }
   .bball-fouls-card{ min-width:76px; padding:8px 10px; }

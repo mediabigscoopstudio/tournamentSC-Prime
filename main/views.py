@@ -545,6 +545,7 @@ def match_detail(request, slug, pk):
                 'free_throws_att': 0,
                 'rebounds': 0,
                 'assists': 0,
+                'steals': 0,
                 'fouls': 0,
             },
             'team_b': {
@@ -556,6 +557,7 @@ def match_detail(request, slug, pk):
                 'free_throws_att': 0,
                 'rebounds': 0,
                 'assists': 0,
+                'steals': 0,
                 'fouls': 0,
             }
         }
@@ -566,6 +568,12 @@ def match_detail(request, slug, pk):
                 continue
             if ev.event_type == 'foul':
                 team_stats[target]['fouls'] += 1
+            elif ev.event_type == 'rebound':
+                team_stats[target]['rebounds'] += 1
+            elif ev.event_type == 'assist':
+                team_stats[target]['assists'] += 1
+            elif ev.event_type == 'steal':
+                team_stats[target]['steals'] += 1
             elif ev.event_type == 'score':
                 pts = (ev.score_snapshot or {}).get('points')
                 if not pts:
@@ -676,20 +684,25 @@ def match_detail(request, slug, pk):
                     p_name = m.player.user.get_full_name() if (m.player and m.player.user) else (m.display_name or (m.player.user.username if m.player and m.player.user else 'Player'))
                     if p_name not in existing_names:
                         t_rows.append({
+                            'membership_id': m.id,
                             'name': p_name,
                             'jersey_number': m.jersey_number or '—',
                             'team_name': part.name,
                             'team_participant_id': part.id,
                             'pt1': 0, 'pt2': 0, 'pt3': 0, 'total': 0, 'fouls': 0,
-                            'reb': 0, 'ast': 0
+                            'ft': 0, 'reb': 0, 'ast': 0, 'stl': 0
                         })
-            t_rows.sort(key=lambda r: (-r['total'], -r['fouls']))
+            t_rows.sort(key=lambda r: (-r['total'], -r.get('reb', 0), -r.get('ast', 0), -r.get('stl', 0), -r['fouls']))
             for idx, r in enumerate(t_rows):
                 r['is_top_scorer'] = (idx == 0 and r['total'] > 0)
                 if not r.get('reb'):
                     r['reb'] = 0
                 if not r.get('ast'):
                     r['ast'] = 0
+                if not r.get('stl'):
+                    r['stl'] = 0
+                if not r.get('ft'):
+                    r['ft'] = 0
             individual_rows_by_team[part.id] = t_rows
         ctx['individual_rows_by_team'] = individual_rows_by_team
     return render(request, 'public/match_detail.html', ctx)

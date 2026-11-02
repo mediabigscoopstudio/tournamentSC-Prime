@@ -552,6 +552,19 @@
             <span style="font-weight:800;">{{ team_stats.team_b.assists }}</span>
           </div>
 
+          <!-- Steals -->
+          <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
+            <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.steals|default:0 }}</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; justify-content:flex-end;">
+              <div style="width:{% widthratio team_stats.team_a.steals|default:0 4 100 %}%; background:#F26A1B;"></div>
+            </div>
+            <span style="text-align:center; color:#64748b; font-weight:600;">Steals</span>
+            <div style="height:5px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+              <div style="width:{% widthratio team_stats.team_b.steals|default:0 4 100 %}%; background:#0f172a;"></div>
+            </div>
+            <span style="font-weight:800;">{{ team_stats.team_b.steals|default:0 }}</span>
+          </div>
+
           <!-- Fouls -->
           <div style="display:grid; grid-template-columns: 24px 1fr 70px 1fr 24px; align-items:center; gap:6px;">
             <span style="font-weight:800; text-align:right;">{{ team_stats.team_a.fouls }}</span>

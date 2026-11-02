@@ -64,6 +64,7 @@
                 <button class="bball-fouls-btn" name="delta" value="dec" aria-label="Decrease {{ team_a.name }} fouls">−</button>
               </form>
               <button type="button" class="bball-fouls-btn bball-fouls-btn--plus"
+                      data-bball-action="foul" data-bball-participant="{{ team_a.id }}"
                       data-bball-open-foul="{{ team_a.id }}" aria-label="Add foul for {{ team_a.name }}">+</button>
             </div>
           {% endif %}
@@ -178,6 +179,7 @@
                 <button class="bball-fouls-btn" name="delta" value="dec" aria-label="Decrease {{ team_b.name }} fouls">−</button>
               </form>
               <button type="button" class="bball-fouls-btn bball-fouls-btn--plus"
+                      data-bball-action="foul" data-bball-participant="{{ team_b.id }}"
                       data-bball-open-foul="{{ team_b.id }}" aria-label="Add foul for {{ team_b.name }}">+</button>
             </div>
           {% endif %}
@@ -187,53 +189,122 @@
       {% if fixture.status == 'LIVE' %}
         <div class="bball-buttons-row">
           {% for p in participants %}
-            <div class="bball-team-buttons">
-              <form method="post" id="score-form-{{ p.id }}">
+            <div class="bball-team-deck bball-team-deck--{% if forloop.first %}a{% else %}b{% endif %}">
+              <div class="bball-team-deck-header">
+                <span class="bball-team-deck-dot"></span>
+                <span class="bball-team-deck-name">{{ p.name }}</span>
+              </div>
+
+              <!-- Scoring Row -->
+              <div class="bball-deck-group">
+                <div class="bball-deck-group-label">POINTS &amp; SCORING</div>
+                <div class="bball-deck-btns">
+                  <button type="button" class="bball-deck-btn bball-deck-btn--pts"
+                          data-bball-action="stat" data-bball-participant="{{ p.id }}" data-bball-stat="free_throw"
+                          data-bball-stat-label="Free Throw (+1 PT)" data-bball-stat-icon="🎯">
+                    <span class="bball-deck-val">+1</span>
+                    <span class="bball-deck-sub">FT</span>
+                  </button>
+                  <button type="button" class="bball-deck-btn bball-deck-btn--pts"
+                          data-bball-action="score" data-bball-participant="{{ p.id }}" data-bball-points="2">
+                    <span class="bball-deck-val">+2</span>
+                    <span class="bball-deck-sub">2PT</span>
+                  </button>
+                  <button type="button" class="bball-deck-btn bball-deck-btn--pts"
+                          data-bball-action="score" data-bball-participant="{{ p.id }}" data-bball-points="3">
+                    <span class="bball-deck-val">+3</span>
+                    <span class="bball-deck-sub">3PT</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Contribution Stats Row -->
+              <div class="bball-deck-group">
+                <div class="bball-deck-group-label">CONTRIBUTION STATS</div>
+                <div class="bball-deck-btns">
+                  <button type="button" class="bball-deck-btn bball-deck-btn--stat"
+                          data-bball-action="stat" data-bball-participant="{{ p.id }}" data-bball-stat="assist"
+                          data-bball-stat-label="Record Assist (+AST)" data-bball-stat-icon="🤝">
+                    <span class="bball-deck-val">+AST</span>
+                    <span class="bball-deck-sub">Assist</span>
+                  </button>
+                  <button type="button" class="bball-deck-btn bball-deck-btn--stat"
+                          data-bball-action="stat" data-bball-participant="{{ p.id }}" data-bball-stat="rebound"
+                          data-bball-stat-label="Record Rebound (+REB)" data-bball-stat-icon="🛡️">
+                    <span class="bball-deck-val">+REB</span>
+                    <span class="bball-deck-sub">Rebound</span>
+                  </button>
+                  <button type="button" class="bball-deck-btn bball-deck-btn--stat"
+                          data-bball-action="stat" data-bball-participant="{{ p.id }}" data-bball-stat="steal"
+                          data-bball-stat-label="Record Steal (+STL)" data-bball-stat-icon="⚡">
+                    <span class="bball-deck-val">+STL</span>
+                    <span class="bball-deck-sub">Steal</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Hidden Forms for AJAX Submission -->
+              <form method="post" id="score-form-{{ p.id }}" style="display:none;">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="score_point">
                 <input type="hidden" name="participant_id" value="{{ p.id }}">
                 <input type="hidden" name="membership_id" id="membership-input-{{ p.id }}">
                 <input type="hidden" name="points" id="points-input-{{ p.id }}">
               </form>
-              {% for pts in '123' %}
-                <button type="button" class="bball-point-btn {% if forloop.parentloop.first %}bball-point-btn--a{% else %}bball-point-btn--b{% endif %}"
-                        data-bball-open="{{ p.id }}" data-bball-points="{{ pts }}">+{{ pts }}</button>
-              {% endfor %}
 
-              <dialog id="player-dialog-{{ p.id }}" class="bball-player-dialog" data-bball-participant="{{ p.id }}">
-                <h4>Who scored? <span class="bball-dialog-points" data-bball-points-label></span></h4>
-                <div class="bball-roster-list">
-                  {% for m in player_choices|lookup:p.id %}
-                    <button type="button" class="bball-roster-btn" data-bball-membership="{{ m.id }}">
-                      #{{ m.jersey_number|default:'-' }} — {{ m.name }}
-                    </button>
-                  {% empty %}
-                    <p class="dim">No approved roster players for this team.</p>
-                  {% endfor %}
-                </div>
-                <button type="button" class="btn btn-secondary btn-sm bball-dialog-cancel">Cancel</button>
-              </dialog>
+              <form method="post" id="stat-form-{{ p.id }}" style="display:none;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="record_stat">
+                <input type="hidden" name="participant_id" value="{{ p.id }}">
+                <input type="hidden" name="membership_id" id="stat-membership-input-{{ p.id }}">
+                <input type="hidden" name="stat_type" id="stat-type-input-{{ p.id }}">
+              </form>
 
-              <form method="post" id="foul-form-{{ p.id }}">
+              <form method="post" id="foul-form-{{ p.id }}" style="display:none;">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="foul">
                 <input type="hidden" name="participant_id" value="{{ p.id }}">
                 <input type="hidden" name="delta" value="inc">
                 <input type="hidden" name="membership_id" id="foul-membership-input-{{ p.id }}">
               </form>
-              <dialog id="foul-dialog-{{ p.id }}" class="bball-player-dialog" data-bball-foul-participant="{{ p.id }}">
-                <h4>Whose foul?</h4>
+
+              <!-- Unified Animated Player Selection Dialog (Desktop + Mobile Bottom Sheet) -->
+              <dialog id="action-dialog-{{ p.id }}" class="bball-player-dialog bball-action-dialog" data-bball-participant="{{ p.id }}">
+                <div class="bball-dialog-sheet-handle" aria-hidden="true"></div>
+                <div class="bball-dialog-header">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                    <span class="bball-dialog-team-badge" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:{% if forloop.first %}#c2410c{% else %}#0f172a{% endif %}; background:{% if forloop.first %}#fff7ed{% else %}#f1f5f9{% endif %}; padding:3px 10px; border-radius:999px;">
+                      <span style="width:7px; height:7px; border-radius:50%; background:{% if forloop.first %}#F26A1B{% else %}#0f172a{% endif %};"></span>
+                      {{ p.name }}
+                    </span>
+                    <button type="button" class="bball-dialog-close-x bball-dialog-cancel" aria-label="Close dialog" style="background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer; padding:2px 6px;">✕</button>
+                  </div>
+                  <h3 class="bball-dialog-title" data-bball-dialog-title style="margin:4px 0 2px; font-size:18px; font-weight:800; color:#0f172a;">
+                    Select Player
+                  </h3>
+                  <p class="bball-dialog-subtitle" data-bball-dialog-subtitle style="margin:0; font-size:12px; color:#64748b;">
+                    Tap player below to record
+                  </p>
+                </div>
+
                 <div class="bball-roster-list">
-                  <button type="button" class="bball-roster-btn bball-roster-btn--team" data-bball-foul-membership="">
-                    Team foul (no player)
+                  <button type="button" class="bball-roster-btn bball-roster-btn--team" data-bball-select-membership="">
+                    <span>Team (No player assigned)</span>
+                    <span style="font-size:11px; opacity:0.65;">Team</span>
                   </button>
                   {% for m in player_choices|lookup:p.id %}
-                    <button type="button" class="bball-roster-btn" data-bball-foul-membership="{{ m.id }}">
-                      #{{ m.jersey_number|default:'-' }} — {{ m.name }}
+                    <button type="button" class="bball-roster-btn" data-bball-select-membership="{{ m.id }}">
+                      <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                        <span class="bball-roster-jersey">#{{ m.jersey_number|default:'—' }}</span>
+                        <span class="bball-roster-name">{{ m.name }}</span>
+                      </div>
+                      <span class="bball-roster-arrow">›</span>
                     </button>
+                  {% empty %}
+                    <p class="dim" style="padding:16px; text-align:center;">No approved roster players for this team.</p>
                   {% endfor %}
                 </div>
-                <button type="button" class="btn btn-secondary btn-sm bball-dialog-cancel">Cancel</button>
+                <button type="button" class="btn btn-secondary btn-sm bball-dialog-cancel" style="width:100%; border-radius:10px;">Cancel</button>
               </dialog>
             </div>
           {% endfor %}
@@ -579,11 +650,14 @@
                     <div class="bball-indiv-card-body">
                       <div class="bball-indiv-card-name">{{ r.name }}</div>
                       <div class="bball-indiv-card-stats">
-                        <span class="bball-indiv-points"><b>{{ r.total }}</b> Points</span>
-                        <span>1PT <b>{{ r.pt1 }}</b></span>
-                        <span>2PT <b>{{ r.pt2 }}</b></span>
-                        <span>3PT <b>{{ r.pt3 }}</b></span>
-                        <span>Fouls <b>{{ r.fouls }}</b></span>
+                        <span class="bball-indiv-points"><b>{{ r.total }}</b> PTS</span>
+                        <span>FT <b>{{ r.ft|default:r.pt1|default:0 }}</b></span>
+                        <span>2PT <b>{{ r.pt2|default:0 }}</b></span>
+                        <span>3PT <b>{{ r.pt3|default:0 }}</b></span>
+                        <span>REB <b>{{ r.reb|default:0 }}</b></span>
+                        <span>AST <b>{{ r.ast|default:0 }}</b></span>
+                        <span>STL <b>{{ r.stl|default:0 }}</b></span>
+                        <span>Fouls <b>{{ r.fouls|default:0 }}</b></span>
                       </div>
                     </div>
                   </div>
