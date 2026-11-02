@@ -1,0 +1,57 @@
+{% if champion %}
+<div class="champion-banner" style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#ffffff; border-radius:16px; padding:20px 24px; margin-bottom:24px; border:1px solid #334155; box-shadow:0 4px 20px rgba(0,0,0,0.12); display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px;">
+  <div style="display:flex; align-items:center; gap:18px; min-width:260px;">
+    <div style="width:58px; height:58px; border-radius:50%; background:linear-gradient(135deg, #f59e0b, #d97706); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 0 16px rgba(245, 158, 11, 0.4); border:2px solid #fbbf24; color:#fff;">
+      <svg class="ico" style="width:28px; height:28px; fill:currentColor;"><use href="#i-trophy"/></svg>
+    </div>
+    <div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#fbbf24; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); padding:2px 8px; border-radius:999px;">
+          Tournament Champion
+        </span>
+        {% if final_fixture %}
+          <span style="font-size:12px; color:#94a3b8;">· Winner of the Final</span>
+        {% elif champion.points %}
+          <span style="font-size:12px; color:#94a3b8;">· 1st Place ({{ champion.points }} pts)</span>
+        {% endif %}
+      </div>
+      <div style="font-size:22px; font-weight:900; color:#ffffff; margin-top:4px; display:flex; align-items:center; gap:10px;">
+        {% if champion.team %}
+          <a href="{{ champion.team.get_absolute_url }}" style="color:#ffffff; text-decoration:none; display:inline-flex; align-items:center; gap:10px;">
+            {% if champion.team.logo %}
+              <img src="{{ champion.team.logo.url }}" alt="" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid #fbbf24;">
+            {% endif %}
+            <span>{{ champion.name }}</span>
+          </a>
+        {% elif champion.player %}
+          <a href="{{ champion.player.get_absolute_url }}" style="color:#ffffff; text-decoration:none; display:inline-flex; align-items:center; gap:10px;">
+            {% if champion.player.profile_photo %}
+              <img src="{{ champion.player.profile_photo.url }}" alt="" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid #fbbf24;">
+            {% endif %}
+            <span>{{ champion.name }}</span>
+          </a>
+        {% else %}
+          <span>{{ champion.name }}</span>
+        {% endif %}
+      </div>
+      {% if final_fixture and final_fixture.participants.count == 2 %}
+        <div style="font-size:13px; color:#cbd5e1; margin-top:4px;">
+          Final: 
+          <b>{{ final_fixture.participants.all.0.name }}</b> {{ final_fixture.participants.all.0.score|default_if_none:'0'|floatformat:'-2' }} – 
+          {{ final_fixture.participants.all.1.score|default_if_none:'0'|floatformat:'-2' }} <b>{{ final_fixture.participants.all.1.name }}</b>
+          {% if runner_up %}
+            <span style="color:#94a3b8; margin-left:6px;">· Runner-up: {{ runner_up.name }}</span>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% if final_fixture %}
+    <div>
+      <a href="{{ final_fixture.get_absolute_url }}" class="btn btn-sm" style="background:rgba(255,255,255,0.12); color:#ffffff; border:1px solid rgba(255,255,255,0.25); padding:8px 16px; border-radius:10px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s ease;">
+        View Final Match →
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endif %}

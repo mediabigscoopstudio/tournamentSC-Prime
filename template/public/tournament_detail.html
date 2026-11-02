@@ -125,6 +125,9 @@
 
     <!-- OVERVIEW -->
     <div class="tabpanel on" data-panel="overview">
+      {% if champion %}
+        {% include 'public/_champion_banner.html' %}
+      {% endif %}
       <div class="facts">
         <div class="fact"><div class="k">Format</div><div class="v">{{ tournament.get_format_display }}</div></div>
         <div class="fact"><div class="k">{% if tournament.is_team_based %}Teams{% else %}Entrants{% endif %}</div><div class="v">{{ entries|length }}</div></div>
@@ -149,6 +152,9 @@
     <!-- POOLS -->
     {% if is_pool_stage and pools %}
     <div class="tabpanel" data-panel="pools">
+      {% if champion %}
+        {% include 'public/_champion_banner.html' %}
+      {% endif %}
       {% include 'public/_pool_standings.html' %}
       <p class="dim" style="margin-top:14px;font-size:13px">
         Pool standings update the moment a match is finalized.
@@ -170,6 +176,9 @@
     <!-- STANDINGS -->
     {% if standings %}
     <div class="tabpanel" data-panel="standings">
+      {% if champion %}
+        {% include 'public/_champion_banner.html' %}
+      {% endif %}
       {% include 'public/_standings_table.html' %}
     </div>
     {% endif %}

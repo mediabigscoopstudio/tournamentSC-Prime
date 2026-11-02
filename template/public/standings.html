@@ -6,9 +6,13 @@
   <a class="back" href="{{ tournament.get_absolute_url }}">
     <svg class="ico" style="width:16px;height:16px;transform:rotate(180deg)"><use href="#i-arrow"/></svg> {{ tournament.name }}
   </a>
-  <h1 style="margin-top:12px">Standings</h1>
+  <h1 style="margin-top:12px; margin-bottom:20px;">Standings</h1>
 
-  <div style="margin-top:20px">
+  {% if champion %}
+    {% include 'public/_champion_banner.html' %}
+  {% endif %}
+
+  <div style="margin-top:16px">
     {% if is_pool_stage %}
       {% if pools %}
         {% include 'public/_pool_standings.html' %}

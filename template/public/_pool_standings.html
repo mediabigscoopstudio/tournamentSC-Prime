@@ -23,8 +23,16 @@ Context: pools, combined_standings, qualifiers_per_pool, has_pool_draws
       </tr></thead>
       <tbody>
         {% for s in combined_standings %}
-          <tr class="{% if s.qualified %}qual{% endif %}">
-            <td><div class="tcell"><span class="rk">{{ s.position }}</span> <span class="poolteam">{% include 'public/_entrant_name.html' with team=s.team player=s.player name=s.label %}</span></div></td>
+          <tr class="{% if s.qualified %}qual{% endif %} {% if champion and champion.team and champion.team == s.team or champion.name == s.label %}champ-row{% endif %}">
+            <td>
+              <div class="tcell">
+                <span class="rk">{{ s.position }}</span> 
+                <span class="poolteam">{% include 'public/_entrant_name.html' with team=s.team player=s.player name=s.label %}</span>
+                {% if champion and champion.team and champion.team == s.team or champion.name == s.label %}
+                  <span class="badge" style="font-size:10px; font-weight:800; color:#b45309; background:#fef3c7; border:1px solid #fde68a; padding:1px 6px; border-radius:999px; margin-left:6px; display:inline-flex; align-items:center; gap:2px;">🏆 Champion</span>
+                {% endif %}
+              </div>
+            </td>
             <td class="n">{{ s.played }}</td>
             <td class="n">{{ s.won }}</td>
             {% if has_pool_draws %}<td class="n">{{ s.drawn }}</td>{% endif %}
@@ -69,8 +77,16 @@ Context: pools, combined_standings, qualifiers_per_pool, has_pool_draws
         </tr></thead>
         <tbody>
           {% for s in pool.standings %}
-            <tr class="{% if s.extra_stats.qualified %}qual{% endif %}">
-              <td><div class="tcell"><span class="rk">{{ s.position }}</span> <span class="poolteam">{% include 'public/_entrant_name.html' with team=s.team player=s.player name=s.name %}</span></div></td>
+            <tr class="{% if s.extra_stats.qualified %}qual{% endif %} {% if champion and champion.team and champion.team == s.team or champion.name == s.name %}champ-row{% endif %}">
+              <td>
+                <div class="tcell">
+                  <span class="rk">{{ s.position }}</span> 
+                  <span class="poolteam">{% include 'public/_entrant_name.html' with team=s.team player=s.player name=s.name %}</span>
+                  {% if champion and champion.team and champion.team == s.team or champion.name == s.name %}
+                    <span class="badge" style="font-size:10px; font-weight:800; color:#b45309; background:#fef3c7; border:1px solid #fde68a; padding:1px 6px; border-radius:999px; margin-left:6px; display:inline-flex; align-items:center; gap:2px;">🏆 Champion</span>
+                  {% endif %}
+                </div>
+              </td>
               <td class="n">{{ s.played }}</td>
               <td class="n">{{ s.won }}</td>
               {% if has_pool_draws %}<td class="n">{{ s.drawn }}</td>{% endif %}

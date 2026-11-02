@@ -820,10 +820,23 @@ def pool_view_context(tournament):
                         else rnd['name'])
 
     champion = None
+    final_fixture = None
+    runner_up = None
     if knockout_rounds:
-        final = knockout_rounds[-1]['fixtures']
-        if len(final) == 1 and final[0].status == 'COMPLETED':
-            champion = next((p for p in final[0].participants.all() if p.is_winner), None)
+        last_round = knockout_rounds[-1]['fixtures']
+        finals = [f for f in last_round if '3rd' not in (f.round_name or '').lower() and 'third' not in (f.round_name or '').lower()]
+        final_fixture = finals[0] if finals else (last_round[0] if last_round else None)
+        if final_fixture and final_fixture.status == 'COMPLETED':
+            champion = next((p for p in final_fixture.participants.all() if p.is_winner), None)
+            if not champion:
+                parts = list(final_fixture.participants.all())
+                if len(parts) == 2:
+                    s0 = _num(parts[0].score)
+                    s1 = _num(parts[1].score)
+                    if s0 is not None and s1 is not None and s0 != s1:
+                        champion = parts[0] if s0 > s1 else parts[1]
+            if champion:
+                runner_up = next((p for p in final_fixture.participants.all() if p.id != champion.id), None)
 
     pool_fixtures = [f for f in fixtures if f.stage == C.STAGE_POOL]
     return {
@@ -831,6 +844,8 @@ def pool_view_context(tournament):
         'combined_standings': combined_standings,
         'knockout_rounds': knockout_rounds,
         'champion': champion,
+        'final_fixture': final_fixture if (final_fixture and final_fixture.status == 'COMPLETED') else None,
+        'runner_up': runner_up,
         'qualifiers_per_pool': qualifiers_per_pool,
         'pool_stage_total': len(pool_fixtures),
         'pool_stage_played': sum(1 for f in pool_fixtures if f.status == 'COMPLETED'),

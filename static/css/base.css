@@ -504,6 +504,8 @@ td.n,th.n,td.num,th.num{ text-align:right; font-family:var(--font-score); font-w
 .rk{ width:24px; height:24px; border-radius:7px; display:grid; place-items:center; font-family:var(--font-score); font-size:12px; font-weight:700; background:var(--bg-3); color:var(--ink-2); }
 tr.qual td{ background:color-mix(in srgb,var(--green) 6%,#fff); }
 tr.qual .rk{ background:color-mix(in srgb,var(--green) 18%,#fff); color:var(--green); }
+tr.champ-row td{ background:color-mix(in srgb, #f59e0b 8%, #fff) !important; }
+tr.champ-row .rk{ background:#f59e0b !important; color:#fff !important; font-weight:800; }
 td.pts{ font-family:var(--font-score); font-weight:700; color:var(--green); text-align:right; }
 /* qualification legend under a standings table */
 .qnote{ display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:var(--muted); }

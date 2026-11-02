@@ -15,6 +15,7 @@ from accounts.decorators import player_required, login_required_msg
 from accounts.models import Follow, PlayerProfile, OrganizerProfile
 from dash.models import News
 from tournaments import constants as C
+from tournaments.engines import _num
 from tournaments.models import (Fixture, Highlight, ScoreEvent, Sport, Team, Tournament,
                                 TournamentTeamEntry)
 from tournaments.stats import player_results, player_schedule
@@ -354,20 +355,41 @@ def _detail_context(tournament):
         ctx['bracket_rounds'] = [rounds[k] for k in sorted(rounds)]
         # The champion is the winner of the last round — only once it is decided.
         if rounds:
-            final = rounds[max(rounds)]['fixtures']
-            if len(final) == 1 and final[0].status == 'COMPLETED':
-                ctx['champion'] = next(
-                    (p for p in final[0].participants.all() if p.is_winner), None)
+            last_round = rounds[max(rounds)]['fixtures']
+            finals = [f for f in last_round if '3rd' not in (f.round_name or '').lower() and 'third' not in (f.round_name or '').lower()]
+            final_fixture = finals[0] if finals else (last_round[0] if last_round else None)
+            if final_fixture and final_fixture.status == 'COMPLETED':
+                champion = next((p for p in final_fixture.participants.all() if p.is_winner), None)
+                if not champion:
+                    parts = list(final_fixture.participants.all())
+                    if len(parts) == 2:
+                        s0 = _num(parts[0].score)
+                        s1 = _num(parts[1].score)
+                        if s0 is not None and s1 is not None and s0 != s1:
+                            champion = parts[0] if s0 > s1 else parts[1]
+                ctx['champion'] = champion
+                if champion:
+                    ctx['final_fixture'] = final_fixture
+                    ctx['runner_up'] = next((p for p in final_fixture.participants.all() if p.id != champion.id), None)
     elif tournament.format == C.FORMAT_ROUND_ROBIN:
         standings = list(tournament.standings.select_related('team', 'player__user').all())
         ctx['standings'] = standings
+        if standings and fixtures.exists() and all(f.status in ('COMPLETED', 'CANCELLED') for f in fixtures):
+            ctx['champion'] = standings[0]
+            if len(standings) > 1:
+                ctx['runner_up'] = standings[1]
         # Only show a rating column when ratings actually exist.
         ctx['has_ratings'] = any((s.extra_stats or {}).get('rating') for s in standings)
     else:  # time-trial / single-event -> leaderboard from the last session
         last = fixtures.order_by('-session_no', '-sequence').first()
         if last:
-            ctx['leaderboard'] = last.ordered_participants()
+            ordered_board = last.ordered_participants()
+            ctx['leaderboard'] = ordered_board
             ctx['leaderboard_fixture'] = last
+            if last.status == 'COMPLETED' and ordered_board:
+                ctx['champion'] = ordered_board[0]
+                if len(ordered_board) > 1:
+                    ctx['runner_up'] = ordered_board[1]
     return ctx
 
 
@@ -597,10 +619,37 @@ def match_detail(request, slug, pk):
         ).order_by('-created_at')[:4]
     )
 
+    winner_participant = None
+    loser_participant = None
+    margin = None
+    r_name = (fixture.round_name or '').lower()
+    is_final = 'final' in r_name and not any(k in r_name for k in ['semi', 'quarter', 'eighth', '1/'])
+
+    if fixture.status == 'COMPLETED':
+        parts = list(ordered_parts)
+        winner = next((p for p in parts if p.is_winner), None)
+        if not winner and len(parts) == 2:
+            s0 = _num(parts[0].score)
+            s1 = _num(parts[1].score)
+            if s0 is not None and s1 is not None and s0 != s1:
+                winner = parts[0] if s0 > s1 else parts[1]
+        if winner:
+            winner_participant = winner
+            loser = next((p for p in parts if p.id != winner.id), None)
+            loser_participant = loser
+            if loser and _num(winner.score) is not None and _num(loser.score) is not None:
+                diff = _num(winner.score) - _num(loser.score)
+                if diff > 0:
+                    margin = int(diff) if diff == int(diff) else diff
+
     ctx = {
         'tournament': tournament,
         'fixture': fixture,
         'participants': ordered_parts,
+        'winner_participant': winner_participant,
+        'loser_participant': loser_participant,
+        'margin': margin,
+        'is_final': is_final,
         'highlight': highlight,
         'events': fixture.events.all()[:30],
         'commentary_entries': commentary_entries,
