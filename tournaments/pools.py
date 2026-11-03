@@ -21,7 +21,7 @@ import math
 from itertools import groupby
 
 from django.db import transaction
-from django.db.models import CharField, Value
+from django.db.models import CharField, Max, Q, Value
 from django.db.models.functions import Cast, Concat
 
 from . import constants as C
@@ -396,23 +396,9 @@ class PoolKnockoutEngine(BracketEngine):
 
     @transaction.atomic
     def rebuild_pool_membership(self, moves, pairing_mode='adjacent'):
-        """"Fixture creation by pool": move the given entrants into new pools
-        and regenerate fixtures for every pool whose membership actually
-        changes as a result — the pool(s) entrants move into, and any pool
-        they move out of. Every other pool's fixtures and standings are left
-        untouched.
-
-        `moves` is {entrant_key: new_label} — entrant_key is the same
-        'team:<id>'/'reg:<id>' scheme every entrant payload already carries
-        (see _entrants_for), so this works uniformly for team-based and
-        individual/registration-based tournaments. A brand-new label needs no
-        special handling — it simply becomes an "affected" label the first
-        time an entrant's move points at it. A pool that drops below 2
-        members after entrants leave just ends up with no fixtures (a round
-        robin needs at least 2 entrants); it isn't otherwise deleted.
-
-        Returns the set of affected labels, so the caller can tell the
-        organizer which *other* pools got rebuilt as a side effect.
+        """"Fixture creation by pool": (re)generate fixtures for the target pool(s)
+        using the specified entrants, while safely preserving all completed and
+        live fixtures and past match results across the tournament.
         """
         t = self.tournament
         payload_by_key = {e['key']: e for e in _entrants_for(t)}
@@ -424,41 +410,115 @@ class PoolKnockoutEngine(BracketEngine):
 
         known_labels = {lbl for lbl in current_label.values() if lbl}
 
+        def _pool_has_played_fixtures(pool_name):
+            if not pool_name:
+                return False
+            return t.fixtures.filter(
+                stage=C.STAGE_POOL, pool_name=pool_name, is_removed=False
+            ).filter(
+                Q(status__in=['COMPLETED', 'LIVE']) |
+                Q(participants__score__isnull=False) |
+                Q(events__isnull=False)
+            ).exists()
+
         affected = set()
         for key, new_label in moves.items():
             old_label = current_label.get(key, '')
-            if old_label:
+            # Only consider old_label affected if it has NO played/live fixtures.
+            # If matches in old_label have already started or completed, they
+            # must NEVER be touched, deleted, or removed.
+            if old_label and old_label != new_label and not _pool_has_played_fixtures(old_label):
                 affected.add(old_label)
             if new_label:
                 affected.add(new_label)
             current_label[key] = new_label
 
+        cfg = dict(t.pool_config or {})
+        changed_cfg = False
         new_labels = {lbl for lbl in moves.values() if lbl} - known_labels
         if new_labels:
-            cfg = dict(t.pool_config or {})
             for label in sorted(new_labels):
                 append_pool_order(cfg, label)
+            changed_cfg = True
+
+        assignments = dict(cfg.get('assignments') or {})
+        for k, v in moves.items():
+            if v:
+                assignments[k] = v
+                changed_cfg = True
+        cfg['assignments'] = assignments
+
+        if changed_cfg:
             t.pool_config = cfg
             t.save(update_fields=['pool_config', 'updated_at'])
 
         author = getattr(t.organizer.user, 'id', None)
-        seq = t.fixtures.filter(is_removed=False).count()
+        seq = (t.fixtures.filter(is_removed=False).aggregate(m=Max('sequence'))['m'] or 0) + 1
+
         for label in affected:
-            t.fixtures.filter(stage=C.STAGE_POOL, pool_name=label, is_removed=False).delete()
-            member_keys = [k for k, lbl in current_label.items() if lbl == label]
+            # Delete only unplayed, scheduled fixtures without scores or events.
+            # Completed matches, in-progress matches, and official results are NEVER deleted.
+            t.fixtures.filter(
+                stage=C.STAGE_POOL, pool_name=label, is_removed=False
+            ).exclude(
+                status__in=['COMPLETED', 'LIVE']
+            ).exclude(
+                participants__score__isnull=False
+            ).exclude(
+                events__isnull=False
+            ).delete()
+
+            # For target pools in `moves`, the explicit entrants requested by the organizer
+            # are prioritized as pool members along with any entrants with existing played fixtures in that pool.
+            if any(new_l == label for new_l in moves.values()):
+                target_keys = {k for k, new_l in moves.items() if new_l == label}
+                # Also include any entrants who already played completed/live fixtures in this pool
+                existing_parts = t.fixtures.filter(
+                    stage=C.STAGE_POOL, pool_name=label, is_removed=False
+                ).values_list('participants__team_id', 'participants__player_id')
+                for tid, pid in existing_parts:
+                    if tid:
+                        target_keys.add(f'team:{tid}')
+                    elif pid:
+                        target_keys.add(f'player:{pid}')
+                member_keys = list(target_keys)
+            else:
+                # For an unplayed old_label whose entrants moved out:
+                member_keys = [k for k, lbl in current_label.items() if lbl == label]
+
             members = sorted((payload_by_key[k] for k in member_keys if k in payload_by_key),
                              key=lambda d: (d['seed'], d['label'].lower()))
             if len(members) < 2:
                 continue
+
+            # Check existing fixtures in this pool to prevent duplicate match generation
+            existing_pairs = set()
+            for fx in t.fixtures.filter(stage=C.STAGE_POOL, pool_name=label, is_removed=False):
+                parts = list(fx.participants.all())
+                if len(parts) == 2:
+                    k0 = self._key_for(parts[0])
+                    k1 = self._key_for(parts[1])
+                    existing_pairs.add(frozenset([k0, k1]))
+
             ordered = order_for_round_robin(members, pairing_mode)
+            max_rno = t.fixtures.filter(
+                stage=C.STAGE_POOL, pool_name=label, is_removed=False
+            ).aggregate(m=Max('round_no'))['m'] or 0
+            rno_offset = max_rno
+
             for rno, pairs in enumerate(_round_robin_rounds(ordered), start=1):
+                round_num = rno_offset + rno if max_rno > 0 else rno
                 for a, b in pairs:
+                    pair_key = frozenset([a['key'], b['key']])
+                    if pair_key in existing_pairs:
+                        continue
                     fx = Fixture.objects.create(
-                        tournament=t, round_no=rno, sequence=seq,
-                        round_name=f'{label} · Round {rno}',
+                        tournament=t, round_no=round_num, sequence=seq,
+                        round_name=f'{label} · Round {round_num}',
                         stage=C.STAGE_POOL, pool_name=label, created_by_id=author)
                     _make_participant(fx, a, 0)
                     _make_participant(fx, b, 1)
+                    existing_pairs.add(pair_key)
                     seq += 1
 
         team_moves = {int(k.split(':', 1)[1]): v for k, v in moves.items() if k.startswith('team:')}
