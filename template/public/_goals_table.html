@@ -17,7 +17,14 @@ main.views._goals_table_context).
             <td class="n"><span class="rk" style="margin-left:auto">{{ forloop.counter }}</span></td>
             <td><div class="tcell">{{ r.name }}</div></td>
             <td class="n">{{ r.jersey_number|default:'—' }}</td>
-            <td>{{ r.team_name }}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:6px;">
+                {% if r.team and r.team.logo %}
+                  <img src="{{ r.team.logo.url }}" alt="{{ r.team_name }}" style="width:20px; height:20px; border-radius:4px; object-fit:cover; border:1px solid rgba(0,0,0,0.08); flex-shrink:0;" onerror="this.style.display='none'">
+                {% endif %}
+                <span>{{ r.team_name }}</span>
+              </div>
+            </td>
             <td class="pts">{{ r.total }}</td>
           </tr>
         {% endfor %}

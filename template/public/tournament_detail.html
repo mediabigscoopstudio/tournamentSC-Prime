@@ -280,7 +280,33 @@
     <div class="tabpanel" data-panel="entrants">
       <div class="card-grid">
         {% for e in entries %}
-          <div class="panel"><strong>{% if tournament.is_team_based %}{{ e.team.name }}{% else %}{{ e.name }}{% endif %}</strong>{% if e.seed %}<div class="dim mono" style="font-size:12px">seed {{ e.seed }}</div>{% endif %}</div>
+          <div class="panel" style="display:flex; align-items:center; gap:14px; padding:16px 20px;">
+            {% if tournament.is_team_based %}
+              {% if e.team.logo %}
+                <img src="{{ e.team.logo.url }}" alt="{{ e.team.name }}" style="width:48px; height:48px; border-radius:10px; object-fit:cover; border:1px solid var(--line); flex-shrink:0;" onerror="this.style.display='none'">
+              {% endif %}
+              <div style="min-width:0; flex:1;">
+                <a href="{{ e.team.get_absolute_url }}" style="color:inherit; text-decoration:none;">
+                  <strong style="display:block; font-size:15px; color:var(--navy); word-break:break-word;">{{ e.team.name }}</strong>
+                </a>
+                {% if e.seed %}<div class="dim mono" style="font-size:12px; margin-top:2px;">seed {{ e.seed }}</div>{% endif %}
+              </div>
+            {% else %}
+              {% if e.player.profile_photo %}
+                <img src="{{ e.player.profile_photo.url }}" alt="{{ e.name }}" style="width:48px; height:48px; border-radius:10px; object-fit:cover; border:1px solid var(--line); flex-shrink:0;" onerror="this.style.display='none'">
+              {% endif %}
+              <div style="min-width:0; flex:1;">
+                {% if e.player %}
+                  <a href="{{ e.player.get_absolute_url }}" style="color:inherit; text-decoration:none;">
+                    <strong style="display:block; font-size:15px; color:var(--navy); word-break:break-word;">{{ e.name }}</strong>
+                  </a>
+                {% else %}
+                  <strong style="display:block; font-size:15px; color:var(--navy); word-break:break-word;">{{ e.name }}</strong>
+                {% endif %}
+                {% if e.seed %}<div class="dim mono" style="font-size:12px; margin-top:2px;">seed {{ e.seed }}</div>{% endif %}
+              </div>
+            {% endif %}
+          </div>
         {% empty %}<div class="empty">No participants yet.</div>{% endfor %}
       </div>
     </div>
@@ -322,6 +348,9 @@
           {% if t.id in user_entries %}
             <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; background: #f9fafb; cursor: not-allowed;">
               <input type="radio" disabled>
+              {% if t.logo %}
+                <img src="{{ t.logo.url }}" alt="{{ t.name }}" style="width:36px; height:36px; border-radius:8px; object-fit:cover; border:1px solid #e5e7eb; opacity:0.6; flex-shrink:0;" onerror="this.style.display='none'">
+              {% endif %}
               <div style="flex-grow: 1;">
                 <div style="font-weight: 600; color: #6b7280;">{{ t.name }}</div>
                 <div style="font-size: 0.85rem; color: #9ca3af;">Request Sent</div>
@@ -330,6 +359,9 @@
           {% else %}
             <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; cursor: pointer;">
               <input type="radio" name="team_id" value="{{ t.id }}" required>
+              {% if t.logo %}
+                <img src="{{ t.logo.url }}" alt="{{ t.name }}" style="width:36px; height:36px; border-radius:8px; object-fit:cover; border:1px solid #e5e7eb; flex-shrink:0;" onerror="this.style.display='none'">
+              {% endif %}
               <div style="flex-grow: 1;">
                 <div style="font-weight: 600; color: #0f1533;">{{ t.name }}</div>
                 <div style="font-size: 0.85rem; color: #6b7280;">{{ t.memberships.count }} Members</div>
@@ -359,6 +391,9 @@
           {% if t.id in user_join_requests %}
             <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; background: #f9fafb; cursor: not-allowed;">
               <input type="radio" disabled>
+              {% if t.logo %}
+                <img src="{{ t.logo.url }}" alt="{{ t.name }}" style="width:36px; height:36px; border-radius:8px; object-fit:cover; border:1px solid #e5e7eb; opacity:0.6; flex-shrink:0;" onerror="this.style.display='none'">
+              {% endif %}
               <div style="flex-grow: 1;">
                 <div style="font-weight: 600; color: #6b7280;">{{ t.name }}</div>
                 <div style="font-size: 0.85rem; color: #9ca3af;">Request Sent</div>
@@ -367,6 +402,9 @@
           {% else %}
             <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; cursor: pointer;">
               <input type="radio" name="team_id" value="{{ t.id }}" required>
+              {% if t.logo %}
+                <img src="{{ t.logo.url }}" alt="{{ t.name }}" style="width:36px; height:36px; border-radius:8px; object-fit:cover; border:1px solid #e5e7eb; flex-shrink:0;" onerror="this.style.display='none'">
+              {% endif %}
               <div style="flex-grow: 1;">
                 <div style="font-weight: 600; color: #0f1533;">{{ t.name }}</div>
                 <div style="font-size: 0.85rem; color: #6b7280;">Owner: {{ t.owner.user.display_name }}</div>

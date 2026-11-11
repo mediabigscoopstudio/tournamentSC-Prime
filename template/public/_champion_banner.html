@@ -19,14 +19,14 @@
         {% if champion.team %}
           <a href="{{ champion.team.get_absolute_url }}" style="color:#ffffff; text-decoration:none; display:inline-flex; align-items:center; gap:10px;">
             {% if champion.team.logo %}
-              <img src="{{ champion.team.logo.url }}" alt="" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid #fbbf24;">
+              <img src="{{ champion.team.logo.url }}" alt="" style="width:32px; height:32px; border-radius:8px; object-fit:cover; border:2px solid #fbbf24;" onerror="this.style.display='none'">
             {% endif %}
             <span>{{ champion.name }}</span>
           </a>
         {% elif champion.player %}
           <a href="{{ champion.player.get_absolute_url }}" style="color:#ffffff; text-decoration:none; display:inline-flex; align-items:center; gap:10px;">
             {% if champion.player.profile_photo %}
-              <img src="{{ champion.player.profile_photo.url }}" alt="" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid #fbbf24;">
+              <img src="{{ champion.player.profile_photo.url }}" alt="" style="width:32px; height:32px; border-radius:8px; object-fit:cover; border:2px solid #fbbf24;" onerror="this.style.display='none'">
             {% endif %}
             <span>{{ champion.name }}</span>
           </a>

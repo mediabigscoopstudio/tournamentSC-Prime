@@ -419,7 +419,9 @@ def _goals_table_context(tournament):
             continue
         row = totals.setdefault(mid, {
             'name': snap.get('player_name', ''), 'jersey_number': snap.get('jersey_number', ''),
-            'team_name': ev.participant.name if ev.participant else '', 'total': 0,
+            'team_name': ev.participant.name if ev.participant else '',
+            'team': ev.participant.team if ev.participant else None,
+            'total': 0,
         })
         row['total'] += pts
     return sorted(totals.values(), key=lambda r: (-r['total'], r['name'].lower()))

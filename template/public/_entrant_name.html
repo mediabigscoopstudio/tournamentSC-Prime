@@ -6,6 +6,6 @@ their own bigger crest treatment, organizer/_fixture_side.html). Renders
 just the plain name when the entrant has neither.
 Context: team, player, name
 {% endcomment %}
-{% if team.logo %}<img class="entrant-avatar" src="{{ team.logo.url }}" alt="">
-{% elif player.profile_photo %}<img class="entrant-avatar" src="{{ player.profile_photo.url }}" alt="">
+{% if team.logo %}<img class="entrant-avatar" src="{{ team.logo.url }}" alt="{{ team.name }}" onerror="this.style.display='none'">
+{% elif player.profile_photo %}<img class="entrant-avatar" src="{{ player.profile_photo.url }}" alt="{{ name }}" onerror="this.style.display='none'">
 {% endif %}<span class="entrant-name">{{ name }}</span>

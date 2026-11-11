@@ -14,7 +14,7 @@ Context: standings, is_lobby, has_ratings
             <td>
               <div class="tcell">
                 <span class="rk">{{ s.position }}</span> 
-                {{ s.name }}
+                <span class="poolteam">{% include 'public/_entrant_name.html' with team=s.team player=s.player name=s.name %}</span>
                 {% if champion and champion.team and champion.team == s.team or champion.name == s.name %}
                   <span class="badge" style="font-size:10px; font-weight:800; color:#b45309; background:#fef3c7; border:1px solid #fde68a; padding:1px 6px; border-radius:999px; margin-left:6px; display:inline-flex; align-items:center; gap:2px;">🏆 Champion</span>
                 {% endif %}
@@ -50,7 +50,7 @@ Context: standings, is_lobby, has_ratings
             <td>
               <div class="tcell">
                 <span class="rk">{{ s.position }}</span> 
-                {{ s.name }}
+                <span class="poolteam">{% include 'public/_entrant_name.html' with team=s.team player=s.player name=s.name %}</span>
                 {% if champion and champion.team and champion.team == s.team or champion.name == s.name %}
                   <span class="badge" style="font-size:10px; font-weight:800; color:#b45309; background:#fef3c7; border:1px solid #fde68a; padding:1px 6px; border-radius:999px; margin-left:6px; display:inline-flex; align-items:center; gap:2px;">🏆 Champion</span>
                 {% endif %}

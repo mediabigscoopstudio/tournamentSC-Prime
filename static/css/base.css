@@ -1943,10 +1943,10 @@ button.bball-setup-switch:focus-visible .bball-setup-switch-track{ box-shadow:0 
 .poolcard .tcell{ gap:9px; }
 .poolteam{ display:inline-flex; align-items:center; gap:6px; min-width:0; }
 
-/* Small circular logo/photo + name — pool standings and the bracket
+/* Small square logo/photo with rounded corners + name — pool standings and the bracket
    (public/_entrant_name.html). Renders nothing but the name when the
    entrant has no team.logo/player.profile_photo. */
-.entrant-avatar{ width:20px; height:20px; border-radius:50%; object-fit:cover; flex:none; }
+.entrant-avatar{ width:22px; height:22px; border-radius:5px; object-fit:cover; flex:none; border:1px solid rgba(0,0,0,0.08); vertical-align:middle; }
 .entrant-name{ min-width:0; overflow-wrap:anywhere; }
 
 /* ---------- pool navigation (shared: fixtures-by-pool + standings-by-pool) ----------

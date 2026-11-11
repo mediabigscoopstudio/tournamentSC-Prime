@@ -183,7 +183,7 @@
             
             <!-- Team 1 -->
             <div class="team-side team-side--left" style="display:flex; align-items:center; gap:14px; flex:1; min-width:0;">
-              <div class="team-crest" style="width:48px; height:48px; border-radius:50%; background:#fff7ed; border:2px solid {% if winner_participant and participants.0.id == winner_participant.id %}#10b981{% else %}#fed7aa{% endif %}; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:16px; color:#F26A1B; flex-shrink:0; {% if winner_participant and participants.0.id == winner_participant.id %}box-shadow:0 0 0 3px rgba(16,185,129,0.2);{% endif %}">
+              <div class="team-crest" style="width:48px; height:48px; border-radius:12px; background:#fff7ed; border:2px solid {% if winner_participant and participants.0.id == winner_participant.id %}#10b981{% else %}#fed7aa{% endif %}; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:16px; color:#F26A1B; flex-shrink:0; {% if winner_participant and participants.0.id == winner_participant.id %}box-shadow:0 0 0 3px rgba(16,185,129,0.2);{% endif %}">
                 {% if participants.0.team.logo %}
                   <img src="{{ participants.0.team.logo.url }}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.remove()">
                 {% else %}
@@ -338,7 +338,7 @@
                   </div>
                 {% endif %}
               </div>
-              <div class="team-crest" style="width:48px; height:48px; border-radius:50%; background:#f1f5f9; border:2px solid {% if winner_participant and participants.1.id == winner_participant.id %}#10b981{% else %}#cbd5e1{% endif %}; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:16px; color:#1e293b; flex-shrink:0; {% if winner_participant and participants.1.id == winner_participant.id %}box-shadow:0 0 0 3px rgba(16,185,129,0.2);{% endif %}">
+              <div class="team-crest" style="width:48px; height:48px; border-radius:12px; background:#f1f5f9; border:2px solid {% if winner_participant and participants.1.id == winner_participant.id %}#10b981{% else %}#cbd5e1{% endif %}; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; font-weight:800; font-size:16px; color:#1e293b; flex-shrink:0; {% if winner_participant and participants.1.id == winner_participant.id %}box-shadow:0 0 0 3px rgba(16,185,129,0.2);{% endif %}">
                 {% if participants.1.team.logo %}
                   <img src="{{ participants.1.team.logo.url }}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.remove()">
                 {% else %}
@@ -471,7 +471,7 @@
               {% with r=team_rosters|lookup:part.id %}
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
                   <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-                    <div style="width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0;">
+                    <div style="width:40px; height:40px; border-radius:10px; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0;">
                       {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
                     </div>
                     <div style="min-width:0;">
@@ -682,7 +682,7 @@
             {% for part in participants %}
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                  <div style="width:44px; height:44px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; overflow:hidden; flex-shrink:0;">
+                  <div style="width:44px; height:44px; border-radius:10px; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; overflow:hidden; flex-shrink:0;">
                     {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
                   </div>
                   <div style="min-width:0;">
@@ -715,7 +715,7 @@
           <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
             {% for part in participants %}
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
-                <div style="width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0;">
+                <div style="width:40px; height:40px; border-radius:10px; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0;">
                   {% if part.team.logo %}<img src="{{ part.team.logo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ part.initials }}{% endif %}
                 </div>
                 <div style="min-width:0;">
