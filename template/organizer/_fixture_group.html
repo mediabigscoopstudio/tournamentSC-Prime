@@ -43,6 +43,8 @@ Context: tournament
           <button type="button" class="fxsec__add" data-open-dialog="pool-add-fixture-dialog"
                   data-pool-add="{{ sec_pool_label }}" title="Add a fixture to this pool"
                   aria-label="Add a fixture to {{ sec_pool_label }}">+</button>
+          <button type="button" class="fxsec__del" data-pool-delete="{{ sec_pool_label }}"
+                  title="Delete pool" aria-label="Delete {{ sec_pool_label }}">🗑️</button>
         {% endif %}
         {% if sec_round_no %}
           <button type="button" class="fxsec__edit" data-round-rename="{{ sec_round_no }}"

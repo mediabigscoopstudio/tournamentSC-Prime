@@ -111,6 +111,7 @@ urlpatterns = [
          name='pool_fixture_build'),
     path('organizer/t/<slug:slug>/fixtures/pools/create', views.pool_create, name='pool_create'),
     path('organizer/t/<slug:slug>/fixtures/pools/rename', views.pool_rename, name='pool_rename'),
+    path('organizer/t/<slug:slug>/fixtures/pools/delete', views.pool_delete, name='pool_delete'),
     path('organizer/t/<slug:slug>/fixtures/pools/reorder', views.pool_reorder, name='pool_reorder'),
     path('organizer/t/<slug:slug>/fixtures/pools/knockout/rename', views.knockout_round_rename,
          name='knockout_round_rename'),

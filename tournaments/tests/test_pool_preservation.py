@@ -153,3 +153,62 @@ class PoolPreservationTest(TestCase):
         self.assertTrue(Fixture.objects.filter(id=fx_b1.id, status='COMPLETED').exists())
         # Pool A should still be intact
         self.assertTrue(Fixture.objects.filter(id=self.fx_pool_a.id, status='COMPLETED').exists())
+
+    def test_delete_pool_removes_all_matches_scores_and_standings(self):
+        client = Client()
+        client.force_login(self.user)
+
+        # Create Pool B with unplayed and played fixtures
+        fx_b = Fixture.objects.create(
+            tournament=self.tournament, round_no=1, sequence=2,
+            round_name='Pool B · Round 1',
+            stage=C.STAGE_POOL, pool_name='Pool B', status='SCHEDULED'
+        )
+        p_b1 = FixtureParticipant.objects.create(fixture=fx_b, team=self.team3, slot=0)
+        p_b2 = FixtureParticipant.objects.create(fixture=fx_b, team=self.team4, slot=1)
+        self.e3.group_name = 'Pool B'
+        self.e3.save()
+        self.e4.group_name = 'Pool B'
+        self.e4.save()
+
+        cfg = dict(self.tournament.pool_config or {})
+        cfg['order'] = ['Pool A', 'Pool B']
+        self.tournament.pool_config = cfg
+        self.tournament.save()
+        self.tournament.engine.compute_standings()
+
+        self.assertTrue(Fixture.objects.filter(id=fx_b.id).exists())
+        self.assertTrue(self.tournament.standings.filter(group_name='Pool B').exists())
+
+        # Post to delete Pool B
+        delete_url = reverse('pool_delete', args=[self.tournament.slug])
+        resp = client.post(delete_url, {'pool_name': 'Pool B'})
+        self.assertEqual(resp.status_code, 302)
+
+        # Pool B fixtures should be completely deleted
+        self.assertFalse(Fixture.objects.filter(id=fx_b.id).exists())
+        self.assertFalse(Fixture.objects.filter(stage=C.STAGE_POOL, pool_name='Pool B').exists())
+        # Pool B standings should be deleted
+        self.assertFalse(self.tournament.standings.filter(group_name='Pool B').exists())
+        # Entrant group names should be cleared
+        self.e3.refresh_from_db()
+        self.e4.refresh_from_db()
+        self.assertEqual(self.e3.group_name, '')
+        self.assertEqual(self.e4.group_name, '')
+        # Pool B removed from pool_config order
+        self.tournament.refresh_from_db()
+        self.assertNotIn('Pool B', self.tournament.pool_config.get('order', []))
+        # Pool A fixtures and completed match data should be completely intact
+        self.assertTrue(Fixture.objects.filter(id=self.fx_pool_a.id, status='COMPLETED').exists())
+
+    def test_non_organizer_cannot_delete_pool(self):
+        other_user = User.objects.create_user(username='other_user', email='other@example.com', password='password123')
+        client = Client()
+        client.force_login(other_user)
+
+        delete_url = reverse('pool_delete', args=[self.tournament.slug])
+        resp = client.post(delete_url, {'pool_name': 'Pool A'})
+        self.assertEqual(resp.status_code, 302)
+        self.assertRedirects(resp, reverse('organizer_status'))
+        # Pool A still intact
+        self.assertTrue(Fixture.objects.filter(id=self.fx_pool_a.id).exists())

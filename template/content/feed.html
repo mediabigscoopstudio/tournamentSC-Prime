@@ -431,6 +431,9 @@
                 <div class="feed-post-dropdown" id="menu-{{ post.pk }}">
                   <a href="{{ post.get_absolute_url }}">View details</a>
                   <button type="button" onclick="navigator.clipboard.writeText(window.location.origin + '{{ post.get_absolute_url }}'); alert('Link copied to clipboard!');">Copy link</button>
+                  {% if post.can_delete %}
+                    <button type="button" class="feed-delete-post-btn" style="color:#ef4444; font-weight:600;" onclick="confirmDeleteFeedPost({{ post.pk }}, '{{ post.title|default:"this post"|escapejs }}')">Delete post</button>
+                  {% endif %}
                 </div>
               </div>
             </div>
@@ -2160,7 +2163,78 @@ function openCreateModalWithType(type, ratio) {
     }
   }
 }
+
+// Feed Post Delete Handler
+var postToDeleteId = null;
+function confirmDeleteFeedPost(postId, postTitle) {
+  postToDeleteId = postId;
+  var titleEl = document.getElementById('deleteFeedPostTitle');
+  if (titleEl) titleEl.textContent = postTitle ? '"' + postTitle + '"' : 'this post';
+  var modal = document.getElementById('deleteFeedPostModal');
+  if (modal) {
+    if (typeof modal.showModal === 'function') modal.showModal();
+    else modal.setAttribute('open', '');
+  }
+}
+
+document.getElementById('confirmDeleteFeedPostBtn')?.addEventListener('click', function() {
+  if (!postToDeleteId) return;
+  var btn = this;
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  
+  function getCookie(name) {
+    var match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? match.pop() : '';
+  }
+
+  fetch('/content/' + postToDeleteId + '/delete', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': getCookie('csrftoken'),
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  }).then(function(res) {
+    return res.json();
+  }).then(function(data) {
+    var modal = document.getElementById('deleteFeedPostModal');
+    if (modal) modal.close();
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+    if (data.success) {
+      var card = document.getElementById('post-' + postToDeleteId);
+      if (card) {
+        card.style.transition = 'opacity 0.3s ease, transform 0.3s ease, max-height 0.3s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.95)';
+        setTimeout(function() { card.remove(); }, 300);
+      }
+    } else {
+      alert(data.message || 'Error deleting post.');
+    }
+  }).catch(function() {
+    var modal = document.getElementById('deleteFeedPostModal');
+    if (modal) modal.close();
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+    alert('An error occurred while deleting the post.');
+  });
+});
 </script>
+
+<dialog id="deleteFeedPostModal" style="border:none; border-radius:14px; padding:22px; max-width:400px; box-shadow:0 20px 35px rgba(0,0,0,0.2); background:#fff;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+    <span style="font-size:22px;">🗑️</span>
+    <h3 style="margin:0; font-size:17px; font-weight:800; color:#b91c1c;">Delete Post?</h3>
+  </div>
+  <p style="font-size:13.5px; line-height:1.5; color:#334155; margin:0 0 18px;">
+    Are you sure you want to delete <strong id="deleteFeedPostTitle">this post</strong>? This action cannot be undone and will permanently remove this content and its media.
+  </p>
+  <div style="display:flex; justify-content:flex-end; gap:8px;">
+    <button type="button" onclick="document.getElementById('deleteFeedPostModal').close()" class="btn btn-secondary btn-sm" style="padding:7px 14px; border-radius:6px; border:1px solid #cbd5e1; background:#f1f5f9; cursor:pointer;">Cancel</button>
+    <button type="button" id="confirmDeleteFeedPostBtn" class="btn btn-danger btn-sm" style="padding:7px 14px; border-radius:6px; background:#dc2626; color:#fff; border:none; font-weight:600; cursor:pointer;">Delete</button>
+  </div>
+</dialog>
 
 {% if user.is_authenticated %}
   {% include 'partials/create_post_modal.html' with tournaments=popular_tournaments %}

@@ -106,6 +106,53 @@ def rename_pool(tournament, old_label, new_label):
         tournament.save(update_fields=['pool_config', 'updated_at'])
 
 
+def delete_pool(tournament, pool_label):
+    """Delete a pool and remove all match and score data from this pool.
+
+    Removes all fixtures (and their events, scores, and participants via cascade),
+    pool standings, and disassociates entrant group memberships, while cleaning
+    up pool_config (order, extra_labels, assignments) and recomputing standings.
+    """
+    from tournaments import constants as C
+    # 1. Delete all fixtures belonging to this pool
+    tournament.fixtures.filter(stage=C.STAGE_POOL, pool_name=pool_label).delete()
+
+    # 2. Delete standings for this pool
+    tournament.standings.filter(group_name=pool_label).delete()
+
+    # 3. Disassociate entrants assigned to this pool
+    tournament.team_entries.filter(group_name=pool_label).update(group_name='')
+    tournament.registrations.filter(group_name=pool_label).update(group_name='')
+
+    # 4. Clean up pool_config
+    cfg = dict(tournament.pool_config or {})
+    changed = False
+
+    extra = cfg.get('extra_labels')
+    if extra and pool_label in extra:
+        cfg['extra_labels'] = [l for l in extra if l != pool_label]
+        changed = True
+
+    order = cfg.get('order')
+    if order and pool_label in order:
+        cfg['order'] = [l for l in order if l != pool_label]
+        changed = True
+
+    assignments = cfg.get('assignments')
+    if assignments:
+        new_assignments = {k: v for k, v in assignments.items() if v != pool_label}
+        if len(new_assignments) != len(assignments):
+            cfg['assignments'] = new_assignments
+            changed = True
+
+    if changed:
+        tournament.pool_config = cfg
+        tournament.save(update_fields=['pool_config', 'updated_at'])
+
+    # 5. Recompute remaining standings
+    tournament.engine.compute_standings()
+
+
 def validate_pool_config(num_pools, teams_per_pool, qualifiers_per_pool, total_teams):
     """Return (is_valid, message).
 

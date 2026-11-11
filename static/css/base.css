@@ -2192,6 +2192,11 @@ button.bball-setup-switch:focus-visible .bball-setup-switch-track{ box-shadow:0 
   display:grid; place-items:center; transition:background .18s var(--ease), transform .18s var(--ease); }
 .fxsec__edit:hover{ background:rgba(255,255,255,.22); transform:translateY(-1px); }
 .fxsec__edit:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.fxsec__del{ flex:none; width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,255,255,.34);
+  background:rgba(255,255,255,.12); color:#fff; font-size:14px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; transition:background .18s var(--ease), transform .18s var(--ease); }
+.fxsec__del:hover{ background:rgba(239,68,68,.35); border-color:rgba(239,68,68,.6); transform:translateY(-1px); }
+.fxsec__del:focus-visible{ outline:2px solid #ef4444; outline-offset:2px; }
 .fxsec__dl{ flex:none; width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,255,255,.34);
   background:rgba(255,255,255,.12); color:#fff; font-size:14px; line-height:1; cursor:pointer;
   display:grid; place-items:center; text-decoration:none; transition:background .18s var(--ease), transform .18s var(--ease); }

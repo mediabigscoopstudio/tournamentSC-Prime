@@ -1,4 +1,6 @@
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import F, Q, Count
 from django.http import JsonResponse
@@ -111,6 +113,11 @@ def feed(request):
         liked_ids = set(ContentLike.objects.filter(user=request.user, content_id__in=post_ids).values_list('content_id', flat=True))
         bookmarked_ids = set(ContentBookmark.objects.filter(user=request.user, content_id__in=post_ids).values_list('content_id', flat=True))
         following_user_ids = set(UserFollow.objects.filter(follower=request.user).values_list('following_id', flat=True))
+        for p in page.object_list:
+            p.can_delete = p.can_be_deleted_by(request.user)
+    else:
+        for p in page.object_list:
+            p.can_delete = False
 
     # 4. Contextual Discovery (Right Column)
     # 4a. Upcoming Near You
@@ -438,6 +445,7 @@ def content_detail(request, pk):
         'more_from_tournament': more_from_tournament,
         'related_content': related_content,
         'hashtags': hashtags,
+        'can_delete': post.can_be_deleted_by(request.user),
     })
 
 
@@ -514,3 +522,33 @@ def content_view_ping(request, pk):
     Content.objects.filter(pk=pk, is_published=True, is_removed=False).update(
         view_count=F('view_count') + 1)
     return JsonResponse({'status': 'ok'})
+
+
+@require_POST
+@login_required
+def content_delete(request, pk):
+    """Delete a content post and its associated media files."""
+    post = get_object_or_404(Content, pk=pk)
+    if not post.can_be_deleted_by(request.user):
+        raise PermissionDenied("You do not have permission to delete this post.")
+
+    # Remove media files from storage to prevent orphan files
+    try:
+        if post.media_file:
+            post.media_file.delete(save=False)
+        for item in post.media_items.all():
+            if item.media_file:
+                item.media_file.delete(save=False)
+    except Exception:
+        pass
+
+    post_title = post.title or f"{post.get_content_type_display()} post"
+    post.delete()
+
+    is_ajax = (request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+               'application/json' in request.META.get('HTTP_ACCEPT', ''))
+    if is_ajax:
+        return JsonResponse({'success': True, 'deleted_id': pk, 'message': 'Post deleted successfully.'})
+
+    messages.success(request, f'"{post_title}" has been deleted.')
+    return redirect('content_feed')

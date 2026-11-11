@@ -7,6 +7,7 @@ urlpatterns = [
     path('content/upload', views.content_upload, name='content_upload'),
     path('content/users/search', views.search_users, name='content_user_search'),
     path('content/<int:pk>/', views.content_detail, name='content_detail'),
+    path('content/<int:pk>/delete', views.content_delete, name='content_delete'),
     path('content/<int:pk>/like', views.content_like, name='content_like'),
     path('content/<int:pk>/comment', views.content_comment, name='content_comment'),
     path('content/<int:pk>/share', views.content_share, name='content_share'),

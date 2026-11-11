@@ -189,3 +189,69 @@ class FeedViewTests(TestCase):
         resp = self.client.get(reverse('content_feed'), {'category': 'saved'})
         self.assertEqual(resp.status_code, 200)
 
+
+class ContentDeleteTests(TestCase):
+    def setUp(self):
+        self.creator, _ = _make_user('creator3@example.com')
+        self.other_user, _ = _make_user('other3@example.com')
+        self.staff_user, _ = _make_user('staff3@example.com')
+        self.staff_user.is_staff = True
+        self.staff_user.save()
+
+        self.post = Content.objects.create(
+            creator=self.creator, content_type='post', title='Post to delete', description='Delete me'
+        )
+
+    def test_creator_can_delete_post_ajax(self):
+        self.client.force_login(self.creator)
+        url = reverse('content_delete', args=[self.post.pk])
+        resp = self.client.post(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['deleted_id'], self.post.pk)
+        self.assertFalse(Content.objects.filter(pk=self.post.pk).exists())
+
+    def test_creator_can_delete_post_standard_form(self):
+        self.client.force_login(self.creator)
+        url = reverse('content_delete', args=[self.post.pk])
+        resp = self.client.post(url)
+        self.assertRedirects(resp, reverse('content_feed'))
+        self.assertFalse(Content.objects.filter(pk=self.post.pk).exists())
+
+    def test_staff_can_delete_any_post(self):
+        self.client.force_login(self.staff_user)
+        url = reverse('content_delete', args=[self.post.pk])
+        resp = self.client.post(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Content.objects.filter(pk=self.post.pk).exists())
+
+    def test_unauthorized_user_cannot_delete_post(self):
+        self.client.force_login(self.other_user)
+        url = reverse('content_delete', args=[self.post.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Content.objects.filter(pk=self.post.pk).exists())
+
+    def test_unauthenticated_user_redirected_to_login(self):
+        url = reverse('content_delete', args=[self.post.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Content.objects.filter(pk=self.post.pk).exists())
+
+    def test_can_delete_in_feed_and_detail_context(self):
+        self.client.force_login(self.creator)
+        # Check detail page
+        resp_detail = self.client.get(reverse('content_detail', args=[self.post.pk]))
+        self.assertEqual(resp_detail.status_code, 200)
+        self.assertTrue(resp_detail.context['can_delete'])
+        self.assertIn('Delete post', resp_detail.content.decode('utf-8'))
+
+        # Check feed page
+        resp_feed = self.client.get(reverse('content_feed'))
+        self.assertEqual(resp_feed.status_code, 200)
+        feed_posts = list(resp_feed.context['page'].object_list)
+        p = next(x for x in feed_posts if x.pk == self.post.pk)
+        self.assertTrue(p.can_delete)
+        self.assertIn('confirmDeleteFeedPost', resp_feed.content.decode('utf-8'))
+

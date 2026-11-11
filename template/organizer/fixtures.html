@@ -603,6 +603,29 @@
       </form>
     </dialog>
 
+    {# --- Delete an existing pool (opened from its 🗑️ delete button) -------- #}
+    <dialog id="pool-delete-dialog" class="poolassign-dialog" style="max-width:420px">
+      <form method="post" action="{% url 'pool_delete' tournament.slug %}" id="pool-delete-form">
+        {% csrf_token %}
+        <input type="hidden" name="pool_name" id="pool-delete-name" value="">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <span style="font-size:22px;">⚠️</span>
+          <h3 class="fxpanel__h" style="margin:0; font-size:17px; color:#b91c1c;">
+            Delete <span id="pool-delete-title">Pool</span>?
+          </h3>
+        </div>
+        <p style="font-size:13.5px; line-height:1.5; color:#334155; margin:0 0 16px;">
+          Are you sure you want to delete pool '<strong id="pool-delete-msg-name"></strong>'? This will remove all the match and score data from this pool.
+        </p>
+        <div class="row-flex" style="justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary btn-sm" data-close-dialog>Cancel</button>
+          <button type="submit" class="btn btn-sm" style="background:#dc2626; color:#fff; border:none; font-weight:600; padding:6px 14px; border-radius:6px; cursor:pointer;">
+            Delete Pool
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     {# --- Rename a knockout round (opened from its ✏️ edit button) -------- #}
     <dialog id="round-rename-dialog" class="poolassign-dialog" style="max-width:380px">
       <form method="post" action="{% url 'knockout_round_rename' tournament.slug %}" id="round-rename-form">
@@ -1727,6 +1750,11 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
   var renameOldLabel = document.getElementById('pool-rename-old-label');
   var renameInput = document.getElementById('pool-rename-input');
   var renameTitle = document.getElementById('pool-rename-title');
+  var deleteForm = document.getElementById('pool-delete-form');
+  var deleteName = document.getElementById('pool-delete-name');
+  var deleteTitle = document.getElementById('pool-delete-title');
+  var deleteMsgName = document.getElementById('pool-delete-msg-name');
+  var deleteDialog = document.getElementById('pool-delete-dialog');
   var buildForm = document.getElementById('pool-build-form');
 
   var roundAddDialog = document.getElementById('round-add-fixture-dialog');
@@ -1775,6 +1803,23 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
     });
   };
   window.fxInitPoolRenameButtons();
+
+  /* Wire up whichever 🗑️ delete buttons exist right now */
+  window.fxInitPoolDeleteButtons = function () {
+    if (!deleteForm || !deleteDialog) return;
+    document.querySelectorAll('[data-pool-delete]').forEach(function (btn) {
+      if (btn.dataset.fxPoolDeleteBound) return;
+      btn.dataset.fxPoolDeleteBound = '1';
+      btn.addEventListener('click', function () {
+        var label = btn.getAttribute('data-pool-delete');
+        if (deleteName) deleteName.value = label;
+        if (deleteTitle) deleteTitle.textContent = label;
+        if (deleteMsgName) deleteMsgName.textContent = label;
+        deleteDialog.showModal();
+      });
+    });
+  };
+  window.fxInitPoolDeleteButtons();
 
   /* Wire up whichever knockout-round ✏️ / + buttons exist right now — same
      re-run-after-every-patch reasoning as the pool buttons above. */
@@ -1869,6 +1914,7 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
     if (window.fxInitDialogs) window.fxInitDialogs();
     if (window.fxInitPoolAddButtons) window.fxInitPoolAddButtons();
     if (window.fxInitPoolRenameButtons) window.fxInitPoolRenameButtons();
+    if (window.fxInitPoolDeleteButtons) window.fxInitPoolDeleteButtons();
     if (window.fxInitRoundRenameButtons) window.fxInitRoundRenameButtons();
     if (window.fxInitRoundAddButtons) window.fxInitRoundAddButtons();
     if (window.fxInitPoolDrag) window.fxInitPoolDrag();
@@ -1926,6 +1972,12 @@ document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
     renameForm.addEventListener('submit', function (e) {
       e.preventDefault();
       submitAjax(renameForm, document.getElementById('pool-rename-dialog'));
+    });
+  }
+  if (deleteForm) {
+    deleteForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitAjax(deleteForm, deleteDialog);
     });
   }
   if (roundAddForm) {

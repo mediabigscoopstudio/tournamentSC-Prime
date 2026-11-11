@@ -1098,7 +1098,7 @@
           </div>
         </a>
 
-        <div class="creator-actions-group">
+        <div class="creator-actions-group" style="position:relative;">
           {% if user.is_authenticated and user != post.creator %}
             <button 
               type="button" 
@@ -1110,7 +1110,13 @@
           {% elif not user.is_authenticated %}
             <a href="{% url 'login' %}?next={{ request.path }}" class="btn-follow-green">Follow</a>
           {% endif %}
-          <button type="button" class="btn-overflow-options" title="More options" onclick="copyShareLink()">···</button>
+          <button type="button" class="btn-overflow-options" title="More options" onclick="toggleDetailMenu(event)">···</button>
+          <div class="feed-post-dropdown" id="detail-more-menu" style="display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:50; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.12); min-width:140px; padding:4px 0;">
+            <button type="button" onclick="copyShareLink(); closeDetailMenu();" style="display:block; width:100%; text-align:left; padding:8px 14px; font-size:13px; color:#334155; background:none; border:none; cursor:pointer;">Copy link</button>
+            {% if can_delete %}
+              <button type="button" onclick="openDeleteDetailModal(); closeDetailMenu();" style="display:block; width:100%; text-align:left; padding:8px 14px; font-size:13px; color:#ef4444; font-weight:600; background:none; border:none; cursor:pointer;">Delete post</button>
+            {% endif %}
+          </div>
         </div>
       </div>
 
@@ -1385,6 +1391,32 @@ function copyShareLink() {
   }
 }
 
+function toggleDetailMenu(e) {
+  if (e) e.stopPropagation();
+  const m = document.getElementById('detail-more-menu');
+  if (!m) return;
+  m.style.display = m.style.display === 'block' ? 'none' : 'block';
+}
+
+function closeDetailMenu() {
+  const m = document.getElementById('detail-more-menu');
+  if (m) m.style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.creator-actions-group')) {
+    closeDetailMenu();
+  }
+});
+
+function openDeleteDetailModal() {
+  const modal = document.getElementById('deleteDetailModal');
+  if (modal) {
+    if (typeof modal.showModal === 'function') modal.showModal();
+    else modal.setAttribute('open', '');
+  }
+}
+
 // Post Comment AJAX
 function submitComment(e, pk) {
   e.preventDefault();
@@ -1479,4 +1511,23 @@ function goToSlide(index) {
   }, { passive: true });
 })();
 </script>
+
+{% if can_delete %}
+<dialog id="deleteDetailModal" style="border:none; border-radius:14px; padding:22px; max-width:420px; box-shadow:0 20px 35px rgba(0,0,0,0.25); background:#fff;">
+  <form method="post" action="{% url 'content_delete' post.pk %}">
+    {% csrf_token %}
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+      <span style="font-size:24px;">🗑️</span>
+      <h3 style="margin:0; font-size:17px; font-weight:800; color:#b91c1c;">Delete Post?</h3>
+    </div>
+    <p style="font-size:13.5px; line-height:1.5; color:#334155; margin:0 0 18px;">
+      Are you sure you want to delete this post? This action cannot be undone and will permanently remove this content and its media.
+    </p>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button type="button" onclick="document.getElementById('deleteDetailModal').close()" class="btn btn-secondary btn-sm" style="padding:7px 14px; border-radius:6px; border:1px solid #cbd5e1; background:#f1f5f9; cursor:pointer;">Cancel</button>
+      <button type="submit" class="btn btn-danger btn-sm" style="padding:7px 14px; border-radius:6px; background:#dc2626; color:#fff; border:none; font-weight:600; cursor:pointer;">Delete</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
 {% endblock %}

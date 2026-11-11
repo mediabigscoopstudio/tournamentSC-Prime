@@ -1086,6 +1086,31 @@ def pool_rename(request, slug):
 
 @approved_organizer_required
 @require_POST
+def pool_delete(request, slug):
+    """Delete an existing pool — removes all match and score data from this pool."""
+    from .pools import pool_view_context, delete_pool
+    t = _owned(request, slug)
+    if not t.is_pool_stage:
+        messages.error(request, 'This tournament does not run the Pool Stage format.')
+        return redirect('fixtures_manage', slug=slug)
+
+    pool_name = (request.POST.get('pool_name') or '').strip()
+    if not pool_name:
+        messages.error(request, 'Specify a pool to delete.')
+        return redirect('fixtures_manage', slug=slug)
+
+    known_pools = {p['label'] for p in pool_view_context(t)['pools']}
+    if pool_name not in known_pools:
+        messages.error(request, f'Pool "{pool_name}" does not exist.')
+        return redirect('fixtures_manage', slug=slug)
+
+    delete_pool(t, pool_name)
+    messages.success(request, f'Pool "{pool_name}" and all its match data have been removed.')
+    return redirect('fixtures_manage', slug=slug)
+
+
+@approved_organizer_required
+@require_POST
 def knockout_round_rename(request, slug):
     """Rename a pool-derived knockout round (Quarterfinal/Semifinal/Final,
     or any custom name an organizer already gave it) — updates every fixture

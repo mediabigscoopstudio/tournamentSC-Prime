@@ -68,6 +68,25 @@ class Content(TimeStamped):
     def get_absolute_url(self):
         return reverse('content_detail', args=[self.pk])
 
+    def can_be_deleted_by(self, user):
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_staff or user.is_superuser:
+            return True
+        if self.creator_id == user.id:
+            return True
+        if self.organizer_author_id and self.organizer_author.user_id == user.id:
+            return True
+        if self.tournament_id:
+            if self.tournament.organizer and self.tournament.organizer.user_id == user.id:
+                return True
+            if self.tournament.co_organizers.filter(user=user, is_active=True).exists():
+                return True
+        if self.team_author_id:
+            if self.team_author.memberships.filter(player__user=user, role__in=['OWNER', 'CAPTAIN']).exists():
+                return True
+        return False
+
     @property
     def is_visible(self):
         return self.is_published and not self.is_removed
