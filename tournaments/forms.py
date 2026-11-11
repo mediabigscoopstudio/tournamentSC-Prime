@@ -119,13 +119,49 @@ class FixtureScheduleForm(forms.ModelForm):
                                                        '%Y-%m-%d %H:%M']
 
 
+class MultipleFileInput(forms.FileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('widget', MultipleFileInput(attrs={'accept': 'image/*'}))
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        single_file_clean = super().clean
+        if isinstance(data, (list, tuple)):
+            result = [single_file_clean(d, initial) for d in data]
+        else:
+            result = single_file_clean(data, initial)
+        return result
+
+
 class HighlightForm(forms.ModelForm):
+    photos = MultipleFileField(
+        required=False,
+        label='Upload Photos (one or more)',
+        help_text='Select one or more photos to include in this match highlight gallery.'
+    )
+
     class Meta:
         model = Highlight
         fields = ['title', 'description', 'image', 'youtube_url', 'best_performer',
                   'duration_seconds']
-        widgets = {'description': forms.Textarea(attrs={'rows': 3, 'maxlength': 800})}
-        labels = {'duration_seconds': 'Clip length (seconds)'}
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3, 'maxlength': 800}),
+            'best_performer': forms.TextInput(attrs={'placeholder': 'e.g. John Doe, Sarah Smith'}),
+        }
+        labels = {
+            'best_performer': 'Tag Player Name(s)',
+            'image': 'Main Cover Photo',
+            'duration_seconds': 'Clip length (seconds)',
+            'youtube_url': 'YouTube Video URL (optional)',
+        }
+        help_texts = {
+            'best_performer': 'Name(s) of player(s) featured in this highlight.',
+            'image': 'Primary photo shown on match cards and previews.',
+        }
 
     def clean_youtube_url(self):
         url = self.cleaned_data.get('youtube_url')

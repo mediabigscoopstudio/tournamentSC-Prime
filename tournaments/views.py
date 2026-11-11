@@ -18,7 +18,7 @@ from .emails import send_fixtures_created, send_player_welcome, send_tournament_
 from .forms import (FixtureScheduleForm, HighlightForm, IndividualEntryForm, TeamForm,
                     TournamentForm)
 from .models import (EventCategory, Fixture, FixtureParticipant, IndividualRegistration, ScoreEvent, Team,
-                     TeamMembership, Tournament, TournamentTeamEntry,
+                     TeamMembership, Tournament, TournamentTeamEntry, Highlight, HighlightImage,
                      FixtureRefereeAssignment, TournamentRefereeRegistration,
                      FixtureCommentatorAssignment, TournamentCommentatorRegistration,
                      TournamentCoOrganizer, TournamentCoOrganizerInvitation, MatchAuditLog)
@@ -2604,13 +2604,49 @@ def highlight_manage(request, slug, fixture_id):
         h.tournament = t
         h.fixture = fixture
         h.created_by = request.user
-        if request.POST.get('publish'):
-            h.published_at = h.published_at or timezone.now()
+        # Automatically mark published so updated highlights immediately reflect in the relatable match!
+        h.published_at = h.published_at or timezone.now()
         h.save()
-        messages.success(request, 'Highlights saved.')
+
+        # Handle multiple uploaded photos (one or more)
+        photos = request.FILES.getlist('photos')
+        if photos:
+            if not h.image:
+                h.image = photos[0]
+                h.save(update_fields=['image'])
+            current_order = h.gallery_images.count()
+            for idx, photo in enumerate(photos):
+                HighlightImage.objects.create(highlight=h, image=photo, order=current_order + idx)
+
+        # Handle deletion of selected gallery images
+        delete_ids = request.POST.getlist('delete_images')
+        if delete_ids:
+            h.gallery_images.filter(id__in=delete_ids).delete()
+
+        messages.success(request, 'Match highlights and photos updated.')
         return redirect('match_detail', slug=t.slug, pk=fixture.id)
-    return render(request, 'organizer/highlight.html',
-                  {'tournament': t, 'fixture': fixture, 'form': form})
+
+    # Collect available player names from this fixture for quick-tagging
+    available_players = []
+    for p in fixture.participants.select_related('player__user', 'team').all():
+        if p.name and p.name not in ('TBD', '—') and p.name not in available_players:
+            available_players.append(p.name)
+        if p.team:
+            for m in p.team.memberships.select_related('player__user').filter(roster_status='ACTIVE'):
+                pname = (m.player.user.get_full_name() or m.player.user.display_name) if m.player else m.display_name
+                if pname and pname not in available_players:
+                    available_players.append(pname)
+
+    existing_images = instance.gallery_images.all() if instance else []
+
+    return render(request, 'organizer/highlight.html', {
+        'tournament': t,
+        'fixture': fixture,
+        'form': form,
+        'instance': instance,
+        'existing_images': existing_images,
+        'available_players': available_players,
+    })
 
 
 # ======================================================================

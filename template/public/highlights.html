@@ -13,15 +13,21 @@
           <div class="hlcard__thumb {{ h.tournament.sport.sp_class }}">
             {% if h.image %}<img src="{{ h.image.url }}" alt="">
             {% else %}<svg class="ico sport"><use href="#{{ h.tournament.sport.icon_symbol }}"/></svg>{% endif %}
-            <span class="hlcard__play"><svg class="ico"><use href="#i-play"/></svg></span>
-            {% if h.duration_display %}<span class="hlcard__dur">{{ h.duration_display }}</span>{% endif %}
+            {% if h.youtube_url %}
+              <span class="hlcard__play" style="width:36px; height:36px;"><svg class="ico" style="width:16px;height:16px;"><use href="#i-play"/></svg></span>
+            {% endif %}
+            {% if h.duration_display %}
+              <span class="hlcard__dur">{{ h.duration_display }}</span>
+            {% elif h.all_images|length > 1 %}
+              <span class="hlcard__dur" style="background:rgba(15,23,42,0.85);">📷 {{ h.all_images|length }}</span>
+            {% endif %}
           </div>
           <div class="hlcard__body">
             <span class="tag {{ h.tournament.sport.sp_class }}">{{ h.tournament.sport.name }}</span>
             <div class="hlcard__title">{{ h.title }}</div>
             <div class="hlcard__meta">
               {{ h.tournament.name }} · {{ h.views_display }} view{{ h.view_count|pluralize }}
-              {% if h.best_performer %} · ⭐ {{ h.best_performer }}{% endif %}
+              {% if h.best_performer %} · 🏷️ {{ h.best_performer }}{% endif %}
             </div>
           </div>
         </a>

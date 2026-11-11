@@ -324,8 +324,21 @@
       <div class="hl-grid">
         {% for h in highlights %}
           <a class="hlcard" href="{% if h.fixture %}{{ h.fixture.get_absolute_url }}{% else %}#{% endif %}">
-            <div class="hlcard__thumb {{ tournament.sport.sp_class }}">{% if h.image %}<img src="{{ h.image.url }}" alt="">{% else %}<svg class="ico sport"><use href="#{{ tournament.sport.icon_symbol }}"/></svg>{% endif %}<span class="hlcard__play"><svg class="ico"><use href="#i-play"/></svg></span></div>
-            <div class="hlcard__body"><div class="hlcard__title">{{ h.title }}</div>{% if h.best_performer %}<div class="hlcard__meta">⭐ {{ h.best_performer }}</div>{% endif %}</div>
+            <div class="hlcard__thumb {{ tournament.sport.sp_class }}">
+              {% if h.image %}<img src="{{ h.image.url }}" alt="">{% else %}<svg class="ico sport"><use href="#{{ tournament.sport.icon_symbol }}"/></svg>{% endif %}
+              {% if h.youtube_url %}
+                <span class="hlcard__play" style="width:36px; height:36px;"><svg class="ico" style="width:16px;height:16px;"><use href="#i-play"/></svg></span>
+              {% endif %}
+              {% if h.duration_display %}
+                <span class="hlcard__dur">{{ h.duration_display }}</span>
+              {% elif h.all_images|length > 1 %}
+                <span class="hlcard__dur" style="background:rgba(15,23,42,0.85);">📷 {{ h.all_images|length }} photos</span>
+              {% endif %}
+            </div>
+            <div class="hlcard__body">
+              <div class="hlcard__title">{{ h.title }}</div>
+              {% if h.best_performer %}<div class="hlcard__meta" style="color:#0284c7; font-weight:700;">🏷️ {{ h.best_performer }}</div>{% endif %}
+            </div>
           </a>
         {% endfor %}
       </div>

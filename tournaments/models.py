@@ -853,6 +853,34 @@ class Highlight(TimeStamped):
             return f'{n / 1_000:.1f}k'.replace('.0k', 'k')
         return str(n)
 
+    @property
+    def all_images(self):
+        imgs = []
+        if self.image:
+            imgs.append(self.image)
+        for gi in self.gallery_images.all():
+            if gi.image and (not self.image or gi.image.name != self.image.name):
+                imgs.append(gi.image)
+        return imgs
+
+    @property
+    def tagged_player(self):
+        return self.best_performer
+
+
+class HighlightImage(TimeStamped):
+    """Multiple photos/images per highlight (one or more)."""
+    highlight = models.ForeignKey(Highlight, on_delete=models.CASCADE, related_name='gallery_images')
+    image = models.ImageField(upload_to='highlights/gallery/')
+    caption = models.CharField(max_length=200, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'Photo for {self.highlight.title}'
+
 
 class FixtureRefereeAssignment(models.Model):
     ROLE_CHOICES = [

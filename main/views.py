@@ -513,7 +513,17 @@ def match_detail(request, slug, pk):
                 tournament.organizer.user_id != request.user.id and not request.user.is_staff):
             from django.http import Http404
             raise Http404()
-    highlight = fixture.highlights.filter(published_at__isnull=False, is_removed=False).first()
+    can_manage_fixture = request.user.is_authenticated and (
+        tournament.organizer.user_id == request.user.id or
+        tournament.co_organizers.filter(user=request.user, is_active=True).exists() or
+        request.user.is_staff
+    )
+    match_highlights_qs = fixture.highlights.filter(is_removed=False)
+    if not can_manage_fixture:
+        match_highlights_qs = match_highlights_qs.filter(published_at__isnull=False)
+
+    match_highlights = list(match_highlights_qs.prefetch_related('gallery_images').order_by('-published_at', '-created_at'))
+    highlight = match_highlights[0] if match_highlights else None
     if highlight:
         # F() so concurrent viewers can't clobber each other's increment.
         Highlight.objects.filter(pk=highlight.pk).update(view_count=F('view_count') + 1)
@@ -720,6 +730,8 @@ def match_detail(request, slug, pk):
         'margin': margin,
         'is_final': is_final,
         'highlight': highlight,
+        'match_highlights': match_highlights,
+        'can_manage_fixture': can_manage_fixture,
         'events': fixture.events.all()[:30],
         'commentary_entries': commentary_entries,
         'active_commentators': active_commentators,

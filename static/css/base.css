@@ -390,9 +390,9 @@ section, .section{ padding-block:56px; }
 .hlcard__thumb{ --sp:var(--navy); position:relative; height:132px; background:linear-gradient(145deg, var(--sp), color-mix(in srgb,var(--sp) 55%, var(--navy))); display:grid; place-items:center; }
 .hlcard__thumb .ico.sport{ width:52px; height:52px; color:rgba(255,255,255,.28); stroke-width:1.1; }
 .hlcard__thumb img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-.hlcard__play{ position:absolute; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.95); color:var(--navy); display:grid; place-items:center; box-shadow:var(--shadow); transition:transform .25s var(--ease), background .25s, color .25s; }
-.hlcard:hover .hlcard__play{ transform:scale(1.1); background:var(--orange); color:#fff; }
-.hlcard__play .ico{ width:20px; height:20px; margin-left:2px; }
+.hlcard__play{ position:absolute; width:40px; height:40px; border-radius:50%; background:rgba(15,23,42,.72); color:#fff; display:grid; place-items:center; box-shadow:0 4px 12px rgba(0,0,0,.25); backdrop-filter:blur(4px); transition:transform .25s var(--ease), background .25s; }
+.hlcard:hover .hlcard__play{ transform:scale(1.08); background:var(--orange); color:#fff; }
+.hlcard__play .ico{ width:16px; height:16px; margin-left:2px; fill:currentColor; }
 .hlcard__dur{ position:absolute; bottom:10px; right:10px; font-family:var(--font-score); font-weight:600; font-size:11.5px; color:#fff; background:rgba(0,0,0,.42); padding:3px 8px; border-radius:6px; z-index:1; }
 .hlcard__body{ padding:14px 15px; }
 .hlcard__title{ font-family:var(--font-display); font-weight:700; font-size:14.5px; color:var(--navy); margin:9px 0 6px; line-height:1.25; }

@@ -1,19 +1,160 @@
 {% extends 'base.html' %}
-{% block title %}Highlights — {{ tournament.name }}{% endblock %}
+{% block title %}Highlights & Photos — {{ tournament.name }}{% endblock %}
 {% block content %}
-<section class="section wrap" style="max-width:640px">
-  <a href="{% url 'fixtures_manage' tournament.slug %}" class="dim">← All fixtures</a>
-  <h1 style="margin-top:12px">Publish highlights</h1>
-  <p class="muted">A short recap for {{ fixture.round_name|default:'this fixture' }}.
-    Publishing makes it public on the match page.</p>
+<section class="section wrap" style="max-width:720px">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+    <a href="{% url 'match_detail' tournament.slug fixture.id %}" class="dim">← Back to match</a>
+    <a href="{% url 'fixtures_manage' tournament.slug %}" class="dim">All fixtures</a>
+  </div>
+  
+  <h1 style="margin-top:4px">Match Highlights & Photos</h1>
+  <p class="muted">Recap, photo gallery and video highlights for <b>{{ fixture.round_name|default:'this fixture' }}</b> ({{ fixture.name }}).
+    Highlights appear publicly on the match page and tournament highlights reel.</p>
 
-  <form method="post" enctype="multipart/form-data" class="panel tblcard" style="margin-top:20px">
+  <form method="post" enctype="multipart/form-data" class="panel tblcard" style="margin-top:20px; padding:24px;">
     {% csrf_token %}
-    {% include 'partials/form.html' %}
-    <div class="row-flex" style="margin-top:14px">
-      <button class="btn btn-secondary" name="save" value="1" type="submit">Save draft</button>
-      <button class="btn btn-primary" name="publish" value="1" type="submit">Publish highlights</button>
+
+    <div style="display:flex; flex-direction:column; gap:18px;">
+      <!-- Title -->
+      <div>
+        <label for="id_title" style="display:block; font-weight:700; font-size:14px; margin-bottom:6px; color:#0f172a;">
+          Highlight Title <span style="color:#ef4444;">*</span>
+        </label>
+        <input type="text" name="title" id="id_title" value="{{ form.title.value|default:'' }}" required class="input" style="width:100%;" placeholder="e.g. Thrilling 4th Quarter Comeback & Game Winner">
+        {% if form.title.errors %}<div style="color:#ef4444; font-size:12px; margin-top:4px;">{{ form.title.errors.0 }}</div>{% endif %}
+      </div>
+
+      <!-- Description / Recap -->
+      <div>
+        <label for="id_description" style="display:block; font-weight:700; font-size:14px; margin-bottom:6px; color:#0f172a;">
+          Match Recap / Description
+        </label>
+        <textarea name="description" id="id_description" rows="3" class="input" style="width:100%;" placeholder="Summarize the key moments, deciding plays, or match excitement...">{{ form.description.value|default:'' }}</textarea>
+        {% if form.description.errors %}<div style="color:#ef4444; font-size:12px; margin-top:4px;">{{ form.description.errors.0 }}</div>{% endif %}
+      </div>
+
+      <!-- Tag Player Name -->
+      <div>
+        <label for="id_best_performer" style="display:block; font-weight:700; font-size:14px; margin-bottom:4px; color:#0f172a;">
+          🏷️ Tag Player Name(s)
+        </label>
+        <div style="font-size:12px; color:#64748b; margin-bottom:8px;">
+          Tag key player(s) or MVP featured in these photos and highlights.
+        </div>
+        <input type="text" name="best_performer" id="id_best_performer" value="{{ form.best_performer.value|default:'' }}" class="input" style="width:100%;" placeholder="e.g. John Doe, Sarah Smith">
+        {% if form.best_performer.errors %}<div style="color:#ef4444; font-size:12px; margin-top:4px;">{{ form.best_performer.errors.0 }}</div>{% endif %}
+
+        {% if available_players %}
+          <div style="margin-top:8px;">
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:#64748b; margin-bottom:5px;">
+              Quick-tag players from this match:
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              {% for p_name in available_players %}
+                <button type="button" class="btn btn-sm btn-secondary" onclick="addTaggedPlayer('{{ p_name|escapejs }}')"
+                        style="padding:3px 9px; font-size:12px; border-radius:999px; background:#f1f5f9; border:1px solid #cbd5e1; cursor:pointer;">
+                  + {{ p_name }}
+                </button>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Photo Upload Section (One or More Photos) -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
+        <h4 style="margin:0 0 8px 0; font-size:15px; font-weight:800; color:#0f172a;">
+          📸 Photos &amp; Gallery (One or More)
+        </h4>
+        <p style="font-size:12.5px; color:#64748b; margin:0 0 12px 0;">
+          Upload multiple photos to create a gallery for this match. You can select one or several images.
+        </p>
+
+        <!-- Multi-photo picker -->
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-weight:700; font-size:13px; margin-bottom:6px; color:#334155;">
+            Add Photos (select one or multiple):
+          </label>
+          <input type="file" name="photos" id="id_photos" multiple accept="image/*" class="input" style="width:100%; padding:8px; background:#fff;">
+          <small style="display:block; font-size:11.5px; color:#64748b; margin-top:4px;">
+            Supported formats: JPG, PNG, WEBP. You can hold Ctrl/Cmd to select multiple images.
+          </small>
+        </div>
+
+        <!-- Cover photo (optional individual override) -->
+        <div>
+          <label for="id_image" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px; color:#334155;">
+            Primary Cover Photo (optional):
+          </label>
+          {% if instance and instance.image %}
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+              <img src="{{ instance.image.url }}" alt="Cover" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1;">
+              <span style="font-size:12px; color:#64748b;">Current main photo</span>
+            </div>
+          {% endif %}
+          <input type="file" name="image" id="id_image" accept="image/*" class="input" style="width:100%; padding:8px; background:#fff;">
+        </div>
+
+        <!-- Existing Gallery Images -->
+        {% if existing_images %}
+          <div style="margin-top:16px; border-top:1px dashed #cbd5e1; padding-top:14px;">
+            <div style="font-weight:700; font-size:13px; color:#334155; margin-bottom:8px;">
+              Existing Gallery Photos ({{ existing_images|length }}):
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:10px;">
+              {% for gi in existing_images %}
+                <div style="position:relative; border-radius:8px; overflow:hidden; border:1px solid #cbd5e1; background:#fff;">
+                  <img src="{{ gi.image.url }}" alt="" style="width:100%; height:75px; object-fit:cover; display:block;">
+                  <label style="display:flex; align-items:center; justify-content:center; gap:4px; font-size:10px; color:#dc2626; padding:3px; background:#fff; cursor:pointer; font-weight:700; border-top:1px solid #e2e8f0;">
+                    <input type="checkbox" name="delete_images" value="{{ gi.id }}" style="margin:0;">
+                    <span>Delete</span>
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+            <small style="color:#64748b; font-size:11px; display:block; margin-top:6px;">Check 'Delete' on photos you wish to remove upon saving.</small>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Video & Duration (Optional) -->
+      <div style="display:grid; grid-template-columns:1fr 140px; gap:12px;">
+        <div>
+          <label for="id_youtube_url" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px; color:#0f172a;">
+            YouTube Video URL (optional)
+          </label>
+          <input type="url" name="youtube_url" id="id_youtube_url" value="{{ form.youtube_url.value|default:'' }}" class="input" style="width:100%;" placeholder="https://youtube.com/watch?v=...">
+          {% if form.youtube_url.errors %}<div style="color:#ef4444; font-size:12px; margin-top:4px;">{{ form.youtube_url.errors.0 }}</div>{% endif %}
+        </div>
+        <div>
+          <label for="id_duration_seconds" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px; color:#0f172a;">
+            Clip Length (s)
+          </label>
+          <input type="number" name="duration_seconds" id="id_duration_seconds" value="{{ form.duration_seconds.value|default:'' }}" class="input" style="width:100%;" placeholder="e.g. 120">
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:12px; padding-top:14px; border-top:1px solid #e2e8f0;">
+        <a href="{% url 'match_detail' tournament.slug fixture.id %}" class="btn btn-secondary" style="padding:9px 18px;">Cancel</a>
+        <button class="btn btn-primary" type="submit" style="padding:9px 24px; font-weight:700;">Save &amp; Update Highlights</button>
+      </div>
     </div>
   </form>
 </section>
+
+<script>
+function addTaggedPlayer(name) {
+  var input = document.getElementById('id_best_performer');
+  if (!input) return;
+  var current = input.value.trim();
+  if (!current) {
+    input.value = name;
+  } else {
+    var parts = current.split(',').map(function(s) { return s.trim(); });
+    if (parts.indexOf(name) === -1) {
+      input.value = current + ', ' + name;
+    }
+  }
+}
+</script>
 {% endblock %}

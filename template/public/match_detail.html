@@ -450,6 +450,12 @@
             Participants
           </button>
         {% endif %}
+        {% if match_highlights or can_manage_fixture %}
+          <button type="button" class="match-tab-btn" data-tab="match-highlights" id="tab-btn-highlights"
+                  style="padding:10px 18px; font-size:14px; font-weight:700; color:#64748b; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all 0.15s ease;">
+            📸 Highlights &amp; Photos {% if match_highlights %}<span style="background:#10b981; color:#fff; font-size:11px; font-weight:800; padding:1px 7px; border-radius:999px; margin-left:4px;">{{ match_highlights|length }}</span>{% endif %}
+          </button>
+        {% endif %}
       </div>
 
       <!-- 4. Tab Panels -->
@@ -732,10 +738,116 @@
         </div>
       {% endif %}
 
+      <!-- TAB PANEL: MATCH HIGHLIGHTS & PHOTOS -->
+      <div class="match-tab-panel" id="tab-panel-match-highlights" style="display:none; background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:24px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+          <h3 style="margin:0; font-size:18px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <span>📸</span> Match Highlights &amp; Photos
+          </h3>
+          {% if can_manage_fixture %}
+            <a href="{% url 'highlight_manage' tournament.slug fixture.id %}" class="btn btn-sm btn-secondary" style="border-radius:8px; font-weight:700;">
+              ✏️ Manage / Upload Photos
+            </a>
+          {% endif %}
+        </div>
+
+        {% if match_highlights %}
+          <div style="display:flex; flex-direction:column; gap:24px;">
+            {% for hl in match_highlights %}
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
+                  <div>
+                    <h4 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">{{ hl.title }}</h4>
+                    {% if hl.best_performer %}
+                      <div style="display:inline-flex; align-items:center; gap:5px; background:#eff6ff; color:#1d4ed8; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700; border:1px solid #bfdbfe; margin-top:6px;">
+                        🏷️ Tagged Player: <b>{{ hl.best_performer }}</b>
+                      </div>
+                    {% endif %}
+                  </div>
+                  {% if hl.created_at %}
+                    <span style="font-size:12px; color:#94a3b8; white-space:nowrap;">{{ hl.created_at|date:'M j, Y' }}</span>
+                  {% endif %}
+                </div>
+
+                {% if hl.description %}
+                  <p style="font-size:14px; color:#334155; line-height:1.6; margin:0 0 16px 0;">{{ hl.description }}</p>
+                {% endif %}
+
+                <!-- Gallery Grid of all images -->
+                {% if hl.all_images %}
+                  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; margin-bottom:14px;">
+                    {% for img in hl.all_images %}
+                      <div style="position:relative; aspect-ratio:4/3; border-radius:12px; overflow:hidden; border:1px solid #cbd5e1; background:#0f172a; cursor:pointer;" onclick="openImageLightbox('{{ img.url }}')">
+                        <img src="{{ img.url }}" alt="{{ hl.title }}" style="width:100%; height:100%; object-fit:cover; transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+
+                {% if hl.youtube_url %}
+                  <div style="margin-top:12px;">
+                    <a href="{{ hl.youtube_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
+                      <svg class="ico" style="width:14px; height:14px; fill:#ef4444;"><use href="#i-play"/></svg> Watch Video Clip
+                    </a>
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div style="text-align:center; padding:36px 16px; color:#64748b;">
+            <div style="font-size:36px; margin-bottom:10px;">📸</div>
+            <div style="font-size:15px; font-weight:700; color:#0f172a; margin-bottom:6px;">No highlights added yet</div>
+            <div style="font-size:13px; color:#64748b; max-width:360px; margin:0 auto 16px;">Photos and recaps from this match will appear here.</div>
+            {% if can_manage_fixture %}
+              <a href="{% url 'highlight_manage' tournament.slug fixture.id %}" class="btn btn-primary btn-sm" style="font-weight:700;">
+                + Add Highlights &amp; Photos
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+
     </div>
 
     <!-- ==================== RIGHT COLUMN (30% SIDEBAR) ==================== -->
     <div class="match-right-column" style="display:flex; flex-direction:column; gap:20px; min-width:0;">
+
+      {% if highlight %}
+        <!-- CARD 0: MATCH HIGHLIGHTS SPOTLIGHT -->
+        <div class="panel" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
+              <span>📸</span> Match Highlights
+            </h3>
+            <button type="button" onclick="switchMatchTab('match-highlights')" style="background:none; border:none; color:#10b981; font-size:12px; font-weight:700; cursor:pointer;">
+              View all ({{ match_highlights|length }}) →
+            </button>
+          </div>
+          {% if highlight.image %}
+            <div style="position:relative; aspect-ratio:16/9; border-radius:12px; overflow:hidden; border:1px solid #cbd5e1; background:#0f172a; margin-bottom:10px; cursor:pointer;" onclick="switchMatchTab('match-highlights')">
+              <img src="{{ highlight.image.url }}" alt="{{ highlight.title }}" style="width:100%; height:100%; object-fit:cover;">
+              {% if highlight.all_images|length > 1 %}
+                <span style="position:absolute; bottom:8px; right:8px; background:rgba(15,23,42,0.85); color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; backdrop-filter:blur(4px);">
+                  📷 {{ highlight.all_images|length }} photos
+                </span>
+              {% endif %}
+            </div>
+          {% endif %}
+          <div style="font-size:14px; font-weight:800; color:#0f172a; line-height:1.3; margin-bottom:4px;">{{ highlight.title }}</div>
+          {% if highlight.best_performer %}
+            <div style="font-size:11.5px; color:#1d4ed8; font-weight:700; margin-bottom:6px;">
+              🏷️ Tagged: {{ highlight.best_performer }}
+            </div>
+          {% endif %}
+          {% if highlight.description %}
+            <p style="font-size:12.5px; color:#64748b; line-height:1.45; margin:0 0 8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">{{ highlight.description }}</p>
+          {% endif %}
+          <button type="button" class="btn btn-secondary btn-sm" onclick="switchMatchTab('match-highlights')" style="width:100%; margin-top:6px; font-weight:700; font-size:12px; justify-content:center;">
+            Open Photo Gallery &amp; Recap
+          </button>
+        </div>
+      {% endif %}
 
       <!-- CARD 1: LIVE COMMENTARY PANEL (Exact Reference Match) -->
       <div class="panel pm-commentary" id="live-commentary-panel" style="background:#fff; border-radius:18px; border:1px solid #e2e8f0; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
@@ -1477,5 +1589,30 @@
       if (!sseActive && isAutoRefresh) syncNow();
     }, 3000);
   })();
+
+  function openImageLightbox(url) {
+    const modal = document.getElementById('highlightImageLightbox');
+    const img = document.getElementById('lightboxImage');
+    if (modal && img) {
+      img.src = url;
+      if (typeof modal.showModal === 'function') modal.showModal();
+      else modal.setAttribute('open', '');
+    }
+  }
+
+  function switchToHighlightsTab() {
+    switchMatchTab('match-highlights');
+    const panel = document.getElementById('tab-panel-match-highlights');
+    if (panel) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
   </script>
+
+  <dialog id="highlightImageLightbox" style="border:none; border-radius:16px; padding:0; max-width:92vw; max-height:92vh; background:rgba(15,23,42,0.96); box-shadow:0 25px 50px -12px rgba(0,0,0,0.6); backdrop-filter:blur(8px);">
+    <div style="position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
+      <button type="button" onclick="document.getElementById('highlightImageLightbox').close()" style="position:absolute; top:12px; right:12px; background:rgba(255,255,255,0.2); border:none; color:#fff; font-size:18px; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:10; transition:background 0.15s ease;" onmouseover="this.style.background='rgba(255,255,255,0.4)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">✕</button>
+      <img id="lightboxImage" src="" alt="Highlight" style="max-width:88vw; max-height:82vh; object-fit:contain; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    </div>
+  </dialog>
 {% endblock %}
