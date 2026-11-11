@@ -2166,43 +2166,77 @@ function openCreateModalWithType(type, ratio) {
 
 // Feed Post Delete Handler
 var postToDeleteId = null;
-function confirmDeleteFeedPost(postId, postTitle) {
-  postToDeleteId = postId;
-  var titleEl = document.getElementById('deleteFeedPostTitle');
-  if (titleEl) titleEl.textContent = postTitle ? '"' + postTitle + '"' : 'this post';
+
+function closeDeleteFeedModal() {
   var modal = document.getElementById('deleteFeedPostModal');
   if (modal) {
+    if (typeof modal.close === 'function') modal.close();
+    modal.removeAttribute('open');
+    modal.style.display = 'none';
+  }
+}
+
+function confirmDeleteFeedPost(postId, postTitle) {
+  postToDeleteId = postId;
+  // Close any open meatball menus
+  document.querySelectorAll('.feed-post-dropdown.is-open').forEach(function(el) {
+    el.classList.remove('is-open');
+  });
+
+  var inputEl = document.getElementById('deleteFeedPostIdInput');
+  if (inputEl) inputEl.value = postId;
+
+  var form = document.getElementById('deleteFeedPostForm');
+  if (form) form.action = '/content/' + postId + '/delete';
+
+  var titleEl = document.getElementById('deleteFeedPostTitle');
+  if (titleEl) titleEl.textContent = postTitle ? '"' + postTitle + '"' : 'this post';
+
+  var modal = document.getElementById('deleteFeedPostModal');
+  if (modal) {
+    modal.style.display = '';
     if (typeof modal.showModal === 'function') modal.showModal();
     else modal.setAttribute('open', '');
   }
 }
 
-document.getElementById('confirmDeleteFeedPostBtn')?.addEventListener('click', function() {
-  if (!postToDeleteId) return;
-  var btn = this;
-  btn.disabled = true;
-  btn.textContent = 'Deleting...';
-  
-  function getCookie(name) {
-    var match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return match ? match.pop() : '';
+function handleDeleteFeedPostSubmit(e) {
+  if (e) e.preventDefault();
+  var form = document.getElementById('deleteFeedPostForm');
+  var postId = (document.getElementById('deleteFeedPostIdInput')?.value) || postToDeleteId;
+  if (!postId || !form) return;
+
+  var btn = document.getElementById('confirmDeleteFeedPostBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
   }
 
-  fetch('/content/' + postToDeleteId + '/delete', {
+  var csrfToken = form.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+  var fd = new FormData(form);
+
+  fetch('/content/' + postId + '/delete', {
     method: 'POST',
     headers: {
-      'X-CSRFToken': getCookie('csrftoken'),
+      'X-CSRFToken': csrfToken,
       'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: fd
+  })
+  .then(function(res) {
+    if (res.ok) {
+      return res.json().catch(function() { return { success: true }; });
     }
-  }).then(function(res) {
-    return res.json();
-  }).then(function(data) {
-    var modal = document.getElementById('deleteFeedPostModal');
-    if (modal) modal.close();
-    btn.disabled = false;
-    btn.textContent = 'Delete';
+    throw new Error('Server returned status: ' + res.status);
+  })
+  .then(function(data) {
+    closeDeleteFeedModal();
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+    }
     if (data.success) {
-      var card = document.getElementById('post-' + postToDeleteId);
+      var card = document.getElementById('post-' + postId);
       if (card) {
         card.style.transition = 'opacity 0.3s ease, transform 0.3s ease, max-height 0.3s ease';
         card.style.opacity = '0';
@@ -2212,28 +2246,31 @@ document.getElementById('confirmDeleteFeedPostBtn')?.addEventListener('click', f
     } else {
       alert(data.message || 'Error deleting post.');
     }
-  }).catch(function() {
-    var modal = document.getElementById('deleteFeedPostModal');
-    if (modal) modal.close();
-    btn.disabled = false;
-    btn.textContent = 'Delete';
-    alert('An error occurred while deleting the post.');
+  })
+  .catch(function(err) {
+    console.warn('AJAX delete failed, falling back to form submit:', err);
+    form.action = '/content/' + postId + '/delete';
+    form.submit();
   });
-});
+}
 </script>
 
-<dialog id="deleteFeedPostModal" style="border:none; border-radius:14px; padding:22px; max-width:400px; box-shadow:0 20px 35px rgba(0,0,0,0.2); background:#fff;">
-  <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-    <span style="font-size:22px;">🗑️</span>
-    <h3 style="margin:0; font-size:17px; font-weight:800; color:#b91c1c;">Delete Post?</h3>
-  </div>
-  <p style="font-size:13.5px; line-height:1.5; color:#334155; margin:0 0 18px;">
-    Are you sure you want to delete <strong id="deleteFeedPostTitle">this post</strong>? This action cannot be undone and will permanently remove this content and its media.
-  </p>
-  <div style="display:flex; justify-content:flex-end; gap:8px;">
-    <button type="button" onclick="document.getElementById('deleteFeedPostModal').close()" class="btn btn-secondary btn-sm" style="padding:7px 14px; border-radius:6px; border:1px solid #cbd5e1; background:#f1f5f9; cursor:pointer;">Cancel</button>
-    <button type="button" id="confirmDeleteFeedPostBtn" class="btn btn-danger btn-sm" style="padding:7px 14px; border-radius:6px; background:#dc2626; color:#fff; border:none; font-weight:600; cursor:pointer;">Delete</button>
-  </div>
+<dialog id="deleteFeedPostModal" style="border:none; border-radius:14px; padding:22px; max-width:400px; box-shadow:0 20px 35px rgba(0,0,0,0.25); background:#fff;">
+  <form id="deleteFeedPostForm" method="post" action="" onsubmit="handleDeleteFeedPostSubmit(event)">
+    {% csrf_token %}
+    <input type="hidden" name="post_id" id="deleteFeedPostIdInput" value="">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+      <span style="font-size:22px;">🗑️</span>
+      <h3 style="margin:0; font-size:17px; font-weight:800; color:#b91c1c;">Delete Post?</h3>
+    </div>
+    <p style="font-size:13.5px; line-height:1.5; color:#334155; margin:0 0 18px;">
+      Are you sure you want to delete <strong id="deleteFeedPostTitle">this post</strong>? This action cannot be undone and will permanently remove this content and its media.
+    </p>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button type="button" onclick="closeDeleteFeedModal()" class="btn btn-secondary btn-sm" style="padding:7px 14px; border-radius:6px; border:1px solid #cbd5e1; background:#f1f5f9; cursor:pointer;">Cancel</button>
+      <button type="submit" id="confirmDeleteFeedPostBtn" class="btn btn-danger btn-sm" style="padding:7px 14px; border-radius:6px; background:#dc2626; color:#fff; border:none; font-weight:600; cursor:pointer;">Delete</button>
+    </div>
+  </form>
 </dialog>
 
 {% if user.is_authenticated %}
