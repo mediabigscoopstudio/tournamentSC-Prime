@@ -506,6 +506,8 @@ tr.qual td{ background:color-mix(in srgb,var(--green) 6%,#fff); }
 tr.qual .rk{ background:color-mix(in srgb,var(--green) 18%,#fff); color:var(--green); }
 tr.champ-row td{ background:color-mix(in srgb, #f59e0b 8%, #fff) !important; }
 tr.champ-row .rk{ background:#f59e0b !important; color:#fff !important; font-weight:800; }
+tr.runner-row td{ background:color-mix(in srgb, #94a3b8 14%, #fff) !important; }
+tr.runner-row .rk{ background:#94a3b8 !important; color:#fff !important; font-weight:800; }
 td.pts{ font-family:var(--font-score); font-weight:700; color:var(--green); text-align:right; }
 /* qualification legend under a standings table */
 .qnote{ display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:var(--muted); }

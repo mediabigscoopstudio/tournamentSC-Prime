@@ -371,7 +371,7 @@ def _detail_context(tournament):
                 if champion:
                     ctx['final_fixture'] = final_fixture
                     ctx['runner_up'] = next((p for p in final_fixture.participants.all() if p.id != champion.id), None)
-    elif tournament.format == C.FORMAT_ROUND_ROBIN:
+    elif tournament.format in (C.FORMAT_ROUND_ROBIN, C.FORMAT_SWISS):
         standings = list(tournament.standings.select_related('team', 'player__user').all())
         ctx['standings'] = standings
         if standings and fixtures.exists() and all(f.status in ('COMPLETED', 'CANCELLED') for f in fixtures):
