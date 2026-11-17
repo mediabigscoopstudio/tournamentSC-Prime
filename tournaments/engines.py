@@ -314,7 +314,10 @@ class BracketEngine(FormatEngine):
         tp, _ = FixtureParticipant.objects.get_or_create(fixture=target, slot=slot)
         tp.team = winner_participant.team
         tp.player = winner_participant.player
-        tp.label = '' if (winner_participant.team or winner_participant.player) else 'TBD'
+        # Account-less entrants (organizer-typed names, typical for singles
+        # badminton/pickleball) only carry a label, so keep it when advancing.
+        tp.label = '' if (winner_participant.team or winner_participant.player) \
+            else (winner_participant.label or 'TBD')
         tp.is_winner = None
         tp.score = None
         tp.save()
